@@ -3,6 +3,8 @@ from django.urls import path
 from . import views
 from .helpers.api import API
 
+api_full_path = API.get_api_full_path()
+
 urlpatterns = [
 
     # store
@@ -73,5 +75,11 @@ urlpatterns = [
     path('systems/<int:pk>/delete/', views.SystemDeleteView.as_view(), name='systems-delete'),
 
     # api
-    path(f'{API.get_api_full_path()}/warehouses/', views.api_warehouse_list, name='api-warehouses-list'),
+    # warehouse
+    path(f'{api_full_path}/warehouses/', views.api_warehouse_list, name='api-warehouses-list'),
+    path(f'{api_full_path}/warehouses/help/', views.api_warehouse_list_help, name='api-warehouses-list-help'),
+
+    # category
+    path(f'{api_full_path}/categories/', views.api_category_list, name='api-categories-list'),
+    path(f'{api_full_path}/categories/help/', views.api_category_list_help, name='api-categories-list-help'),
 ]

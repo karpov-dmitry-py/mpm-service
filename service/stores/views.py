@@ -20,6 +20,7 @@ from django.shortcuts import render
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
+from pip._internal.resolution.resolvelib.requirements import ExplicitRequirement
 
 from .models import Store
 from .models import StoreProperty
@@ -1629,10 +1630,25 @@ class SystemDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return context
 
 
-# API
+# api
 
-# Warehouse
-
+# warehouse
 @require_GET
 def api_warehouse_list(request):
-    return {'a': 100}
+    return API().get_warehouse_list(request)
+
+
+@require_GET
+def api_warehouse_list_help(request):
+    return API().get_warehouse_list_help()
+
+
+# category
+@require_GET
+def api_category_list(request):
+    return API().get_category_list(request)
+
+
+@require_GET
+def api_category_list_help(request):
+    return API().get_category_list_help()
