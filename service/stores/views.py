@@ -49,6 +49,7 @@ from .helpers.common import is_valid_supplier_choice
 from .helpers.common import get_supplier_error
 
 from .helpers.xls_processer import ExcelProcesser
+from .helpers.api import API
 
 from .forms import CreateStoreForm
 from .forms import CreateGoodsCategoryForm
@@ -359,10 +360,6 @@ def _get_supplier_warehouse_type_id():
     return rows[0].pk
 
 
-def _get_store_api_url(store_id):
-    return f'{BASE_URL}/api/v1/stores/{store_id}'
-
-
 def _special_attrs():
     _dict = {
         'Покупки.Yandex.Market': [
@@ -379,6 +376,10 @@ def _get_pages_list(page_obj):
 def _get_model_list_title(model):
     # noinspection PyProtectedMember
     return model._meta.verbose_name_plural
+
+
+def _get_store_api_url(store_id):
+    return f'{BASE_URL}/{API.get_api_full_path()}/stores/{store_id}'
 
 
 # STORE
@@ -1626,3 +1627,12 @@ class SystemDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Удаление учетной системы'
         return context
+
+
+# API
+
+# Warehouse
+
+@require_GET
+def api_warehouse_list(request):
+    return {'a': 100}
