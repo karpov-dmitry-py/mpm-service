@@ -1,0 +1,48 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid mb-5" style="width: 70%;">
+    <legend class="border-bottom mb-4">Просмотр поставщика</legend>
+    <dl class="row">
+        <dt class="col-sm-3">ID</dt>
+        <dd class="col-sm-9 mb-3">{{ item.id }}</dd>
+
+        <dt class="col-sm-3">Наименование</dt>
+        <dd class="col-sm-9 mb-3">{{ item.name }}</dd>
+
+        <dt class="col-sm-3">ИНН</dt>
+        <dd class="col-sm-9 mb-3">{% if item.tin %} {{ item.tin }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Контактное лицо</dt>
+        <dd class="col-sm-9 mb-3">{% if item.contact %} {{ item.contact }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">E-mail</dt>
+        <dd class="col-sm-9 mb-3">{% if item.email %} {{ item.email }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Телефон</dt>
+        <dd class="col-sm-9 mb-3">{% if item.phone %} {{ item.phone }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Описание</dt>
+        <dd class="col-sm-9 mb-3">{% if item.description %} {{ item.description }} {% else %} - {% endif %}
+        </dd>
+    </dl>
+
+    <a href="{% url 'suppliers-update' item.id %}" class="btn btn-primary">Изменить</a>
+    <a href="{% url 'suppliers-delete' item.id %}" class="btn btn-secondary">Удалить</a>
+
+    <!-- warehouses ++ -->
+    <dt class="mt-4 mb-3">Склады поставщика (всего: {{ item.get_warehouses|length }})</dt>
+    {% if item.get_warehouses %}
+    <dl>
+        {% for wh in item.get_warehouses %}
+        <dd>
+            <a href="{% url 'warehouses-detail' wh.id %}">{{ wh.name }}</a>
+        </dd>
+        {% endfor %}
+    </dl>
+    {% endif %}
+    <a href="{% url 'warehouses-add' %}?sid={{ item.id }}" class="btn btn-primary mb-5">Создать склад</a>
+    <!-- warehouses -- -->
+
+</div>
+{% endblock content %}

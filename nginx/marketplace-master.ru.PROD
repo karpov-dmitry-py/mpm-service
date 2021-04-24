@@ -1,0 +1,71 @@
+server {
+	server_name marketplace-master.ru www.marketplace-master.ru;
+	charset off;
+	disable_symlinks if_not_owner from=$root_path;
+	include /etc/nginx/vhosts-includes/*.conf;
+	include /etc/nginx/vhosts-resources/marketplace-master.ru/*.conf;
+	access_log /var/www/httpd-logs/marketplace-master.ru.access.log;
+	error_log /var/www/httpd-logs/marketplace-master.ru.error.log notice;
+	ssi on;
+	set $root_path /var/www/www-root/data/www/marketplace-master.ru;
+	root $root_path;
+	listen 176.99.11.212:80;
+	listen [2a00:f940:2:4:2::2270]:80;
+	location / {
+		location ~* ^.+\.(jpg|jpeg|gif|png|svg|js|css|mp3|ogg|mpe?g|avi|zip|gz|bz2?|rar|swf)$ {
+			try_files $uri $uri/ @fallback;
+		}
+		location / {
+			try_files /does_not_exists @fallback;
+		}
+	}
+	location @fallback {
+		proxy_pass http://127.0.0.1:8001;
+		proxy_redirect http://127.0.0.1:8001 /;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+		proxy_set_header X-Forwarded-Port $server_port;
+		access_log off;
+	}
+}
+server {
+	server_name marketplace-master.ru www.marketplace-master.ru;
+	#ssl_certificate "/var/www/httpd-cert/www-root/marketplace-master.ru.crtca";
+	ssl_certificate "/etc/ssl/marketplace-master.ru.crt";
+	#ssl_certificate_key "/var/www/httpd-cert/www-root/marketplace-master.ru.key";
+	ssl_certificate_key "/etc/ssl/marketplace-master.ru.key";
+	ssl_ciphers EECDH:+AES256:-3DES:RSA+AES:!NULL:!RC4;
+	ssl_prefer_server_ciphers on;
+	ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+	add_header Strict-Transport-Security "max-age=31536000;";
+	ssl_dhparam /etc/ssl/certs/dhparam4096.pem;
+	charset off;
+	disable_symlinks if_not_owner from=$root_path;
+	include /etc/nginx/vhosts-includes/*.conf;
+	include /etc/nginx/vhosts-resources/marketplace-master.ru/*.conf;
+	access_log /var/www/httpd-logs/marketplace-master.ru.access.log;
+	error_log /var/www/httpd-logs/marketplace-master.ru.error.log notice;
+	ssi on;
+	set $root_path /var/www/www-root/data/www/marketplace-master.ru;
+	root $root_path;
+	listen 176.99.11.212:443 ssl;
+	listen [2a00:f940:2:4:2::2270]:443 ssl;
+	location / {
+		location ~* ^.+\.(jpg|jpeg|gif|png|svg|js|css|mp3|ogg|mpe?g|avi|zip|gz|bz2?|rar|swf)$ {
+			try_files $uri $uri/ @fallback;
+		}
+		location / {
+			try_files /does_not_exists @fallback;
+		}
+	}
+	location @fallback {
+		proxy_pass http://127.0.0.1:8001;
+		proxy_redirect http://127.0.0.1:8001 /;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+		proxy_set_header X-Forwarded-Port $server_port;
+		access_log off;
+	}
+}

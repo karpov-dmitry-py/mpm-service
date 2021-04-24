@@ -1,0 +1,33 @@
+{% extends 'users/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="container-fluid" style="width: 65%;">
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-4">Редактирование поставщика</legend>
+            {{ form|crispy }}
+        </fieldset>
+
+        <!-- warehouses ++ -->
+        <dt class="mb-3">Склады поставщика (всего: {{ item.get_warehouses|length }})</dt>
+        {% if item.get_warehouses %}
+        <dl>
+            {% for wh in item.get_warehouses %}
+            <dd>
+                <a href="{% url 'warehouses-detail' wh.id %}">{{ wh.name }}</a>
+            </dd>
+            {% endfor %}
+        </dl>
+        {% endif %}
+        <a href="{% url 'warehouses-add' %}?sid={{ item.id }}" class="btn btn-primary mb-4">Создать склад</a>
+        <!-- warehouses -- -->
+
+        <div class="form-group mb-5">
+            <button class="btn btn-success" type="submit">Сохранить изменения</button>
+        </div>
+    </form>
+</div>
+<script type="text/javascript" src="{% static 'stores/js/update_supplier.js' %}"></script>
+{% endblock content %}

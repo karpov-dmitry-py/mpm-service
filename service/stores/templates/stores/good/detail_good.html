@@ -1,0 +1,54 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container" style="width: 80%;">
+    <!--suppress HtmlUnknownTag -->
+    <legend class="border-bottom mb-4" style="margin-top: .5rem;">Просмотр товара <strong>{{ item }}</strong></legend>
+    <dl class="row">
+        <dt class="col-sm-3">ID</dt>
+        <dd class="col-sm-9 mb-4">{{ item.id }}</dd>
+
+        <dt class="col-sm-3">Код в основной учетной системе</dt>
+        <dd class="col-sm-9 mb-5">{{ item.sku }}</dd>
+
+        <dt class="col-sm-3">Артикул</dt>
+        <dd class="col-sm-9 mb-4">{% if item.article %} {{ item.article }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Наименование</dt>
+        <dd class="col-sm-9 mb-4">{{ item.name }}</dd>
+
+        <dt class="col-sm-3">Описание</dt>
+        <dd class="col-sm-9 mb-4">{% if item.description %} {{ item.description }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Бренд</dt>
+        <dd class="col-sm-9 mb-4">{% if item.brand %} {{ item.brand }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Категория</dt>
+        <dd class="col-sm-9 mb-4">{% if item.category %} {{ item.category }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Вес, кг</dt>
+        <dd class="col-sm-9 mb-4">{% if item.weight %} {{ item.weight }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Ширина упаковки, см</dt>
+        <dd class="col-sm-9 mb-4">{% if item.pack_width %} {{ item.pack_width }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Длина упаковки, см</dt>
+        <dd class="col-sm-9 mb-4">{% if item.pack_length %} {{ item.pack_length }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Высота упаковки, см</dt>
+        <dd class="col-sm-9 mb-4">{% if item.pack_height %} {{ item.pack_height }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Штрихкод</dt>
+        <dd class="col-sm-9 mb-4">{% if item.barcode %} {{ item.barcode }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Дата создания</dt>
+        <dd class="col-sm-9 mb-4">{{ item.date_created|date:"d.m.Y H:i:s (e)" }}</dd>
+
+        <dt class="col-sm-3">Дата изменения</dt>
+        <dd class="col-sm-9 mb-4">{{ item.date_updated|date:"d.m.Y H:i:s (e)" }}</dd>
+    </dl>
+    <a href="{% url 'goods-update' item.id %}" class="btn btn-primary">Изменить</a>
+    <a href="{% url 'goods-delete' item.id %}" class="btn btn-secondary">Удалить</a>
+    <div class="mb-5"></div>
+</div>
+{% endblock content %}

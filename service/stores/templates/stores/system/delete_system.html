@@ -1,0 +1,23 @@
+{% extends 'users/base.html' %}
+{% block content %}
+    <div class="container" style="width: 70%;">
+        <form method="post">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Удаление учетной системы</legend>
+                <div>Вы действительно хотите УДАЛИТЬ учетную систему
+                    <strong>"{{ object.name }}"</strong><br>
+                     <span style="text-decoration: underline;">
+                         и УДАЛИТЬ все связанные данные (логи обменов с системой и др.)
+                     </span>?
+                </div>
+            </fieldset>
+            <div class="form-group">
+                <a class="btn btn-success" href="{% url 'systems-list' %}">Отмена</a>
+                <button class="btn btn-danger" type="submit">
+                    Да, УДАЛИТЬ учетную систему "{{ object.name }}" и УДАЛИТЬ все связанные данные!
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock content %}

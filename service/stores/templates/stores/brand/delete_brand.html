@@ -1,0 +1,16 @@
+{% extends 'users/base.html' %}
+{% block content %}
+    <div class="container" style="width: 70%;">
+        <form method="post">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Удаление бренда</legend>
+                <div>Вы действительно хотите УДАЛИТЬ бренд <strong>"{{ object.name }}"</strong> ?</div>
+            </fieldset>
+            <div class="form-group">
+                <a class="btn btn-success" href="{% url 'brands-list' %}">Отмена</a>
+                <button class="btn btn-danger" type="submit">Да, УДАЛИТЬ БРЕНД "{{ object.name }}"</button>
+            </div>
+        </form>
+    </div>
+{% endblock content %}

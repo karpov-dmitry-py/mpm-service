@@ -1,0 +1,19 @@
+{% extends 'users/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="container-fluid" style="width: 65%;">
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-4">Редактирование склада</legend>
+            {{ form|crispy }}
+        </fieldset>
+    <div class="form-group mb-5">
+        <button id="btn-submit" class="btn btn-success" type="submit">Сохранить изменения</button>
+    </div>
+    </form>
+
+</div>
+<script type="text/javascript" src="{% static 'stores/js/update_warehouse.js' %}"></script>
+{% endblock content %}

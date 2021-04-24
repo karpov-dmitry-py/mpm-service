@@ -1,0 +1,17 @@
+{% extends 'users/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="container" style="width: 70%;">
+        <form method="post">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Редактирование бренда</legend>
+                {{ form|crispy }}
+            </fieldset>
+            <div class="form-group mb-4">
+                <button class="btn btn-success" type="submit">Сохранить изменения</button>
+            </div>
+        </form>
+</div>
+{% endblock content %}

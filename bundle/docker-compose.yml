@@ -1,0 +1,26 @@
+version: '3'
+services:
+  pg:
+    image: postgres:latest
+    container_name: mpm_service_pg_container
+    environment:
+      - POSTGRES_PASSWORD=srvc_pswd
+      - POSTGRES_DB=srvc_db
+      - POSTGRES_USER=srvc_user
+    network_mode: "host"
+    volumes:
+#      - /home/dkarpov/projects/self/service/db:/var/lib/postgresql/data
+      - /home/dockeruser/service/db:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+  app:
+    container_name: mpm_service_app_container
+    image: mpm_service_app:latest
+    depends_on:
+      - pg
+    network_mode: "host"
+    volumes:
+      - /tmp:/tmp
+    ports:
+      - "127.0.0.1:8001:8001"

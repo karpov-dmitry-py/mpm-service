@@ -1,0 +1,29 @@
+{% extends 'users/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="container" style="width: 80%;">
+    {% if filename %}
+    <div class="mb-4" style="margin-top: 2rem;">
+        <a href="/goods/batch-upload-success-file/{{ filename }}">
+            <h4>Скачать результат загрузки</h4>
+        </a>
+    </div>
+    {% endif%}
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Загрузка товаров из файла</legend>
+                {{ form|crispy }}
+            </fieldset>
+            <div class="form-group mb-4">
+                <button class="btn btn-success" type="submit">Загрузить файл</button>
+            </div>
+        </form>
+        <div class="muted-text">
+            <a target="_blank" href="https://docs.google.com/spreadsheets/d/1Kfs6CIoknCZsQY8TWuvAv6KPu8durTDw/edit#gid=2111662174">
+                Шаблон для загрузки
+            </a>
+        </div>
+</div>
+{% endblock content %}

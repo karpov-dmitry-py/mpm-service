@@ -1,0 +1,18 @@
+{% extends 'users/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="container-fluid" style="width: 70%;">
+        <form method="post">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Создание склада</legend>
+                {{ form|crispy }}
+            </fieldset>
+            <div class="form-group mb-4">
+                <button class="btn btn-success" type="submit">Создать склад</button>
+            </div>
+        </form>
+</div>
+<script type="text/javascript" src="{% static 'stores/js/add_warehouse.js' %}"></script>
+{% endblock content %}

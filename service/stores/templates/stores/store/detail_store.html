@@ -1,0 +1,44 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid" style="width: 70%;">
+    <legend class="border-bottom mb-4">Просмотр магазина</legend>
+    <h5 class="border-bottom mb-3">Основные данные</h5>
+    <dl class="row">
+        <dt class="col-sm-3">ID</dt>
+        <dd class="col-sm-9 mb-3">{{ item.id }}</dd>
+
+        <dt class="col-sm-3">Наименование</dt>
+        <dd class="col-sm-9 mb-3">{{ item.name }}</dd>
+
+        <dt class="col-sm-3">Тип</dt>
+        <dd class="col-sm-9 mb-3">{{ item.store_type }}</dd>
+
+        <dt class="col-sm-3">Маркетплейс</dt>
+        <dd class="col-sm-9 mb-3">{{ item.marketplace }}</dd>
+
+        <dt class="col-sm-3">Статус</dt>
+        <dd class="col-sm-9 mb-3">{{ item.status }}</dd>
+
+        <dt class="col-sm-3">Описание</dt>
+        <dd class="col-sm-9 mb-3">{% if item.description %} {{ item.description }} {% else %}Не заполнено значение{% endif %}
+        </dd>
+    </dl>
+    <h5 class="border-bottom mb-3">Настройки интеграции c маркетплейсом {{ marketplace }}</h5>
+    {% if props %}
+    <dl class="row">
+        {% for prop in props %}
+        <dt class="col-sm-3">
+            <div class="card-title mb-1">{{ prop.attr }}</div>
+            <div style="font-size: 0.9rem; font-weight: normal;" class="card-subtitle mb-4 text-muted">{{ prop.help }}
+            </div>
+        </dt>
+        <dd class="col-sm-9">{{ prop.value }}</dd>
+        {% endfor %}
+    </dl>
+    {% endif %}
+    <a href="{% url 'stores-update' item.id %}" class="btn btn-primary">Изменить</a>
+    <a href="{% url 'stores-delete' item.id %}" class="btn btn-secondary">Удалить</a>
+    <div class="mb-5"></div>
+</div>
+{% endblock content %}

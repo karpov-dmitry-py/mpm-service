@@ -1,0 +1,14 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'stores/css/list_categories.css' %}">
+<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
+<div class="container-fluid" style="width: 80%;">
+    <a class="btn btn btn-success mb-3" style="margin-top: 1rem; margin-left: 35px;" href="{% url 'categories-add' %}">Создать категорию</a>
+    <legend class="mb-4" style="margin-left: 35px;">Мои категории товаров (всего {{ items_count }}):</legend>
+    <div id="categories_json" style="display: none;" class="mb-5">
+        {{ items }}
+    </div>
+</div>
+<script src="{% static 'stores/js/list_categories.js' %}"></script>
+{% endblock content %}

@@ -1,0 +1,19 @@
+{% extends 'users/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="container" style="width: 80%;">
+        <form method="post">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Создание товара</legend>
+                {{ form|crispy }}
+            </fieldset>
+            <div class="form-group mb-4">
+                <button class="btn btn-success" type="submit">Создать товар</button>
+            </div>
+        </form>
+        <div id="categories_list" style="display: none;">{{ categories_list }}</div>
+</div>
+<script type="text/javascript" src="{% static 'stores/js/add_good.js' %}"></script>
+{% endblock content %}

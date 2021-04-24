@@ -1,0 +1,20 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="container" style="width: 80%;">
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-4" style="margin-top: 10px">Редактирование товара</legend>
+            {{ form|crispy }}
+        </fieldset>
+        <div class="form-group mb-5">
+            <button class="btn btn-success" type="submit">Сохранить изменения</button>
+        </div>
+    </form>
+    <div id="categories_list" style="display: none;">{{ categories_list }}</div>
+    <div id="category_id" style="display: none;">{{ category_id }}</div>
+</div>
+<script type="text/javascript" src="{% static 'stores/js/update_good.js' %}"></script>
+{% endblock content %}

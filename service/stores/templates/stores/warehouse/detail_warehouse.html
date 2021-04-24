@@ -1,0 +1,55 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid mb-5" style="width: 70%;">
+    <legend class="border-bottom mb-4">Просмотр склада</legend>
+    <dl class="row">
+        <dt class="col-sm-3">Активность</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.active %}
+            <span style="font-size: 0.9rem;">&#9989;</span>
+            {% else %} - {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">ID</dt>
+        <dd class="col-sm-9 mb-3">{{ item.id }}</dd>
+
+        <dt class="col-sm-3">Наименование</dt>
+        <dd class="col-sm-9 mb-3">{{ item.name }}</dd>
+
+        <dt class="col-sm-3">Магазин</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.get_stores %}
+            <dl>
+                {% for store in item.get_stores %}
+                <dd>
+                    <a href="{% url 'stores-detail' store.id %}">{{ store.name }}</a>
+                </dd>
+                {% endfor %}
+            </dl>
+            {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">Тип</dt>
+        <dd class="col-sm-9 mb-3">{{ item.kind }}</dd>
+
+        <dt class="col-sm-3">Поставщик</dt>
+        <dd class="col-sm-9 mb-3">{% if item.supplier %}
+            <a href="{% url 'suppliers-detail' item.supplier.id %}">{{ item.supplier.name }}</a>
+            {% else %} - {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">Символьный код</dt>
+        <dd class="col-sm-9 mb-3">{% if item.code %} {{ item.code }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Приоритет</dt>
+        <dd class="col-sm-9 mb-3">{% if item.priority %} {{ item.priority }} {% else %} - {% endif %}</dd>
+
+        <dt class="col-sm-3">Описание</dt>
+        <dd class="col-sm-9 mb-3">{% if item.description %} {{ item.description }} {% else %} - {% endif %}
+        </dd>
+    </dl>
+    <a href="{% url 'warehouses-update' item.id %}" class="btn btn-primary">Изменить</a>
+    <a href="{% url 'warehouses-delete' item.id %}" class="btn btn-secondary">Удалить</a>
+</div>
+{% endblock content %}

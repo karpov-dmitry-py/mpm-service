@@ -1,0 +1,44 @@
+{% extends 'users/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="container-fluid" style="width: 70%;">
+        <form method="post" action={% url 'stores-add' %}>
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Создание магазина</legend>
+                <h5 class="border-bottom mb-3">Основные данные</h5>
+                {{ form|crispy }}
+                <div id="settings-placeholder"></div>
+            </fieldset>
+            <div class="form-group mb-4">
+                <button class="btn btn-success" type="submit">Создать магазин</button>
+            </div>
+        </form>
+        {% for marketplace, rows in props.items %}
+            <div id={{ marketplace }} class="marketplace-block" style="display: none;">
+                <h5 class="border-bottom mb-3" style="margin-top: 2.5rem;">Настройки интеграции c маркетплейсом {{ marketplace }}</h5>
+                {% for row in rows %}
+                    <div id={{ row.attr }} class="form-group">
+                        {% if row.mandatory %}
+                            <label for={{ row.attr }} class="requiredField">
+                                {{ row.attr }}<span class="asteriskField">*</span>
+                            </label>
+                            <div style="font-size: 0.9rem; font-weight: normal;" class="card-subtitle mb-1 text-muted">{{ row.help }}</div>
+                            <div>
+                                <input type="text" name={{ row.attr }} maxlength="200" class="textinput textInput form-control" required="" id={{ row.attr }}>
+                            </div>
+                        {% else %}
+                            <label for={{ row.attr }}>{{ row.attr }}</label>
+                            <div style="font-size: 0.9rem; font-weight: normal;" class="card-subtitle mb-1 text-muted">{{ row.help }}</div>
+                            <div>
+                                <input type="text" name={{ row.attr }} maxlength="200" class="textinput textInput form-control" id={{ row.attr }}>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+<script src="{% static 'stores/js/add_store.js' %}"></script>
+{% endblock content %}

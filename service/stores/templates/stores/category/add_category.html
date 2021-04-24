@@ -1,0 +1,21 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block content %}
+
+<div class="container" style="width: 75%;">
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom" style="margin-top: 10px; margin-bottom: 20px;">Создание категории</legend>
+            {{ form|crispy }}
+        </fieldset>
+        <div class="form-group">
+            <button class="btn btn-success" type="submit">Создать категорию</button>
+        </div>
+    </form>
+    <div id="parent_select_list" style="display: none;">{{ parent_select_list }}</div>
+
+</div>
+<script type="text/javascript" src="{% static 'stores/js/add_category.js' %}"></script>
+{% endblock content %}

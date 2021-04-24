@@ -1,0 +1,32 @@
+{% extends 'users/base.html' %}
+{% block content %}
+<div class="container" style="width: 70%;">
+    <legend class="border-bottom mb-4">Просмотр аккаунта:</legend>
+    <table class="table table-hover">
+        <thead class="thead-dark">
+        <tr>
+            <th>№</th>
+            <th>Поле</th>
+            <th>Значение</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>1</td>
+            <td>ID учетной записи</td>
+            <td>{{ user.id }}</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Имя пользователя</td>
+            <td>{{ user.username }}</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Email</td>
+            <td>{{ user.email }}</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

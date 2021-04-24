@@ -1,0 +1,22 @@
+server {
+    listen 80;
+    listen [::]:80;
+
+    listen 443;
+	listen [::]:443;
+
+    server_name mpm_service_site;
+
+    # max upload size
+    client_max_body_size 75M;
+
+    location / {
+        proxy_pass http://localhost:8001;
+        include    proxy_params;
+    }
+
+    location = /favicon.ico {
+        access_log      off;
+        log_not_found   off;
+    }
+}

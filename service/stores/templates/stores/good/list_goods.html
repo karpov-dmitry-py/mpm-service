@@ -1,0 +1,245 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="container-fluid">
+    <div style="display: none;" id="brands_filter_source">{{ brands_filter_source }}</div>
+    <a class="btn btn-success mb-3" style="margin-top: 1rem;" href="{% url 'goods-add' %}">Создать товар</a>
+    <a class="btn btn-light mb-3" style="margin-top: 1rem;" href="{% url 'goods-batch-upload' %}">Загрузить из файла</a>
+    <a class="btn btn-light mb-3" style="margin-top: 1rem;" href="{% url 'goods-export' %}?{{ page_filter }}">Выгрузить в файл</a>
+    <legend class="border-bottom mb-4">Мои товары (<small>всего {{ items_count }}, с учетом фильтров {{ filtered_items_count }}):</small>
+    </legend>
+    <div>
+        <!--pagination {    -->
+        <nav aria-label="detailed pagination">
+  <ul class="pagination pagination-sm justify-content-center flex-wrap mb-4">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{{ page_filter }}">Предыдущая</a></li>
+        {% else %}
+        <li class="page-item disabled">
+          <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Предыдущая</a>
+        </li>
+        {% endif %}
+        {% for page_num in pages %}
+          <li class="page-item">
+            {% if page_num == page_obj.number %}
+              <a style="background-color: #87CEEB;" class="page-link" href="?page={{ page_num }}{{ page_filter }}">
+                  <span style="color: white"><strong>{{ page_num }}</strong></span>
+                {% else %}
+                    <a class="page-link" href="?page={{ page_num }}{{ page_filter }}">
+                    {{ page_num }}
+                {% endif %}
+            </a>
+          </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{{ page_filter }}">Следующая</a></li>
+        {% else %}
+        <li class="page-item disabled">
+          <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Следующая</a>
+        </li>
+        {% endif %}
+      </ul>
+</nav>
+        <!--pagination }    -->
+
+        <div class="container-fluid" style="width: 100%; margin-right: 50px;">
+            <div class="row" style="margin-right: 15px;">
+                <div class="col-10 mb-2" style="padding-left: 0rem;">
+                    <table>
+                        <tr>
+<!--                            BRANDS FILTER LIST -->
+                            <td>
+                                <div>
+                                    <a href="#" data-toggle="dropdown" class="dropdown-toggle btn btn-light">
+                                        Фильтр по брендам<b class="caret"></b>
+                                    </a>
+                                    <ul style="height: 0px;" class="dropdown-menu list-group-flush" id="brand-filter-list" name="brand-filter-list">
+                                        <li class="list-group-item" style="margin-left:5px;">
+                                            <input type="checkbox" value="111" class="form-check-input" id="brand_1">
+                                            <label class="form-check-label" for="brand_1">
+                                                Бренд № 1
+                                            </label>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </td>
+<!--                            CATEGORIES FILTER LIST -->
+                            <td>
+                                <div>
+                                    <a style="margin-left: 10px;" data-toggle="dropdown" class="dropdown-toggle btn btn-light">
+                                        Фильтр по категориям<b class="caret"></b>
+                                    </a>
+                                    <ul style="height: 0px;" class="dropdown-menu list-group-flush" id="category-filter-list" name="category-filter-list">
+                                        <li class="list-group-item" style="margin-left:5px;">
+                                            <input type="checkbox" value="2" class="form-check-input" id="category_1">
+                                            <label class="form-check-label" for="category_1">
+                                                Катетория № 1
+                                            </label>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </td>
+                            <td>
+                            <div>
+<!--                        FILTERS FORM-->
+                            <form class="form-inline" method="get" style="mb-0">
+                                <input type="text" style="display: none;" name="brands" id="brands" class="form-control mr-sm-2">
+                                <input type="text" style="display: none;" name="cats" id="cats" class="form-control mr-sm-2">
+                                <button id="apply-filters" type="submit" class="btn btn-light">Применить фильтры</button>
+                            </form>
+                            </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                </div>
+                <div class="col-2">
+                                <a style="padding-right: 5px;" class="btn btn-light dropdown-toggle" href="#"
+                                   id="navbarDropdown" role="button"
+                                   data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    Действия с выделенными товарами
+                                </a>
+                                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                    <a class="dropdown-item" data-toggle="modal" data-target="#brandModal" href="#">Установить
+                                        бренд</a>
+                                    <a class="dropdown-item" data-toggle="modal" data-target="#categoryModal"
+                                       href="#">Установить категорию</a>
+                                </div>
+                </div>
+            </div>
+        </div>
+        <table class="table table-hover">
+            <thead class="thead-dark">
+            <tr>
+                <th>
+                    <input type="checkbox" name="main-checkbox" id="main-checkbox" class="main-checkbox">
+                </th>
+                <th>№</th>
+                <th>ID</th>
+                <th>Код</th>
+                <th>Артикул</th>
+                <th>Наименование</th>
+                <th>Бренд</th>
+                <th>Категория</th>
+                <th style="text-align: center">Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% if items %}
+            {% for item in items %}
+            <tr>
+                <td><input type="checkbox" class="item-checkbox" name="item_{{ item.id }}"
+                           id="item_{{ item.id }}" value="{{ item.id }}"></td>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.id }}</td>
+                <td>{{ item.sku }}</td>
+                <td>{% if item.article %} {{ item.article }} {% else %} - {% endif %}</td>
+                <td><a href="{% url 'goods-detail' item.id %}">{{ item.name }}</a></td>
+                <td>{% if item.brand %} {{ item.brand }} {% else %} - {% endif %}</td>
+                <td>{% if item.category %} {{ item.category.name }} {% else %} - {% endif %}</td>
+                <td style="text-align: center; padding-right: 0rem; width: 13rem;">
+                    <a class="btn btn-primary" href="{% url 'goods-update' item.id %}">Изменить</a>
+                    <a class="btn btn-secondary" href="{% url 'goods-delete' item.id %}">Удалить</a>
+                </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            </tbody>
+        </table>
+
+        <!--pagination {    -->
+        <nav aria-label="detailed pagination">
+  <ul class="pagination pagination-sm justify-content-center flex-wrap mb-5">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{{ page_filter }}">Предыдущая</a></li>
+        {% else %}
+        <li class="page-item disabled">
+          <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Предыдущая</a>
+        </li>
+        {% endif %}
+        {% for page_num in pages %}
+          <li class="page-item">
+            {% if page_num == page_obj.number %}
+              <a style="background-color: #87CEEB;" class="page-link" href="?page={{ page_num }}{{ page_filter }}">
+                  <span style="color: white"><strong>{{ page_num }}</strong></span>
+                {% else %}
+                    <a class="page-link" href="?page={{ page_num }}{{ page_filter }}">
+                    {{ page_num }}
+                {% endif %}
+            </a>
+          </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{{ page_filter }}">Следующая</a></li>
+        {% else %}
+        <li class="page-item disabled">
+          <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Следующая</a>
+        </li>
+        {% endif %}
+      </ul>
+</nav>
+        <!--pagination }    -->
+    </div>
+    <!-- batch update brand popup { -->
+    <div class="modal fade" id="brandModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="brandModalLabel">Установка бренда для выделенных товаров</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="batch-update-brand" method="post" action="{% url 'goods-batch-update-brand' %}">
+                        {% csrf_token %}
+                        <fieldset class="form-group">
+                            {{ batch_update_brand_form|crispy }}
+                        </fieldset>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-dismiss="modal">Отмена</button>
+                    <button type="submit" name="batch-update-brand" class="btn btn-info batch-update-brand">Установить
+                        бренд
+                    </button>
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- batch update brand popup } -->
+
+    <!-- batch update category popup { -->
+    <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoryModalLabel">Установка категории для выделенных товаров</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="batch-update-category" method="post" action="{% url 'goods-batch-update-category' %}">
+                        {% csrf_token %}
+                        <fieldset class="form-group">
+                            {{ batch_update_category_form|crispy }}
+                        </fieldset>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-dismiss="modal">Отмена</button>
+                    <button type="submit" name="batch-update-category" class="btn btn-info batch-update-category">
+                        Установить категорию
+                    </button>
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- batch update category popup } -->
+    <div id="categories_list" style="display: none;">{{ categories_list }}</div>
+    <div id="categories_filter_source" style="display: none;">{{ categories_filter_source }}</div>
+</div>
+<script src="{% static 'stores/js/list_goods.js' %}"></script>
+{% endblock content %}

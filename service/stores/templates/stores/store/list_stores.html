@@ -1,0 +1,39 @@
+{% extends 'users/base.html' %}
+{% block content %}
+<div class="container-fluid" style="width: 100%;">
+    <a class="btn btn btn-success mb-3" style="margin-top: 1rem;" href="{% url 'stores-add' %}">Создать магазин</a>
+    <legend class="border-bottom mb-4">Мои магазины (всего {{ items_count }}):</legend>
+
+    <table class="table table-hover">
+        <thead class="thead-dark">
+        <tr>
+            <th>№</th>
+            <th>ID</th>
+            <th>Наименование</th>
+            <th>Маркетплейс</th>
+            <th>Схема работы</th>
+            <th>Статус</th>
+            <th style="text-align: center">Действия</th>
+        </tr>
+        </thead>
+        {% if items %}
+        <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ item.id }}</td>
+            <td><a href="{% url 'stores-detail' item.id %}">{{ item.name }}</a></td>
+            <td>{{ item.marketplace }}</td>
+            <td>{{ item.store_type }}</td>
+            <td>{{ item.status }}</td>
+            <td style="text-align: center; padding-right: 0rem; width: 13rem;">
+                <a class="btn btn-primary" href="{% url 'stores-update' item.id %}">Изменить</a>
+                <a class="btn btn-secondary" href="{% url 'stores-delete' item.id %}">Удалить</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        {% endif %}
+    </table>
+</div>
+{% endblock content %}

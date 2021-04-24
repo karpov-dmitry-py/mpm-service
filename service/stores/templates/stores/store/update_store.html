@@ -1,0 +1,41 @@
+{% extends 'users/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="container-fluid" style="width: 70%;">
+        <form method="post">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Редактирование магазина</legend>
+                <h5 class="border-bottom mb-3">Основные данные</h5>
+                {{ form|crispy }}
+                <div id={{ marketplace }} class="marketplace-block">
+                    <h5 class="border-bottom mb-3" style="margin-top: 2.5rem;">Настройки интеграции c маркетплейсом {{ marketplace }}</h5>
+                    {% for row in props %}
+                        <div id={{ row.attr }} class="form-group">
+                            {% if row.mandatory %}
+                                <label for={{ row.attr }} class="requiredField">
+                                    {{ row.attr }}<span class="asteriskField">*</span>
+                                </label>
+                                <div style="font-size: 0.9rem; font-weight: normal;" class="card-subtitle mb-1 text-muted">{{ row.help }}</div>
+                                <div>
+                                    <input type="text" value="{{ row.value }}" name={{ row.attr }} maxlength="200" class="textinput textInput form-control" required="" id={{ row.attr }}>
+                                </div>
+                            {% else %}
+                                <label for={{ row.attr }}>{{ row.attr }}</label>
+                                <div style="font-size: 0.9rem; font-weight: normal;" class="card-subtitle mb-1 text-muted">{{ row.help }}</div>
+                                <div>
+                                    <input type="text" value="{{ row.value }}" name={{ row.attr }} maxlength="200" class="textinput textInput form-control" id={{ row.attr }}>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </fieldset>
+            <div class="form-group mb-4">
+                <button class="btn btn-success" type="submit">Сохранить изменения</button>
+            </div>
+        </form>
+</div>
+<script src="{% static 'stores/js/update_store.js' %}"></script>
+{% endblock content %}
