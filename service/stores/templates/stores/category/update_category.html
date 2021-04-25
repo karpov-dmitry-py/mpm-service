@@ -6,7 +6,9 @@
     <form method="post">
         {% csrf_token %}
         <fieldset class="form-group">
-            <legend class="border-bottom" style="margin-top: 10px; margin-bottom: 20px;">Редактирование категории</legend>
+            <legend class="border-bottom" style="margin-top: 10px; margin-bottom: 20px;">
+                Редактирование категории <strong>(id: {{ form.instance.id }}) {{ form.instance.name}}</strong>
+            </legend>
             {{ form|crispy }}
         </fieldset>
         <div class="form-group">

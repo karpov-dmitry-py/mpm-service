@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from ..models import Warehouse
 from ..models import GoodsCategory
 from ..models import System
+from .common import new_uuid
 
 
 # class for managing for own api
@@ -68,6 +69,10 @@ class API:
             if rand != current:
                 return rand
 
+    def _get_random_stripped_uuid(self):
+        uid = new_uuid()
+        return uid[:self._get_random_int(25, len(uid))]
+
     # warehouse
     def get_warehouse_list(self, request):
         user, err = self._get_system_request_user(request)
@@ -99,10 +104,7 @@ class API:
             'path': f'/{self.get_api_full_path()}/warehouses/',
             'required_headers': required_headers,
         }
-
-        min = 1000
-        max = 1000000
-        items = [{'code': self._get_random_int(min, max), 'name': f'warehouse_{i}'} for i in
+        items = [{'code': self._get_random_stripped_uuid(), 'name': f'warehouse_{i}'} for i in
                  range(1, 11)]
 
         response = {

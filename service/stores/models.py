@@ -226,7 +226,7 @@ class Warehouse(models.Model):
     kind = models.ForeignKey(WarehouseType, on_delete=CASCADE, verbose_name='Тип склада')
     supplier = models.ForeignKey(Supplier, on_delete=CASCADE, verbose_name='Поставщик', related_name='warehouses',
                                  blank=True, null=True)
-    code = models.CharField(verbose_name='Символьный код', max_length=200, blank=True, null=True)
+    code = models.CharField(verbose_name='Символьный код', max_length=200, blank=False, null=False)
     priority = models.IntegerField(verbose_name='Приоритет', blank=True, null=True)
     description = models.TextField(verbose_name='Описание', max_length=1000, null=True, blank=True)
     stores = models.ManyToManyField(Store, verbose_name='Магазин', related_name='warehouses', blank=True)

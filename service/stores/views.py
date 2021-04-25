@@ -20,7 +20,6 @@ from django.shortcuts import render
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from pip._internal.resolution.resolvelib.requirements import ExplicitRequirement
 
 from .models import Store
 from .models import StoreProperty
@@ -616,14 +615,17 @@ class GoodsBrandCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         name = form.cleaned_data['name']
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(name__iexact=name)
+
+        # validation
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user)
+        existing_rows = qs.filter(name__iexact=name)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
             form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
                                                        f'и наименованием {existing_row.name}'
             return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
+
         form.instance.user = self.request.user
         return super().form_valid(form)
 
@@ -674,17 +676,17 @@ class GoodsBrandUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def form_valid(self, form):
         name = form.cleaned_data['name']
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(name__iexact=name)
-            # found another row in db with same name
-            if form.instance.id != existing_row.id:
-                form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
-                                                           f'и наименованием {existing_row.name}'
-                return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
-        form.instance.user = self.request.user
+
+        # validation
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user).exclude(id=form.instance.id)
+        existing_rows = qs.filter(name__iexact=name)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
+            form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
+                                                       f'и наименованием {existing_row.name}'
+            return self.form_invalid(form)
+
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -817,14 +819,17 @@ class GoodsCategoryCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         name = form.cleaned_data['name']
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(name__iexact=name)
+
+        # validation
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user)
+        existing_rows = qs.filter(name__iexact=name)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
             form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
                                                        f'и наименованием {existing_row.name}'
             return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
+
         form.instance.user = self.request.user
         return super().form_valid(form)
 
@@ -849,17 +854,17 @@ class GoodsCategoryUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVie
 
     def form_valid(self, form):
         name = form.cleaned_data['name']
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(name__iexact=name)
-            # found another row in db with same name
-            if form.instance.id != existing_row.id:
-                form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
-                                                           f'и наименованием {existing_row.name}'
-                return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
-        form.instance.user = self.request.user
+
+        # validation
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user).exclude(id=form.instance.id)
+        existing_rows = qs.filter(name__iexact=name)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
+            form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
+                                                       f'и наименованием {existing_row.name}'
+            return self.form_invalid(form)
+
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -988,14 +993,15 @@ class GoodCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         sku = form.cleaned_data['sku']
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(sku__iexact=sku)
+
+        # noinspection PyUnresolvedReferences
+        existing_rows = self.model.objects.filter(user=self.request.user).filter(sku__iexact=sku)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
             form.errors['Код товара не уникален'] = f'Найден элемент с id {existing_row.id} ' \
                                                     f'и кодом {existing_row.sku}'
             return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
+
         form.instance.user = self.request.user
         return super().form_valid(form)
 
@@ -1062,17 +1068,17 @@ class GoodUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def form_valid(self, form):
         sku = form.cleaned_data['sku']
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(sku__iexact=sku)
-            # found another row in db with same sku
-            if form.instance.id != existing_row.id:
-                form.errors['Код товара не уникален'] = f'Найден элемент с id {existing_row.id} ' \
-                                                        f'и кодом {existing_row.sku}'
-                return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
-        form.instance.user = self.request.user
+
+        # validation
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user).exclude(id=form.instance.id)
+        existing_rows = qs.filter(sku__iexact=sku)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
+            form.errors['Код не уникален'] = f'Найден элемент с id {existing_row.id} ' \
+                                                       f'и кодом {existing_row.sku}'
+            return self.form_invalid(form)
+
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -1149,15 +1155,16 @@ class SupplierCreateView(LoginRequiredMixin, CreateView):
         if len(form.errors):
             return self.form_invalid(form)
 
+        # validation
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user)
         # check name duplicate
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(name__iexact=name)
+        existing_rows = qs.filter(name__iexact=name)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
             form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
                                                        f'и наименованием {existing_row.name}'
             return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
 
         form.instance.user = self.request.user
         return super().form_valid(form)
@@ -1221,16 +1228,14 @@ class SupplierUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             return self.form_invalid(form)
 
         # check name duplicate
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(name__iexact=name)
-            # found another row in db with same name
-            if form.instance.id != existing_row.id:
-                form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
-                                                           f'и наименованием {existing_row.name}'
-                return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user).exclude(id=form.instance.id)
+        existing_rows = qs.filter(name__iexact=name)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
+            form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
+                                                       f'и наименованием {existing_row.name}'
+            return self.form_invalid(form)
 
         form.instance.user = self.request.user
         return super().form_valid(form)
@@ -1296,22 +1301,33 @@ class WarehouseCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         name = form.cleaned_data['name']
+        code = form.cleaned_data['code']
         kind = form.cleaned_data['kind']
         supplier = form.cleaned_data['supplier']
 
+        # validation
         if not is_valid_supplier_choice(kind, supplier):
             form.errors.update(get_supplier_error())
             return self.form_invalid(form)
 
+        # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user)
+
         # check name duplicate
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(name__iexact=name)
+        existing_rows = qs.filter(name__iexact=name)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
             form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
                                                        f'и наименованием {existing_row.name}'
             return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
+
+        # check code duplicate
+        existing_rows = qs.filter(code__iexact=code)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
+            form.errors['Код не уникален'] = f'Найден элемент с id {existing_row.id} ' \
+                                             f'и кодом {existing_row.code}'
+            return self.form_invalid(form)
 
         form.instance.user = self.request.user
         return super().form_valid(form)
@@ -1394,6 +1410,7 @@ class WarehouseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def form_valid(self, form):
         name = form.cleaned_data['name']
+        code = form.cleaned_data['code']
         kind = form.cleaned_data['kind']
         supplier = form.cleaned_data['supplier']
 
@@ -1401,19 +1418,26 @@ class WarehouseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             form.errors.update(get_supplier_error())
             return self.form_invalid(form)
 
-        # check name duplicate
-        try:
-            # noinspection PyUnresolvedReferences
-            existing_row = self.model.objects.filter(user=self.request.user).get(name__iexact=name)
-            # found another row in db with same name
-            if form.instance.id != existing_row.id:
-                form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
-                                                           f'и наименованием {existing_row.name}'
-                return self.form_invalid(form)
-        except ObjectDoesNotExist:
-            pass
+        # validation
+        # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user).exclude(id=form.instance.id)
 
-        form.instance.user = self.request.user
+        # check name duplicate
+        existing_rows = qs.filter(name__iexact=name)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
+            form.errors['Наименование не уникально'] = f'Найден элемент с id {existing_row.id} ' \
+                                                       f'и наименованием {existing_row.name}'
+            return self.form_invalid(form)
+
+        # check code duplicate
+        existing_rows = qs.filter(code__iexact=code)
+        if len(existing_rows):
+            existing_row = existing_rows[0]
+            form.errors['Код не уникален'] = f'Найден элемент с id {existing_row.id} ' \
+                                             f'и кодом {existing_row.code}'
+            return self.form_invalid(form)
+
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -1638,6 +1662,7 @@ def api_warehouse_list(request):
     return API().get_warehouse_list(request)
 
 
+# noinspection PyUnusedLocal
 @require_GET
 def api_warehouse_list_help(request):
     return API().get_warehouse_list_help()
@@ -1649,6 +1674,7 @@ def api_category_list(request):
     return API().get_category_list(request)
 
 
+# noinspection PyUnusedLocal
 @require_GET
 def api_category_list_help(request):
     return API().get_category_list_help()

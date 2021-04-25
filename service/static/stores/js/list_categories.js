@@ -29,14 +29,33 @@ function processItem(item, sourceObj) {
     } else {
         childs_count = '';
     }
-    const currentItem = `${item.name}${childs_count}`;
+    const currentItem = 
+    `<span style="color: #1E90FF;">(id: ${item.id})</span> ${item.name}${childs_count}`;
     const item_id = 'block-' + item.id;
     const href_item_id = `#${item_id}`;
 
     sourceObj.marginLeft = leftMarginStep;
     let style = getStyleAsString(sourceObj);
-    const tag = `<div class="row align-items-center"><div class="col-10"><a href=${href_item_id} ${style} class="list-group-item list-group-item-action" data-toggle="collapse">
-                    ${currentItem}</a></div><div class="col-2"><span class="pull-right"><a class="cat-icon" href="/categories/${item.id}/update"><i class="fa fa-edit"></i></a><a class="cat-icon" style="margin-left: 0.5rem;" href="/categories/${item.id}/delete"><i class="fa fa-trash-alt"></i></a></span></div></div>`;
+    const tag = `
+    <div class="row align-items-center">
+        <div class="col-10">
+            <a href=${href_item_id} ${style} class="list-group-item list-group-item-action" data-toggle="collapse">
+                ${currentItem}
+            </a>
+        </div>
+        <div class="col-2">
+            <span class="pull-right">
+                <a class="cat-icon" href="/categories/${item.id}/update">
+                    <i class="fa fa-edit">
+                    </i>
+                </a>
+                <a class="cat-icon" style="margin-left: 0.5rem;" href="/categories/${item.id}/delete">
+                    <i class="fa fa-trash-alt"></i>
+                </a>
+            </span>
+        </div>
+    </div>`;
+    
     sourceObj.source += tag;
     if ('childs' in item) {
         sourceObj.level += 1;
