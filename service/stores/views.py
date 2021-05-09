@@ -1491,7 +1491,37 @@ class StockListView(LoginRequiredMixin, ListView):
     def _get_queryset_by_user(self):
         if self._full_qs is None:
             # noinspection PyUnresolvedReferences
-            self._full_qs = self.model.objects.filter(user=self.request.user).order_by('id')
+            rows = self.model.objects.filter(user=self.request.user).order_by('good', 'warehouse')
+            curr_good_id = None
+            items = []
+            good_stocks = []
+            for row in rows:
+                good = {
+                    'id': row.good_id,
+                    'sku': row.good.sku,
+                    'name': row.good.name,
+                    'stocks': good_stocks
+                }
+                items.append(good)
+
+                stock = {
+                    'name': row.warehouse.name,
+                    'id': row.warehouse_id,
+                    'type': row.warehouse.kind.name,
+                    'amount': row.amount,
+                    'date_updated': row.date_updated,
+                }
+                goods[key].append(stock)
+            # result = []
+            # for good, stocks in items.items():
+            #     row = {
+            #         'id': good[0],
+            #         'sku': good[1],
+            #         'name': good[2],
+            #         'stocks': stocks,
+            #     }
+            #     result.append(row)
+            self._full_qs = goods
         return self._full_qs
 
     def get_queryset(self):
@@ -1499,7 +1529,7 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['items_count'] = self.get_queryset().count()
+        context['items_count'] = len(self.get_queryset())
         context['pages'] = _get_pages_list(context['page_obj'])
         context['title'] = 'Остатки товаров'
         return context
