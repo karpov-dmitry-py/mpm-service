@@ -1,6 +1,5 @@
 import json
 import os.path
-import time
 from collections import defaultdict
 
 from django.views.decorators.http import require_http_methods
@@ -22,8 +21,6 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 
-from django.db.models import Sum
-
 from .models import Store
 from .models import StoreProperty
 from .models import MarketplaceProperty
@@ -41,8 +38,8 @@ from .models import System
 
 # noinspection PyProtectedMember
 from .helpers.common import _exc
-from .helpers.common import _log
-from .helpers.common import _err
+# from .helpers.common import _log
+# from .helpers.common import _err
 from .helpers.common import is_valid_email
 from .helpers.common import is_valid_phone
 from .helpers.common import strip_phone
@@ -1081,7 +1078,7 @@ class GoodUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         if len(existing_rows):
             existing_row = existing_rows[0]
             form.errors['Код не уникален'] = f'Найден элемент с id {existing_row.id} ' \
-                                                       f'и кодом {existing_row.sku}'
+                                             f'и кодом {existing_row.sku}'
             return self.form_invalid(form)
 
         return super().form_valid(form)
@@ -1500,7 +1497,7 @@ class StockListView(LoginRequiredMixin, ListView):
             goods = rows.values_list('good').distinct()
             items = []
             for good_id in goods:
-                good_rows = rows.filter(good_id = good_id)
+                good_rows = rows.filter(good_id=good_id)
                 stocks = dict()
                 total_amount = 0
 
@@ -1541,6 +1538,7 @@ class StockListView(LoginRequiredMixin, ListView):
     @staticmethod
     def add_to_dict(_dict, _id):
         _dict[_id] = f'extra for {_id}'
+
 
 # SYSTEM
 class SystemListView(LoginRequiredMixin, ListView):
