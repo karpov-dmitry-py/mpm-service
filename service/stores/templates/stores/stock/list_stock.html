@@ -1,7 +1,7 @@
 {% extends 'users/base.html' %}
 {% block content %}
 <div class="container-fluid" style="max-width: 100%;">
-    <legend class="border-bottom mb-4 mt-3">Мои остатки товаров (всего {{ items_count }}):</legend>
+    <legend class="border-bottom mb-4 mt-3">Мои остатки (всего товаров: {{ items_count }}):</legend>
 
     <!--pagination {    -->
     <nav aria-label="detailed pagination">
@@ -39,46 +39,45 @@
 
     <table class="table table-hover">
         <thead class="thead-dark">
-        <tr>
-            <th>№</th>
-            <th>Код</th>
-            <th>Наименование товара</th>
-            <th>Остаток по всем складам</th>
-            <th>Тип склада</th>
-            <th>Склад</th>
-            <th>Дата остатков</th>
-            <th>Остаток по складу</th>
-        </tr>
+            <tr>
+                <th>№</th>
+                <th>Код</th>
+                <th>Наименование товара</th>
+                <th>Остаток по всем складам</th>
+                <th>Тип склада</th>
+                <th>Склад</th>
+                <th>Дата остатков</th>
+                <th>Остаток по складу</th>
+            </tr>
         </thead>
         <tbody>
-        {% for row in items %}
+        {% for item in items %}
         <tr>
             <td>{{ forloop.counter }}</td>
-            <td>{{ item[1]} }}</td>
-            <td>{{ item[2] }}</td>
-            <td>-</td>
-            <td>
+            <td>{{ item.good.sku }}</td>
+            <td><a href="{% url 'goods-detail' item.good.id %}">{{ item.good.name }}</a></td>
+            <td>{{ item.total_amount }}</td>
+            <td style="min-width: 50px;">
                 <dl>
-                    {% for stock in stocks %}
+                    {% for wh, stock in item.stocks.items %}
                     <dd class="mb-0">
-                        {{ stock.type }}
+                        {{ wh.kind.name }}
                     </dd>
                     {% endfor %}
                 </dl>
             </td>
             <td>
                 <dl>
-                    {% for stock in stocks %}
+                    {% for wh, stock in item.stocks.items %}
                     <dd class="mb-0">
-                        {{ stock.name }}
+                        <a href="{% url 'warehouses-detail' wh.id %}">{{ wh.name }}</a>
                     </dd>
                     {% endfor %}
                 </dl>
             </td>
             <td>
-            <td>
                 <dl>
-                    {% for stock in stocks %}
+                    {% for wh, stock in item.stocks.items %}
                     <dd class="mb-0">
                         {{ stock.date_updated|date:"d.m.Y H:i:s" }}
                     </dd>
@@ -87,7 +86,7 @@
             </td>
             <td>
                 <dl>
-                    {% for stock in stocks %}
+                    {% for wh, stock in item.stocks.items %}
                     <dd class="mb-0">
                         {{ stock.amount }}
                     </dd>

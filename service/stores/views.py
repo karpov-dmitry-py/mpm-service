@@ -1,5 +1,6 @@
 import json
 import os.path
+import time
 from collections import defaultdict
 
 from django.views.decorators.http import require_http_methods
@@ -21,6 +22,8 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 
+from django.db.models import Sum
+
 from .models import Store
 from .models import StoreProperty
 from .models import MarketplaceProperty
@@ -38,6 +41,8 @@ from .models import System
 
 # noinspection PyProtectedMember
 from .helpers.common import _exc
+from .helpers.common import _log
+from .helpers.common import _err
 from .helpers.common import is_valid_email
 from .helpers.common import is_valid_phone
 from .helpers.common import strip_phone
@@ -1491,37 +1496,36 @@ class StockListView(LoginRequiredMixin, ListView):
     def _get_queryset_by_user(self):
         if self._full_qs is None:
             # noinspection PyUnresolvedReferences
-            rows = self.model.objects.filter(user=self.request.user).order_by('good', 'warehouse')
-            curr_good_id = None
+            rows = self.model.objects.filter(user=self.request.user).order_by('good')
+            goods = rows.values_list('good').distinct()
             items = []
-            good_stocks = []
-            for row in rows:
-                good = {
-                    'id': row.good_id,
-                    'sku': row.good.sku,
-                    'name': row.good.name,
-                    'stocks': good_stocks
-                }
-                items.append(good)
+            for good_id in goods:
+                good_rows = rows.filter(good_id = good_id)
+                stocks = dict()
+                total_amount = 0
 
-                stock = {
-                    'name': row.warehouse.name,
-                    'id': row.warehouse_id,
-                    'type': row.warehouse.kind.name,
-                    'amount': row.amount,
-                    'date_updated': row.date_updated,
+                # good's stock rows
+                for row in good_rows:
+                    total_amount += row.amount
+                    wh_stock = stocks.get(row.warehouse)
+                    if not wh_stock:
+                        stocks[row.warehouse] = {
+                            'amount': row.amount,
+                            'date_updated': row.date_updated,
+                        }
+                        continue
+                    stocks[row.warehouse]['amount'] += row.amount
+                    if row.date_updated > stocks[row.warehouse]['date_updated']:
+                        stocks[row.warehouse]['date_updated'] = row.date_updated
+
+                # noinspection PyUnboundLocalVariable
+                good_result = {
+                    'good': row.good,
+                    'total_amount': total_amount,
+                    'stocks': stocks
                 }
-                goods[key].append(stock)
-            # result = []
-            # for good, stocks in items.items():
-            #     row = {
-            #         'id': good[0],
-            #         'sku': good[1],
-            #         'name': good[2],
-            #         'stocks': stocks,
-            #     }
-            #     result.append(row)
-            self._full_qs = goods
+                items.append(good_result)
+            self._full_qs = items
         return self._full_qs
 
     def get_queryset(self):
@@ -1534,6 +1538,9 @@ class StockListView(LoginRequiredMixin, ListView):
         context['title'] = 'Остатки товаров'
         return context
 
+    @staticmethod
+    def add_to_dict(_dict, _id):
+        _dict[_id] = f'extra for {_id}'
 
 # SYSTEM
 class SystemListView(LoginRequiredMixin, ListView):
