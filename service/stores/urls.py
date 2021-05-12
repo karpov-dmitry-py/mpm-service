@@ -82,4 +82,7 @@ urlpatterns = [
     # category
     path(f'{api_full_path}/categories/', views.api_category_list, name='api-categories-list'),
     path(f'{api_full_path}/categories/help/', views.api_category_list_help, name='api-categories-list-help'),
+
+    # stock
+    path(f'{api_full_path}/stock/', views.api_update_stock, name='api-update-stock'),
 ]

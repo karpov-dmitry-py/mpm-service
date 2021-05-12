@@ -5,6 +5,8 @@ from collections import defaultdict
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
@@ -1713,3 +1715,10 @@ def api_category_list(request):
 @require_GET
 def api_category_list_help(request):
     return API().get_category_list_help()
+
+
+# stock
+@csrf_exempt
+@require_POST
+def api_update_stock(request):
+    return API().update_stock(request)

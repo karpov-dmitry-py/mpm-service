@@ -184,4 +184,23 @@ class API:
         }
         return JsonResponse(data=result)
 
-
+    # category
+    def update_stock(self, request):
+        user, err = self._get_system_request_user(request)
+        if err:
+            return err
+        # noinspection PyUnresolvedReferences
+        rows = GoodsCategory.objects.filter(user=user)
+        items = []
+        for row in rows:
+            _item = {
+                'id': row.id,
+                'name': row.name,
+                'parent_id': row.parent.id if row.parent else None,
+            }
+            items.append(_item)
+        result = {
+            'count': len(items),
+            'items': items,
+        }
+        return JsonResponse(result)
