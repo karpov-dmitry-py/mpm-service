@@ -20,7 +20,7 @@ def _err(msg):
 
 
 def _exc(exception):
-    return f'Error: ({exception.__class__.__name__}) {str(exception)}'
+    return f'error: ({exception.__class__.__name__}) {str(exception)}'
 
 
 def is_valid_email(email):
