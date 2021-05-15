@@ -1,15 +1,19 @@
 import random
 import json
+from collections import defaultdict
 from collections.abc import Iterable
 
 from django.http import JsonResponse
 
 from ..models import Warehouse
 from ..models import GoodsCategory
+from ..models import GoodsBrand
 from ..models import System
+from ..models import Stock
 from .common import new_uuid
 from .common import _exc
 from .common import _err
+from .common import _log
 
 
 # class for managing for own api
@@ -35,11 +39,11 @@ class API:
         # noinspection PyUnresolvedReferences
         system_rows = System.objects.filter(user__email=user_email).filter(token=token)
         if not len(system_rows):
-            return None, self._get_invalid_system_request_response()['response']
+            return None, self._system_request_err()['response']
         return system_rows[0].user, None
 
     @staticmethod
-    def _get_invalid_system_request_response(reason=None):
+    def _system_request_err(reason=None):
         reason = reason or 'wrong credentials provided'
         data = {
             'error': True,
@@ -57,18 +61,18 @@ class API:
     def _get_system_request_headers(self, request):
         user = self._get_request_header(request, self.required_headers['user-auth'])
         if not user:
-            return None, None, self._get_invalid_system_request_response()['response']
+            return None, None, self._system_request_err()['response']
 
         token = self._get_request_header(request, self.required_headers['token-auth'])
         if not token:
-            return None, None, self._get_invalid_system_request_response()['response']
+            return None, None, self._system_request_err()['response']
 
         return user, token, None
 
     @staticmethod
-    def _get_random_int(min, max, current=None):
+    def _get_random_int(_min, _max, current=None):
         while True:
-            rand = random.randint(min, max)
+            rand = random.randint(_min, _max)
             if not current:
                 return rand
             if rand != current:
@@ -133,7 +137,7 @@ class API:
         }
         result['response_to_invalid_request'] = {
             'response_status': 400,
-            'response_body': self._get_invalid_system_request_response()['data']
+            'response_body': self._system_request_err()['data']
         }
         return JsonResponse(data=result)
 
@@ -166,8 +170,11 @@ class API:
             _dict[key] += val
         elif isinstance(stored_val, set):
             _dict[key].add(val)
+        elif isinstance(stored_val, bool):
+            _dict[key] = val
         else:
-            raise ValueError(f'The type {type(stored_val)} can not yet be handled by "_append_to_dict" method')
+            raise ValueError(
+                f'The type {type(stored_val)} can not yet be handled by "_append_to_dict" method (api module)')
 
     # stock
     def update_stock(self, request):
@@ -176,21 +183,39 @@ class API:
             return err
 
         # validate payload
-        payload, err = self._parse_json()
+        payload, err = self._parse_json(request.body)
         if err:
-            return self._get_invalid_system_request_response(err)['response']
+            return self._system_request_err(err)['response']
 
+        # check if the required key is in payload
         key = 'offers'
-        if items := payload.get() is None:
-            err = f'no "{key}" object found in payload'
-            return self._get_invalid_system_request_response(err)['response']
+        items = payload.get(key)
+        if not items:
+            err = f'"{key}" not found or empty'
+            return self._system_request_err(err)['response']
 
+        # check if items obj is iterable
         if not (items, Iterable):
-            err = f'"{key}" object is not iterable'
-            return self._get_invalid_system_request_response(err)['response']
+            err = f'"{key}" object is not iterable (not an array/list/tuple)'
+            return self._system_request_err(err)['response']
 
-        # read existing rows from db
+        # check items length against limit
+        limit = self._update_stock_items_limit()
+        if len(items) > limit:
+            err = f'Number of "{key}" ({len(items)}) exceeds allowed limit ({limit})'
+            return self._system_request_err(err)['response']
 
+        # check if items have any duplicate sku
+        skus = defaultdict(int)
+        for item in items:
+            if item_sku := item.get('sku'):
+                skus[item_sku] += 1
+        duplicates = [k for k, v in skus.items() if v > 1]
+        if duplicates:
+            err = f'items duplicated by sku found in "{key}": {",".join(duplicates)}'
+            return self._system_request_err(err)['response']
+
+        # read existing data from db
         # noinspection PyUnresolvedReferences
         goods_set = Good.objects.filter(user=user)
         goods = {item.sku: item for item in goods_set}
@@ -201,49 +226,164 @@ class API:
 
         # noinspection PyUnresolvedReferences
         categories_set = GoodsCategory.objects.filter(user=user)
-        cats = {item.name.lower().strip(): item for item in categories_set}
+        cats = {item.id: item for item in categories_set}
 
         # noinspection PyUnresolvedReferences
         wh_set = Warehouse.objects.filter(user=user)
         whs = {item.code: item for item in wh_set}
 
-        # process data
-        stats = {
-            'created_goods': set(),
-            'invalid_goods': set(),
-            'failed_to_create_goods': set(),
-            'successfully_processed_offers_count': 0,
-            'invalid_offers': set(),
-            'failed_to_process_offers': set(),
-            'not_found_warehouses': set(),
-        }
+        # noinspection PyUnresolvedReferences
+        stock_qs = Stock.objects.filter(user=user)
 
-        # main loop to process items
+        # process data
+        stats = self._get_update_stock_stats()
         for item in items:
             if sku := item.get('sku') is None:
                 self._append_to_dict(stats, 'invalid_goods', sku)
                 continue
 
+            # create a new good
+            if good := goods.get(sku) is None:
+                # TODO - create a new good, validate success, skip to next sku if error
+                pass
+
             if stock := item.get('stock') is None:
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
-            if not isinstance(stock, dict):
+            if not (stock, Iterable):
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
-            # TODO - create a new good
-            if good := goods.get(sku) is None:
-                pass
+            # check for required keys in each stock obj
+            required_keys = ('code', 'available')
+            if not all(stock_dict.get(req_key) is not None for stock_dict in stock for req_key in required_keys):
+                self._append_to_dict(stats, 'invalid_offers', sku)
+                continue
 
-            for wh_code, amount in stock.items():
+            # check for wh code duplicates
+            wh_codes = defaultdict(int)
+            for stock_dict in stock:
+                wh_codes[stock_dict.get('code')] += 1
+            wh_duplicates = [k for k, v in wh_codes.items() if v > 1]
+            if wh_duplicates:
+                self._append_to_dict(stats, 'invalid_offers', sku)
+                continue
+
+            sku_stock_processing_success = True
+            for stock_row in stock:
+                wh_code = stock_row.get('code')
+                available = stock_row.get('available')
+
                 if wh := whs.get(wh_code) is None:
-                    self._append_to_dict(stats, 'invalid_offers', sku)
-                    self._append_to_dict(stats, 'not_found_warehouses', wh_code)
+                    self._append_to_dict(stats, 'invalid_offers_rows', self._stock_row_as_str(sku, wh_code, available))
+                    sku_stock_processing_success = False
                     continue
 
-                # validate amoubt
-                # update stock in db
-                # update stats
+                # validate amount
+                amount, err = self._int(available)
+                if err:
+                    self._append_to_dict(stats, 'invalid_offers_rows', self._stock_row_as_str(sku, wh_code, available))
+                    sku_stock_processing_success = False
+                    continue
 
-        return JsonResponse(result)
+                current_stock = stock_qs.filter(warehouse=wh).filter(good=good)
+                data_to_update = self._stock_row_as_str(sku, wh_code, available)
+
+                # update existing stock in db
+                if len(current_stock):
+                    delete_other_db_rows = True
+                    for row_num, db_row in enumerate(current_stock, start=1):
+
+                        # update stock for a single db row
+                        if row_num == 1:
+                            db_row.amount = amount
+                            try:
+                                db_row.save()
+                                _log(
+                                    f'Updated an existing db row with data: {data_to_update}')
+                                self._append_to_dict(stats, 'processed_offers_rows', data_to_update)
+                            except Exception as err:
+                                err_msg = f'Failed to update an existing db row with data: {data_to_update}. ' \
+                                          f'{_exc(err)}'
+                                _err(err_msg)
+                                self._append_to_dict(stats, 'failed_to_process_offers_rows', data_to_update)
+                                sku_stock_processing_success = False
+                                delete_other_db_rows = False
+                            continue
+
+                        # delete other rows if they exist and main db row was updated successfully
+                        if delete_other_db_rows:
+                            try:
+                                db_row.delete()
+                            except Exception as err:
+                                err_msg = f'Failed to delete a redundant db row for warehouse code {wh_code} ' \
+                                          f'and sku {sku}. {_exc(err)}'
+                                _err(err_msg)
+                                sku_stock_processing_success = False
+
+                # add new row to db
+                else:
+                    new_db_row_data = {
+                        'warehouse': wh,
+                        'good': good,
+                        'amount': amount,
+                        'user': user,
+                    }
+                    new_db_row = Stock(**new_db_row_data)
+                    try:
+                        new_db_row.save()
+                        _log(f'Added a new db row with data: {data_to_update}')
+                        self._append_to_dict(stats, 'processed_offers_rows', data_to_update)
+                    except Exception as err:
+                        err_msg = f'Failed to add a new db row with data: {data_to_update}. {_exc(err)}'
+                        _err(err_msg)
+                        self._append_to_dict(stats, 'failed_to_process_offers_rows', data_to_update)
+                        sku_stock_processing_success = False
+
+            if sku_stock_processing_success:
+                self._append_to_dict(stats, 'processed_offers', sku)
+
+        processed_offers_count = len(stats['processed_offers'])
+        success = bool(processed_offers_count)
+        self._append_to_dict(stats, 'processed_offers_count', processed_offers_count)
+        self._append_to_dict(stats, 'success', success)
+
+        statuses = {
+            True: 200,
+            False: 400,
+        }
+        return JsonResponse(stats, status=statuses[success])
+
+    @staticmethod
+    def _update_stock_items_limit():
+        return 250
+
+    @staticmethod
+    def _stock_row_as_str(sku, wh, amount):
+        return f'{sku}: {wh} - {amount}'
+
+    @staticmethod
+    def _int(src):
+        try:
+            return int(src), None
+        except (TypeError, Exception) as err:
+            err_msg = f'Failed to parse an integer from "{src}". {_exc(err)}'
+            _err(err_msg)
+            return None, err_msg
+
+    @staticmethod
+    def _get_update_stock_stats():
+        stats = {
+            'created_goods': set(),
+            'invalid_goods': set(),
+            'failed_to_create_goods': set(),
+            'processed_offers_rows': set(),
+            'processed_offers': set(),
+            'processed_offers_count': 0,
+            'invalid_offers': set(),
+            'invalid_offers_rows': set(),
+            'failed_to_process_offers_rows': set(),
+            'success': True,
+        }
+        return stats
