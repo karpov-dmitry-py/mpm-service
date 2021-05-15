@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from ..models import Warehouse
 from ..models import GoodsCategory
 from ..models import GoodsBrand
+from ..models import Good
 from ..models import System
 from ..models import Stock
 from .common import new_uuid
@@ -164,14 +165,15 @@ class API:
 
     @staticmethod
     def _append_to_dict(_dict, key, val):
-        if stored_val := _dict[key] is None:
+        stored_val = _dict[key]
+        if stored_val is None:
             return
-        if isinstance(stored_val, int):
-            _dict[key] += val
-        elif isinstance(stored_val, set):
-            _dict[key].add(val)
-        elif isinstance(stored_val, bool):
+        if isinstance(stored_val, bool):
             _dict[key] = val
+        elif isinstance(stored_val, set):
+            _dict[key].add(f'{val}')
+        elif isinstance(stored_val, int):
+            _dict[key] += val
         else:
             raise ValueError(
                 f'The type {type(stored_val)} can not yet be handled by "_append_to_dict" method (api module)')
@@ -238,32 +240,35 @@ class API:
         # process data
         stats = self._get_update_stock_stats()
         for item in items:
-            if sku := item.get('sku') is None:
+            sku = item.get('sku')
+            if not sku:
                 self._append_to_dict(stats, 'invalid_goods', sku)
                 continue
 
             # create a new good
-            if good := goods.get(sku) is None:
+            good = goods.get(sku)
+            if not good:
                 # TODO - create a new good, validate success, skip to next sku if error
-                pass
+                continue  # for now
 
-            if stock := item.get('stock') is None:
+            stocks = item.get('stocks')
+            if not stocks:
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
-            if not (stock, Iterable):
+            if not (stocks, Iterable):
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
             # check for required keys in each stock obj
             required_keys = ('code', 'available')
-            if not all(stock_dict.get(req_key) is not None for stock_dict in stock for req_key in required_keys):
+            if not all(stock_dict.get(req_key) is not None for stock_dict in stocks for req_key in required_keys):
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
             # check for wh code duplicates
             wh_codes = defaultdict(int)
-            for stock_dict in stock:
+            for stock_dict in stocks:
                 wh_codes[stock_dict.get('code')] += 1
             wh_duplicates = [k for k, v in wh_codes.items() if v > 1]
             if wh_duplicates:
@@ -271,25 +276,25 @@ class API:
                 continue
 
             sku_stock_processing_success = True
-            for stock_row in stock:
-                wh_code = stock_row.get('code')
-                available = stock_row.get('available')
+            for stock in stocks:
+                wh_code = stock.get('code')
+                available = stock.get('available')
+                data_to_update = self._stock_row(sku, wh_code, available)
 
-                if wh := whs.get(wh_code) is None:
-                    self._append_to_dict(stats, 'invalid_offers_rows', self._stock_row_as_str(sku, wh_code, available))
+                wh = whs.get(wh_code)
+                if not wh:
+                    self._append_to_dict(stats, 'invalid_offers_rows', data_to_update)
                     sku_stock_processing_success = False
                     continue
 
                 # validate amount
                 amount, err = self._int(available)
                 if err:
-                    self._append_to_dict(stats, 'invalid_offers_rows', self._stock_row_as_str(sku, wh_code, available))
+                    self._append_to_dict(stats, 'invalid_offers_rows', data_to_update)
                     sku_stock_processing_success = False
                     continue
 
                 current_stock = stock_qs.filter(warehouse=wh).filter(good=good)
-                data_to_update = self._stock_row_as_str(sku, wh_code, available)
-
                 # update existing stock in db
                 if len(current_stock):
                     delete_other_db_rows = True
@@ -300,8 +305,7 @@ class API:
                             db_row.amount = amount
                             try:
                                 db_row.save()
-                                _log(
-                                    f'Updated an existing db row with data: {data_to_update}')
+                                _log(f'Updated an existing db row with data: {data_to_update}')
                                 self._append_to_dict(stats, 'processed_offers_rows', data_to_update)
                             except Exception as err:
                                 err_msg = f'Failed to update an existing db row with data: {data_to_update}. ' \
@@ -349,19 +353,34 @@ class API:
         self._append_to_dict(stats, 'processed_offers_count', processed_offers_count)
         self._append_to_dict(stats, 'success', success)
 
-        statuses = {
-            True: 200,
-            False: 400,
-        }
-        return JsonResponse(stats, status=statuses[success])
+        # status
+        error_states = ('failed_to_create_goods', 'failed_to_process_offers_rows',)
+        if any(stats[state] for state in error_states):
+            status = 500
+        elif success:
+            status = 200
+        else:
+            status = 400
+        self._prepare_dict(stats)
+        return JsonResponse(data=stats, status=status, safe=False)
+
+    @staticmethod
+    def _prepare_dict(_dict):
+        for k, v in _dict.items():
+            if isinstance(v, set):
+                _dict[k] = list(v)
 
     @staticmethod
     def _update_stock_items_limit():
         return 250
 
     @staticmethod
-    def _stock_row_as_str(sku, wh, amount):
-        return f'{sku}: {wh} - {amount}'
+    def _stock_row(sku, wh, amount):
+        return {
+            'sku': sku,
+            'warehouse': wh,
+            'available': amount,
+        }
 
     @staticmethod
     def _int(src):
