@@ -23,9 +23,9 @@ def _exc(exception):
     return f'error: ({exception.__class__.__name__}) {str(exception)}'
 
 
-def is_valid_email(email):
-    email = email or ''
-    return bool(re.match(EMAIL_RE, email))
+def is_valid_email(_email):
+    _email = _email or ''
+    return bool(re.match(EMAIL_RE, _email))
 
 
 def strip_phone(phone):
@@ -73,8 +73,27 @@ def get_supplier_error():
     return {
         'Не заполнен поставщик': f'Необходимо указать поставщика для типа склада "{get_supplier_warehouse_type()}"'}
 
+
 def new_uuid():
     return str(uuid.uuid4())
+
+
+def to_float(val):
+    if val is None:
+        return None
+    if isinstance(val, float):
+        return val
+    if isinstance(val, str):
+        patterns = (',',)
+        for item in patterns:
+            val = val.replace(item, '.')
+    try:
+        return float(val)
+    except (TypeError, Exception) as err:
+        err_msg = f'Failed to convert value {str(val)} to float: {_exc(err)}'
+        _err(err_msg)
+        return None
+
 
 if __name__ == '__main__':
     email = 'sales@company.com'

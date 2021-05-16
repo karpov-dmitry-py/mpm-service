@@ -347,7 +347,7 @@ class ExcelProcesser:
                     row['comment'] = f'Добавлен в БД. {row["comment"]}'
                     stats['created_goods'].add(new_good.sku)
                 except Exception as err:
-                    err_msg = f'Failed to create a new good: "{brand}": {_exc(err)}'
+                    err_msg = f'Failed to create a new good: "{new_good}": {_exc(err)}'
                     _err(err_msg)
                     err_msg = f'Ошибка. Не удалось создать новый товар: {_exc(err)}'
                     row['comment'] = f'{err_msg} {row["comment"]}'

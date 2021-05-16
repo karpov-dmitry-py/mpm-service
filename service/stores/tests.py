@@ -14,17 +14,25 @@ def test_update_stock():
     # ''
     goods = [
         {
-            'sku': '100500',
-            'name': 'good 100500',
-            'brand': 'TV',
+            'sku': '1001',
+            'name': '1001 Тестовый товар, созданный  по апи',
+            'brand': 'Banana Bros',
+            'category': '3',
+            'description': '1001 Тестовый товар по апи описание',
+            'article': '1001_article',
+            'barcode': 'test good 1001 barcode',
+            'weight': 1.5,
+            'pack_width': '20.4',
+            'pack_height': '5.8',
+            'pack_length': 10.5,
             'stocks': [
                 {
-                    'code': 'wh_code_01',
-                    'available': 10,
+                    'code': '56676476764334',
+                    'available': 100,
                 },
                 {
-                    'code': 'wh_code_02',
-                    'available': 20,
+                    'code': '4334234',
+                    'available': 150,
                 },
             ]
         },
@@ -33,19 +41,19 @@ def test_update_stock():
             'stocks': [
                 {
                     'code': '56676476764334', # Ломоносовский пр, 100 (основной склад)
-                    'available': 10,
+                    'available': 100,
                 },
                 {
                     'code': '3eq4523434234', # Новый склад 1 (без поставщика)
-                    'available': 20,
+                    'available': 200,
                 },
                 {
-                    'code': '76756667998',  # New 5 - NOT IN DB
-                    'available': 30,
+                    'code': '76756667998',  # New 5
+                    'available': 300,
                 },
                 {
-                    'code': '100abc',  # DOES NOT EXIST
-                    'available': 100500,
+                    'code': '090978976754ssd', # New 7
+                    'available': 700,
                 },
                 # {
                 #     'code': '76756667998', # New 5

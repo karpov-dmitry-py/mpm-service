@@ -2,6 +2,7 @@ import random
 import json
 from collections import defaultdict
 from collections.abc import Iterable
+from typing import Dict, Any
 
 from django.http import JsonResponse
 
@@ -11,13 +12,15 @@ from ..models import GoodsBrand
 from ..models import Good
 from ..models import System
 from ..models import Stock
+
 from .common import new_uuid
+from .common import to_float
 from .common import _exc
 from .common import _err
 from .common import _log
 
 
-# class for managing for own api
+# class for api handling
 class API:
     api_ver = '1'
     required_headers = {
@@ -163,20 +166,45 @@ class API:
         }
         return JsonResponse(result)
 
-    @staticmethod
-    def _append_to_dict(_dict, key, val):
-        stored_val = _dict[key]
-        if stored_val is None:
-            return
-        if isinstance(stored_val, bool):
-            _dict[key] = val
-        elif isinstance(stored_val, set):
-            _dict[key].add(f'{val}')
-        elif isinstance(stored_val, int):
-            _dict[key] += val
-        else:
-            raise ValueError(
-                f'The type {type(stored_val)} can not yet be handled by "_append_to_dict" method (api module)')
+    def get_category_list_help(self):
+        result = {
+            'description': 'get user categories list',
+        }
+
+        required_headers = [{header: 'header value'} for header in self.required_headers.keys()]
+        request = {
+            'method': 'GET',
+            'path': f'/{self.get_api_full_path()}/categories/',
+            'required_headers': required_headers,
+
+        }
+
+        _min = 1
+        _max = 10
+        items = [{'id': i, 'name': f'category_{i}', 'parent_id': self._get_random_int(_min, _max, i)} for i in
+                 range(_min, _max)]
+        last = {
+            'id': _max,
+            'name': f'category_{_max} (no parent)',
+            'parent_id': None,
+        }
+        items.append(last)
+
+        response = {
+            'count': len(items),
+            'items': items,
+        }
+
+        result['request'] = request
+        result['response_to_valid_request'] = {
+            'response_status': 200,
+            'response_body': response
+        }
+        result['response_to_invalid_request'] = {
+            'response_status': 400,
+            'response_body': self._system_request_err()['data']
+        }
+        return JsonResponse(data=result)
 
     # stock
     def update_stock(self, request):
@@ -230,6 +258,11 @@ class API:
         categories_set = GoodsCategory.objects.filter(user=user)
         cats = {item.id: item for item in categories_set}
 
+        db_data = {
+            'brands': brands,
+            'cats': cats,
+        }
+
         # noinspection PyUnresolvedReferences
         wh_set = Warehouse.objects.filter(user=user)
         whs = {item.code: item for item in wh_set}
@@ -237,19 +270,30 @@ class API:
         # noinspection PyUnresolvedReferences
         stock_qs = Stock.objects.filter(user=user)
 
-        # process data
+        # process payload
         stats = self._get_update_stock_stats()
-        for item in items:
+        for item_index, item in enumerate(items):
             sku = item.get('sku')
             if not sku:
-                self._append_to_dict(stats, 'invalid_goods', sku)
+                self._append_to_dict(stats, 'invalid_goods', f'sku empty or not provided (offer # {item_index})')
                 continue
 
             # create a new good
             good = goods.get(sku)
             if not good:
-                # TODO - create a new good, validate success, skip to next sku if error
-                continue  # for now
+                good, validation_error, creation_error = self._create_good(item, db_data, user)
+
+                if validation_error:
+                    self._append_to_dict(stats, 'invalid_goods', {sku: validation_error})
+                    continue
+
+                if creation_error:
+                    self._append_to_dict(stats, 'failed_to_create_goods', {sku: creation_error})
+                    continue
+
+                # a new good created successfully
+                goods[sku] = good
+                self._append_to_dict(stats, 'created_goods', sku)
 
             stocks = item.get('stocks')
             if not stocks:
@@ -364,6 +408,92 @@ class API:
         self._prepare_dict(stats)
         return JsonResponse(data=stats, status=status, safe=False)
 
+    def _create_good(self, src: Dict[Any, str], db_data: Dict[str, dict], user: Any):
+        """
+        Return a created Good instance (or None if there is a validation or creation error),
+        validation error, creation error (or None as an error if there isn't any)
+        """
+        brands = db_data.get('brands')
+        cats = db_data.get('cats')
+        required_fields = ('sku', 'name')
+        try:
+            cleaned_data = {field: str(src.get(field)).strip() for field in required_fields if src.get(field)}
+        except Exception as err:
+            err_msg = f'Failed to convert required fields to strings to ' \
+                      f'create a new good ({", ".join(required_fields)}). {_exc(err)}'
+            _err(err_msg)
+            return None, err_msg, None
+
+        if not all(field in cleaned_data for field in required_fields):
+            err_msg = f'Not all mandatory fields provided to create a new good ({", ".join(required_fields)})'
+            _log(err_msg)
+            return None, err_msg, None
+
+        # user
+        cleaned_data['user'] = user
+
+        # article, description, barcode
+        char_fields = ('article', 'description', 'barcode',)
+        char_fields_dict = {field: str(src.get(field)).strip() for field in char_fields if src.get(field)}
+        cleaned_data.update(char_fields_dict)
+
+        # brand
+        raw_brand = src.get('brand')
+        if raw_brand:
+            brand = str(raw_brand).strip()
+            search_brand = brand.lower()
+            brand_ref = brands.get(search_brand)
+            if brand_ref:
+                cleaned_data['brand'] = brand_ref
+            else:
+                new_brand = GoodsBrand(name=brand, user=user)
+                try:
+                    new_brand.save()
+                    _log(f'A new brand created: "{brand}"')
+                    brands[search_brand] = new_brand
+                    cleaned_data['brand'] = new_brand
+                except Exception as err:
+                    err_msg = f'Failed to create a new brand: "{brand}": {_exc(err)}'
+                    _err(err_msg)
+
+        # category
+        raw_cat = src.get('category')
+        if raw_cat:
+            cat_id, err = self._int(raw_cat)
+            if cat_id is not None:
+                if category_ref := cats.get(cat_id):
+                    cleaned_data['category'] = category_ref
+
+        float_fields = ('weight', 'pack_width', 'pack_length', 'pack_height',)
+        float_fields_dict = {field: to_float(src.get(field)) for field in float_fields if
+                             to_float(src.get(field)) is not None}
+        cleaned_data.update(float_fields_dict)
+
+        new_good = Good(**cleaned_data)
+        try:
+            new_good.save()
+            _log(f'A new good created: "{new_good}"')
+            return new_good, None, None
+        except Exception as err:
+            err_msg = f'Failed to create a new good: "{new_good}": {_exc(err)}'
+            _err(err_msg)
+            return None, None, err_msg
+
+    @staticmethod
+    def _append_to_dict(_dict, key, val):
+        stored_val = _dict[key]
+        if stored_val is None:
+            return
+        if isinstance(stored_val, bool):
+            _dict[key] = val
+        elif isinstance(stored_val, set):
+            _dict[key].add(f'{val}')
+        elif isinstance(stored_val, int):
+            _dict[key] += val
+        else:
+            raise ValueError(
+                f'The type {type(stored_val)} can not yet be handled by "_append_to_dict" method (api module)')
+
     @staticmethod
     def _prepare_dict(_dict):
         for k, v in _dict.items():
@@ -397,12 +527,15 @@ class API:
             'created_goods': set(),
             'invalid_goods': set(),
             'failed_to_create_goods': set(),
+
             'processed_offers_rows': set(),
             'processed_offers': set(),
             'processed_offers_count': 0,
+
             'invalid_offers': set(),
             'invalid_offers_rows': set(),
             'failed_to_process_offers_rows': set(),
+
             'success': True,
         }
         return stats
