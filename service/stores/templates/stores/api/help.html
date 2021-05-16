@@ -1,0 +1,43 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% load stores.template_filters %}
+{% block content %}
+<div class="container-fluid" style="width: 100%;">
+    <h1 class="border-bottom mb-4 mt-4">Описание API</h1>
+    <h4 class="border-bottom mb-3">Общая информация</h4>
+
+    {% if general %}
+    <dl class="row">
+        {% for k, v in general.items %}
+            <dt class="col-sm-2">{{ k }}</dt>
+            <dd class="col-sm-10 mb-1">{{ v }}</dd>
+        {% endfor %}
+    </dl>
+    {% endif %}
+
+    {% if paths %}
+        {% for path_data in paths %}
+            {% for alias, data in path_data.items %}
+                <h4 class="border-bottom mb-3">
+                    <span style="background: lightblue; font-weight: bold;">{{ data|get_item:'method' }}</span>
+                        {{ data|get_item:'path' }}
+                    <span class="text-muted" style="font-size: 1.2rem;">
+                        {{ data|get_item:'what' }}
+                    </span>
+                </h4>
+                <dl class="row">
+                    <dt class="col-sm-2">Назначение</dt>
+                    <dd class="col-sm-10 mb-1">{{ data|get_item:'title' }}</dd>
+
+                    <dt class="col-sm-2">Запрос</dt>
+                    <dd class="col-sm-10 mb-1">{{ data|get_item:'request' }}</dd>
+
+                    <dt class="col-sm-2">Ответ</dt>
+                    <dd class="col-sm-10 mb-1">{{ data|get_item:'response' }}</dd>
+                </dl>
+            {% endfor %}
+        {% endfor %}
+    {% endif %}
+
+</div>
+{% endblock content %}

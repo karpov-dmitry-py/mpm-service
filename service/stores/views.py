@@ -1693,6 +1693,12 @@ class SystemDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
 # api
 
+# help page
+@require_GET
+def api_help(request):
+    context = API().get_api_help()
+    return render(request, 'stores/api/help.html', context=context)
+
 # warehouse
 @require_GET
 def api_warehouse_list(request):

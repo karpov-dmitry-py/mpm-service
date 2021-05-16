@@ -74,7 +74,11 @@ urlpatterns = [
     path('systems/<int:pk>/update/', views.SystemUpdateView.as_view(), name='systems-update'),
     path('systems/<int:pk>/delete/', views.SystemDeleteView.as_view(), name='systems-delete'),
 
-    # api
+
+    # API
+    # help page
+    path(f'{api_full_path}/help/', views.api_help, name='api-help'),
+
     # warehouse
     path(f'{api_full_path}/warehouses/', views.api_warehouse_list, name='api-warehouses-list'),
     path(f'{api_full_path}/warehouses/help/', views.api_warehouse_list_help, name='api-warehouses-list-help'),

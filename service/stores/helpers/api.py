@@ -28,6 +28,26 @@ class API:
         'token-auth': 'HTTP_TOKEN_AUTH',
     }
 
+    def get_api_help(self):
+        result = {
+            'general': {
+                'Актуальная версия': self.get_api_ver(),
+                'Путь для запросов': f'{self.get_api_full_path()}/'
+            },
+            'paths': [
+                {'stock': {
+                    'method': '[POST]',
+                    'path': f'{self.get_api_full_path()}/stock/',
+                    'what': '(товары и собственные остатки)',
+                    'title': f'Создание новых товаров и обновление собственных товарных остатков',
+                    'request': {'request': True},
+                    'response': {'response': 'OK'}
+                  }
+                }
+            ]
+        }
+        return result
+
     @staticmethod
     def get_api_ver():
         return f'{API.api_ver}'
@@ -334,6 +354,11 @@ class API:
                 # validate amount
                 amount, err = self._int(available)
                 if err:
+                    self._append_to_dict(stats, 'invalid_offers_rows', data_to_update)
+                    sku_stock_processing_success = False
+                    continue
+
+                if amount < 0:
                     self._append_to_dict(stats, 'invalid_offers_rows', data_to_update)
                     sku_stock_processing_success = False
                     continue
