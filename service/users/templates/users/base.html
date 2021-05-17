@@ -52,12 +52,18 @@
         <ul class="navbar-nav">
             {% if user.is_authenticated %}
             <li class="nav-item">
+                <a class="btn btn-dark" href="{% url 'api-help' %}">Описание API</a>
+            </li>
+            <li class="nav-item">
                 <a class="btn btn-dark" style="margin-right: 0.5rem;" href="{% url 'users-account' %}">Профиль ({{ user.email }})</a>
             </li>
             <li class="nav-item">
                 <a class="btn btn-dark" href="{% url 'logout' %}">Выйти</a>
             </li>
             {% else %}
+            <li class="nav-item">
+                <a class="btn btn-dark" href="{% url 'api-help' %}">Описание API</a>
+            </li>
             <li class="nav-item">
                 <a class="btn btn-dark" href="{% url 'login' %}">Войти</a>
             </li>

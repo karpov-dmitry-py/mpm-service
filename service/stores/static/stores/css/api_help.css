@@ -1,0 +1,15 @@
+.post {
+    background:  #a8f0db;
+}
+.get {
+    background: #AFEEEE;
+}
+
+.path-header {
+    padding-top: 3px;
+    cursor: pointer;
+}
+
+.path-body {
+    display: none;
+}

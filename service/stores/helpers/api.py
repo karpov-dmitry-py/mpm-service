@@ -29,22 +29,34 @@ class API:
     }
 
     def get_api_help(self):
-        result = {
-            'general': {
-                'Актуальная версия': self.get_api_ver(),
-                'Путь для запросов': f'{self.get_api_full_path()}/'
+
+        general = {
+            'Актуальная версия': self.get_api_ver(),
+            'Путь для запросов': f'{self.get_api_full_path()}/'
+        }
+        paths = [
+            {'stock': {
+                'method': 'POST',
+                'path': f'{self.get_api_full_path()}/stock/',
+                'what': '(товары и собственные остатки)',
+                'title': f'Создание новых товаров и обновление собственных товарных остатков',
+                'request': {'request': True},
+                'response': {'response': 'OK'}
+              }
             },
-            'paths': [
-                {'stock': {
-                    'method': '[POST]',
-                    'path': f'{self.get_api_full_path()}/stock/',
-                    'what': '(товары и собственные остатки)',
-                    'title': f'Создание новых товаров и обновление собственных товарных остатков',
-                    'request': {'request': True},
-                    'response': {'response': 'OK'}
-                  }
-                }
-            ]
+            {'warehouses': {
+                'method': 'GET',
+                'path': f'{self.get_api_full_path()}/warehouses/',
+                'what': '(список складов)',
+                'title': f'Получение списка складов',
+                'request': {'request': True},
+                'response': {'response': 'OK'}
+            }
+            },
+        ]
+        result = {
+            'general': general,
+            'paths': paths,
         }
         return result
 

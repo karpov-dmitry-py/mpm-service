@@ -2,7 +2,8 @@
 {% load static %}
 {% load stores.template_filters %}
 {% block content %}
-<div class="container-fluid" style="width: 100%;">
+<link rel="stylesheet" href="{% static 'stores/css/api_help.css' %}">
+<div class="container-fluid" style="width: 85%;">
     <h1 class="border-bottom mb-4 mt-4">Описание API</h1>
     <h4 class="border-bottom mb-3">Общая информация</h4>
 
@@ -18,26 +19,37 @@
     {% if paths %}
         {% for path_data in paths %}
             {% for alias, data in path_data.items %}
-                <h4 class="border-bottom mb-3">
-                    <span style="background: lightblue; font-weight: bold;">{{ data|get_item:'method' }}</span>
-                        {{ data|get_item:'path' }}
-                    <span class="text-muted" style="font-size: 1.2rem;">
-                        {{ data|get_item:'what' }}
-                    </span>
-                </h4>
-                <dl class="row">
-                    <dt class="col-sm-2">Назначение</dt>
-                    <dd class="col-sm-10 mb-1">{{ data|get_item:'title' }}</dd>
 
-                    <dt class="col-sm-2">Запрос</dt>
-                    <dd class="col-sm-10 mb-1">{{ data|get_item:'request' }}</dd>
+                {% if data|get_item:'method' == 'POST' %}
+                    <div onclick="showBody('{{alias}}')" class="post path-header">
+                {% elif data|get_item:'method' == 'GET' %}
+                    <div onclick="showBody('{{alias}}')" class="get path-header">
+                {% else %}
+                    <div onclick="showBody('{{alias}}')" class="path-header">
+                {% endif%}
+                    <h4>
+                        <span style="font-weight: bold;">[{{ data|get_item:'method' }}]</span>
+                            {{ data|get_item:'path' }}
+                        <span class="text-muted" style="font-size: 1.2rem;">
+                            {{ data|get_item:'what' }}
+                        </span>
+                    </h4>
+                </div>
+                <div id="{{alias}}-body" class="path-body">
+                    <dl class="row">
+                        <dt class="col-sm-2">Назначение</dt>
+                        <dd class="col-sm-10 mb-1">{{ data|get_item:'title' }}</dd>
 
-                    <dt class="col-sm-2">Ответ</dt>
-                    <dd class="col-sm-10 mb-1">{{ data|get_item:'response' }}</dd>
-                </dl>
+                        <dt class="col-sm-2">Запрос</dt>
+                        <dd class="col-sm-10 mb-1">{{ data|get_item:'request' }}</dd>
+
+                        <dt class="col-sm-2">Ответ</dt>
+                        <dd class="col-sm-10 mb-1">{{ data|get_item:'response' }}</dd>
+                    </dl>
+                </div>
             {% endfor %}
         {% endfor %}
     {% endif %}
-
 </div>
+<script type="text/javascript" src="{% static 'stores/js/api_help.js' %}"></script>
 {% endblock content %}
