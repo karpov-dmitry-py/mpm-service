@@ -5,51 +5,103 @@
 <link rel="stylesheet" href="{% static 'stores/css/api_help.css' %}">
 <div class="container-fluid" style="width: 85%;">
     <h1 class="border-bottom mb-4 mt-4">Описание API</h1>
-    <h4 class="border-bottom mb-3">Общая информация</h4>
 
-    {% if general %}
-    <dl class="row">
-        {% for k, v in general.items %}
-            <dt class="col-sm-2">{{ k }}</dt>
-            <dd class="col-sm-10 mb-1">{{ v }}</dd>
-        {% endfor %}
-    </dl>
-    {% endif %}
-
-    {% if paths %}
-        {% for path_data in paths %}
-            {% for alias, data in path_data.items %}
-
-                {% if data|get_item:'method' == 'POST' %}
-                    <div onclick="showBody('{{alias}}')" class="post path-header">
-                {% elif data|get_item:'method' == 'GET' %}
-                    <div onclick="showBody('{{alias}}')" class="get path-header">
-                {% else %}
-                    <div onclick="showBody('{{alias}}')" class="path-header">
-                {% endif%}
-                    <h4>
-                        <span style="font-weight: bold;">[{{ data|get_item:'method' }}]</span>
-                            {{ data|get_item:'path' }}
-                        <span class="text-muted" style="font-size: 1.2rem;">
-                            {{ data|get_item:'what' }}
-                        </span>
-                    </h4>
-                </div>
-                <div id="{{alias}}-body" class="path-body">
-                    <dl class="row">
-                        <dt class="col-sm-2">Назначение</dt>
-                        <dd class="col-sm-10 mb-1">{{ data|get_item:'title' }}</dd>
-
-                        <dt class="col-sm-2">Запрос</dt>
-                        <dd class="col-sm-10 mb-1">{{ data|get_item:'request' }}</dd>
-
-                        <dt class="col-sm-2">Ответ</dt>
-                        <dd class="col-sm-10 mb-1">{{ data|get_item:'response' }}</dd>
-                    </dl>
-                </div>
+    {% for row in general %}
+        {% for gen_header, gen_data in row.items %}
+            <h4 class="border-bottom mb-2">{{ gen_header }}</h4>
+            {% for k, v in gen_data.items %}
+                <dl class="dl row mb-2">
+                        <dt class="col-sm-3 mb-0">{{ k|safe }}</dt>
+                        <dd class="content col-sm-9 mb-1">{{ v|safe }}</dd>
+                </dl>
             {% endfor %}
+            <div class="mb-4"></div>
         {% endfor %}
-    {% endif %}
+    {% endfor %}
+
+    <h4 class="border-bottom mb-2">Доступные методы API</h4>
+    {% for path_data in paths %}
+        {% for alias, data in path_data.items %}
+            <div id="{{alias}}" class="{{ data|get_item:'method'|lower }} path-header">
+                <h4>
+                    <span style="font-weight: bold;">[{{ data|get_item:'method' }}]</span>
+                        {{ data|get_item:'path' }}
+                    <span class="text-muted path-info">
+                        {{ data|get_item:'what' }}
+                    </span>
+                </h4>
+            </div>
+            <div id="{{alias}}-body" class="path-body">
+                <dl class="dl row mb-2">
+                    <dt class="col-sm-3">Назначение</dt>
+                    <dd class="col-sm-9 mb-3">{{ data|get_item:'title' }}</dd>
+
+                    <dt class="col-sm-3">Описание</dt>
+                    <dd class="content col-sm-9 mb-3">{{ data|get_item:'desc'|safe }}</dd>
+
+                    {% if data|get_item:'request' %}
+                        <dt class="col-sm-3 mt-3">Запрос</dt>
+                        <dd class="content col-sm-9 mb-1 mt-3">
+
+                              {% for k, v in data.items %}
+                                {% if k == 'request' %}
+                                    <table class="table table-bordered">
+                                      <thead>
+                                        <tr>
+                                          <th scope="col">Параметр</th>
+                                          <th scope="col">Тип</th>
+                                          <th scope="col">Описание</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {% for row in v %}
+                                          <tr>
+                                              <td><span class="code">{{ row.param }}</span></td>
+                                              <td><span class="data-type">{{ row.type }}</span></td>
+                                              <td>{{ row.desc }}</td>
+                                          </tr>
+                                        {% endfor %}
+                                      </tbody>
+                                    </table>
+                                {% endif %}
+                              {% endfor %}
+                        </dd>
+                    {% endif %}
+
+                    {% if data|get_item:'response' %}
+                        <dt class="col-sm-3 mt-2">Ответ</dt>
+                        <dd class="content col-sm-9 mb-1 mt-2">
+
+                              {% for k, v in data.items %}
+                                {% if k == 'response' %}
+                                    <table class="table table-bordered">
+                                      <thead>
+                                        <tr>
+                                          <th class="tcol" scope="col">Параметр</th>
+                                          <th class="tcol" scope="col">Тип</th>
+                                          <th scope="col">Описание</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {% for row in v %}
+                                          <tr>
+                                              <td><span class="code">{{ row.param }}</span></td>
+                                              <td><span class="data-type">{{ row.type }}</span></td>
+                                              <td>{{ row.desc|safe }}</td>
+                                          </tr>
+                                        {% endfor %}
+                                      </tbody>
+                                    </table>
+                                {% endif %}
+                              {% endfor %}
+                        </dd>
+                    {% endif %}
+
+                </dl>
+            </div>
+        {% endfor %}
+    {% endfor %}
+    <div style="mb-5"></div>
 </div>
 <script type="text/javascript" src="{% static 'stores/js/api_help.js' %}"></script>
 {% endblock content %}

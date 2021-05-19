@@ -62,9 +62,11 @@ def test_update_stock():
             ]
         },
     ]
-    payload = {'offers': goods}
-    with open('stock_request.json', 'w') as file:
-        json.dump(payload, file, ensure_ascii=False, indent=4)
+    payload = []
+    # payload = {'offers': goods}
+    # with open('stock_request.json', 'w') as file:
+    #     json.dump(payload, file, ensure_ascii=False, indent=4)
+
     response = requests.post(url, headers=headers, json=payload)
     try:
         print(response.json())

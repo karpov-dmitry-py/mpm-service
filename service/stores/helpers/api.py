@@ -28,32 +28,260 @@ class API:
         'token-auth': 'HTTP_TOKEN_AUTH',
     }
 
+    # help
     def get_api_help(self):
+        general = [
+            {'Общая информация': {
+                'Актуальная версия': self.get_api_ver(),
+                'Путь для запросов': f'/{self.get_api_full_path()}/'
+            }
+            },
+            {'Авторизация': {
+                'Способ авторизации': 'Передача данных для авторизации в заголовках запроса',
+                "Заголовок <span class='code'>user-auth</span>": 'Email существующего пользователя сервиса (строка)',
+                "Заголовок <span class='code'>token-auth</span>": 'Токен внешней системы, ранее добавленной в сервис в аккаунте '
+                                          'пользователя (строка)',
+                'Описание': 'Сервис проверяет наличие и корректность авторизационных данных в заголовках запроса. '
+                            'При не успешной авторизации (или при любом некорректном запросе) сервис вернет статус '
+                            '<span class="code">400</span> и описание причины ошибочного запроса. '
+                            'При успешной обработке запросе сервис вернет статус <span class="code">200</span>. '
+                            'При ошибке сервиса будет возвращен статус <span class="code">500</span>. ',
+                }
+            }
+        ]
 
-        general = {
-            'Актуальная версия': self.get_api_ver(),
-            'Путь для запросов': f'{self.get_api_full_path()}/'
-        }
         paths = [
             {'stock': {
                 'method': 'POST',
                 'path': f'{self.get_api_full_path()}/stock/',
                 'what': '(товары и собственные остатки)',
                 'title': f'Создание новых товаров и обновление собственных товарных остатков',
-                'request': {'request': True},
-                'response': {'response': 'OK'}
-              }
+                'desc': f'Метод позволяет создавать новые товары и обновлять собственные товарные остатки на складах. '
+                        f'За один запрос можно обновить данные по максимум {self._update_stock_items_limit()} товарам. '
+                        f'В запросе можно передать поля нового или существующего товара и список его остатков.'
+                        f'Минимально необходимые поля по товару для его создания в сервисе: '
+                        f'<span class="code">sku</span> и <span class="code">name</span>. '
+                        f'Поиск бренда выполняется по наименованию. Регистр не важен. '
+                        f'Поиск категории выполняется по <span class="code">id</span>. '
+                        f'Если бренд не найден в сервисе, он создается и заполняется в карточке создаваемого товара. '
+                        f'Если категория не найдена, она остается пустой (null) в карточке создаваемого товара. '
+                        f'Поиск товара выполняется по полю <span class="code">sku</span>. '
+                        f'Новый товар создается только при его отсутствии в сервисе. '
+                        f'Существующий товар не обновляется. '
+                        f'Общий список по товарам <span class="code">offers</span> проверяется на дубли по товарам, '
+                        f'на наличие идентификатора товара и списка его остатков. '
+                        f'Список остатков по товару <span class="code">stocks</span> проверяется на дубли по кодам '
+                        f'складов, на наличие кода склада, на корректность '
+                        f'кода склада, на целый не отрицательный остаток. '
+                        f'Обработка запроса считается успешной, если успешно обработаны все переданные остатки минимум '
+                        f'одного товара из запроса. '
+                        f'Статистика обработки запроса возвращается в ответе сервиса.',
+                'request': [
+                    {
+                        'param': 'offers[]',
+                        'type': 'array of serialized offers',
+                        'desc': 'Список товаров и остатков',
+                    },
+                    {
+                        'param': 'offers[][sku]',
+                        'type': 'integer',
+                        'desc': 'Идентификатор товара',
+                    },
+                    {
+                        'param': 'offers[][name]',
+                        'type': 'string',
+                        'desc': 'Наименование товара',
+                    },
+                    {
+                        'param': 'offers[][brand]',
+                        'type': 'string',
+                        'desc': 'Бренд товара',
+                    },
+                    {
+                        'param': 'offers[][category]',
+                        'type': 'integer',
+                        'desc': 'Идентификатор категории товара',
+                    },
+                    {
+                        'param': 'offers[][description]',
+                        'type': 'string',
+                        'desc': 'Описание товара',
+                    },
+                    {
+                        'param': 'offers[][article]',
+                        'type': 'string',
+                        'desc': 'Артикул товара',
+                    },
+                    {
+                        'param': 'offers[][barcode]',
+                        'type': 'string',
+                        'desc': 'Штрихкод товара',
+                    },
+                    {
+                        'param': 'offers[][weight]',
+                        'type': 'float',
+                        'desc': 'Вес товара (кг)',
+                    },
+                    {
+                        'param': 'offers[][pack_width]',
+                        'type': 'float',
+                        'desc': 'Ширина упаковки товара (см)',
+                    },
+                    {
+                        'param': 'offers[][pack_length]',
+                        'type': 'float',
+                        'desc': 'Длина упаковки товара (см)',
+                    },
+                    {
+                        'param': 'offers[][pack_height]',
+                        'type': 'float',
+                        'desc': 'Высота упаковки товара (см)',
+                    },
+                    {
+                        'param': 'offers[]stocks[]',
+                        'type': 'array of serialized stocks',
+                        'desc': 'Список остатков товара по складам',
+                    },
+                    {
+                        'param': 'offers[]stocks[][code]',
+                        'type': 'string',
+                        'desc': 'Символьный код склада',
+                    },
+                    {
+                        'param': 'offers[]stocks[][available]',
+                        'type': 'integer',
+                        'desc': 'Целый не отрицательный остаток товара на складе',
+                    },
+                ],
+                'response': [
+                    {
+                        'param': 'created_goods[]',
+                        'type': 'array of strings',
+                        'desc': 'Список sku созданных товаров',
+                    },
+                    {
+                        'param': 'invalid_goods[]',
+                        'type': 'array of strings',
+                        'desc': 'Список sku (или порядковых номеров предложений) с некорректными (или неполными) '
+                                'данными для определения товара',
+                    },
+                    {
+                        'param': 'failed_to_create_goods[]',
+                        'type': 'array of strings',
+                        'desc': 'Список sku товаров, которые не удалось создать',
+                    },
+                    {
+                        'param': 'processed_offers_rows[]',
+                        'type': 'array of strings',
+                        'desc': 'Список успешно обработанных строк товарных остатков (строка содержит sku, код склада и '
+                                'остаток',
+                    },
+                    {
+                        'param': 'processed_offers',
+                        'type': 'array of strings',
+                        'desc': 'Список sku товаров, по которым полностью успешно обработаны все переданные остатки'
+                    },
+                    {
+                        'param': 'processed_offers_count',
+                        'type': 'integer',
+                        'desc': 'Количество различных товаров, по которым полностью успешно обработаны все переданные '
+                                'остатки'
+                    },
+                    {
+                        'param': 'invalid_offers',
+                        'type': 'array of strings',
+                        'desc': 'Список sku товаров, по которым переданные остатки некорректны (неверный код склада и '
+                                'др.)'
+                    },
+                    {
+                        'param': 'invalid_offers_rows[]',
+                        'type': 'array of strings',
+                        'desc': 'Список некорректных строк товарных остатков (строка содержит sku, код склада и '
+                                'остаток',
+                    },
+                    {
+                        'param': 'failed_to_process_offers_rows[]',
+                        'type': 'array of strings',
+                        'desc': 'Список корректных строк товарных остатков, которые сервис не сумел обработать '
+                                '(строка содержит sku, код склада и остаток',
+                    },
+                    {
+                        'param': 'success',
+                        'type': 'boolean',
+                        'desc': 'Результат запроса (успешный/неуспешный). Успешный, если '
+                                '<span class="code">processed_offers_count</span> > 0 (вне зависимости от кол-ва '
+                                'созданных при обработке запроса товаров)',
+                    },
+                ]
+                }
             },
             {'warehouses': {
                 'method': 'GET',
                 'path': f'{self.get_api_full_path()}/warehouses/',
                 'what': '(список складов)',
-                'title': f'Получение списка складов',
-                'request': {'request': True},
-                'response': {'response': 'OK'}
+                'title': f'Получение списка складов и их символьных кодов',
+                'desc': 'Метод позволяет получить список складов и их символьных кодов (идентификаторов)',
+                'response': [
+                    {
+                        'param': 'count',
+                        'type': 'integer',
+                        'desc': 'Количество объектов в ответе',
+                    },
+                    {
+                        'param': 'items[]',
+                        'type': 'array of serialized warehouses',
+                        'desc': 'Список складов',
+                    },
+                    {
+                        'param': 'items[][code]',
+                        'type': 'string',
+                        'desc': 'Символьный код склада',
+                    },
+                    {
+                        'param': 'items[][name]',
+                        'type': 'string',
+                        'desc': 'Наименование склада',
+                    }
+                ]
+            }
+            },
+            {'categories': {
+                'method': 'GET',
+                'path': f'{self.get_api_full_path()}/categories/',
+                'what': '(список категорий)',
+                'title': f'Получение списка товарных категорий и их идентификаторов',
+                'desc': 'Метод позволяет получить список товарных категорий и их идентификаторов',
+                'response': [
+                    {
+                        'param': 'count',
+                        'type': 'integer',
+                        'desc': 'Количество объектов в ответе',
+                    },
+                    {
+                        'param': 'items[]',
+                        'type': 'array of serialized categories',
+                        'desc': 'Список товарных категорий',
+                    },
+                    {
+                        'param': 'items[][id]',
+                        'type': 'integer',
+                        'desc': 'Идентификатор категории',
+                    },
+                    {
+                        'param': 'items[][name]',
+                        'type': 'string',
+                        'desc': 'Наименование категории',
+                    },
+                    {
+                        'param': 'items[][parent_id]',
+                        'type': 'integer | null',
+                        'desc': 'Идентификатор родительской категории (или null для категории верхнего уровня)',
+                    },
+                ]
             }
             },
         ]
+
         result = {
             'general': general,
             'paths': paths,
@@ -247,6 +475,11 @@ class API:
         # validate payload
         payload, err = self._parse_json(request.body)
         if err:
+            return self._system_request_err(err)['response']
+
+        # check payload type
+        if not isinstance(payload, dict):
+            err = 'payload has the wrong type, must be an object'
             return self._system_request_err(err)['response']
 
         # check if the required key is in payload
