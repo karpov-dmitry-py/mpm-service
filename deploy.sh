@@ -10,3 +10,8 @@ echo ">>>> copying tar archive to remote host via ssh ..."
 
 echo ">>>> ssh-ing to remote host and running deploy on it ..."
 /bin/bash ./ssh_and_deploy.sh
+
+echo ">>>> removing *.tar files on host ..."
+rm *.tar
+
+echo ">>>> done!"

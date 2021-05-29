@@ -1,7 +1,6 @@
 import random
 import json
 from collections import defaultdict
-from collections.abc import Iterable
 from typing import Dict, Any
 
 from django.http import JsonResponse
@@ -39,14 +38,15 @@ class API:
             {'Авторизация': {
                 'Способ авторизации': 'Передача данных для авторизации в заголовках запроса',
                 "Заголовок <span class='code'>user-auth</span>": 'Email существующего пользователя сервиса (строка)',
-                "Заголовок <span class='code'>token-auth</span>": 'Токен внешней системы, ранее добавленной в сервис в аккаунте '
-                                          'пользователя (строка)',
+                "Заголовок <span class='code'>token-auth</span>":
+                    'Токен внешней системы, ранее добавленной в сервис в аккаунте '
+                    'пользователя (строка)',
                 'Описание': 'Сервис проверяет наличие и корректность авторизационных данных в заголовках запроса. '
                             'При не успешной авторизации (или при любом некорректном запросе) сервис вернет статус '
                             '<span class="code">400</span> и описание причины ошибочного запроса. '
                             'При успешной обработке запросе сервис вернет статус <span class="code">200</span>. '
                             'При ошибке сервиса будет возвращен статус <span class="code">500</span>. ',
-                }
+            }
             }
         ]
 
@@ -57,22 +57,26 @@ class API:
                 'what': '(товары и собственные остатки)',
                 'title': f'Создание новых товаров и обновление собственных товарных остатков',
                 'desc': f'Метод позволяет создавать новые товары и обновлять собственные товарные остатки на складах. '
-                        f'За один запрос можно обновить данные по максимум {self._update_stock_items_limit()} товарам. '
-                        f'В запросе можно передать поля нового или существующего товара и список его остатков.'
+                        f'За один запрос можно обновить данные по '
+                        f'максимум {self._update_stock_items_limit()} товарам.<br> '
+                        f'В запросе можно передать поля нового или существующего товара и список его остатков.<br>'
                         f'Минимально необходимые поля по товару для его создания в сервисе: '
-                        f'<span class="code">sku</span> и <span class="code">name</span>. '
+                        f'<span class="code">sku</span> и <span class="code">name</span>.<br>'
                         f'Поиск бренда выполняется по наименованию. Регистр не важен. '
+                        f'Если бренд не найден в сервисе, он создается и заполняется в карточке '
+                        f'создаваемого товара.<br>'
                         f'Поиск категории выполняется по <span class="code">id</span>. '
-                        f'Если бренд не найден в сервисе, он создается и заполняется в карточке создаваемого товара. '
-                        f'Если категория не найдена, она остается пустой (null) в карточке создаваемого товара. '
+                        f'Если категория не найдена, она остается пустой (null) в карточке создаваемого товара.<br>'
                         f'Поиск товара выполняется по полю <span class="code">sku</span>. '
                         f'Новый товар создается только при его отсутствии в сервисе. '
-                        f'Существующий товар не обновляется. '
+                        f'Поля существующего товара не обновляются.<br>'
                         f'Общий список по товарам <span class="code">offers</span> проверяется на дубли по товарам, '
-                        f'на наличие идентификатора товара и списка его остатков. '
+                        f'на наличие идентификатора товара и списка его остатков.<br>'
                         f'Список остатков по товару <span class="code">stocks</span> проверяется на дубли по кодам '
                         f'складов, на наличие кода склада, на корректность '
                         f'кода склада, на целый не отрицательный остаток. '
+                        f'Обновляются/добавляются только остатки, полученные в запросе. '
+                        f'Остатки товара, имеющиеся в сервисе и не полученные в запросе, не обнуляются.<br>'
                         f'Обработка запроса считается успешной, если успешно обработаны все переданные остатки минимум '
                         f'одного товара из запроса. '
                         f'Статистика обработки запроса возвращается в ответе сервиса.',
@@ -173,8 +177,8 @@ class API:
                     {
                         'param': 'processed_offers_rows[]',
                         'type': 'array of strings',
-                        'desc': 'Список успешно обработанных строк товарных остатков (строка содержит sku, код склада и '
-                                'остаток',
+                        'desc': 'Список успешно обработанных строк товарных остатков (строка содержит sku, '
+                                'код склада и остаток',
                     },
                     {
                         'param': 'processed_offers',
@@ -213,7 +217,7 @@ class API:
                                 'созданных при обработке запроса товаров)',
                     },
                 ]
-                }
+            }
             },
             {'warehouses': {
                 'method': 'GET',
@@ -283,6 +287,7 @@ class API:
         ]
 
         result = {
+            'title': 'Описание API',
             'general': general,
             'paths': paths,
         }
@@ -479,7 +484,7 @@ class API:
 
         # check payload type
         if not isinstance(payload, dict):
-            err = 'payload has the wrong type, must be an object'
+            err = 'wrong type of payload, must be an object'
             return self._system_request_err(err)['response']
 
         # check if the required key is in payload
@@ -490,8 +495,8 @@ class API:
             return self._system_request_err(err)['response']
 
         # check if items obj is iterable
-        if not (items, Iterable):
-            err = f'"{key}" object is not iterable (not an array/list/tuple)'
+        if not self._is_iterable(items):
+            err = f'wrong type of "{key}", must be  an array'
             return self._system_request_err(err)['response']
 
         # check items length against limit
@@ -565,7 +570,8 @@ class API:
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
-            if not (stocks, Iterable):
+            # check if stocks obj is iterable
+            if not self._is_iterable(stocks):
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
@@ -575,7 +581,7 @@ class API:
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
-            # check for wh code duplicates
+            # check for warehouse code duplicates
             wh_codes = defaultdict(int)
             for stock_dict in stocks:
                 wh_codes[stock_dict.get('code')] += 1
@@ -677,6 +683,11 @@ class API:
             status = 400
         self._prepare_dict(stats)
         return JsonResponse(data=stats, status=status, safe=False)
+
+    @staticmethod
+    def _is_iterable(obj):
+        types = (list, tuple, set)
+        return type(obj) in types
 
     def _create_good(self, src: Dict[Any, str], db_data: Dict[str, dict], user: Any):
         """
