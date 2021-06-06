@@ -3,6 +3,7 @@ from django.forms import Form
 from django.forms import FileField
 from django.forms import Textarea
 from django.forms import TextInput
+from django.forms import NumberInput
 from django.forms import CheckboxSelectMultiple
 from django.forms import Select
 from .models import Store
@@ -12,6 +13,7 @@ from .models import Good
 from .models import Supplier
 from .models import Warehouse
 from .models import System
+from .models import StockSetting
 
 
 class CreateStoreForm(ModelForm):
@@ -113,7 +115,19 @@ class CreateWarehouseForm(ModelForm):
 class CreateSystemForm(ModelForm):
     class Meta:
         model = System
-        fields = ['name', 'code', 'description',]
+        fields = ['name', 'code', 'description', ]
         widgets = {
             'description': Textarea(attrs={'cols': 50, 'rows': 3}),
+        }
+
+
+class CreateStockSettingForm(ModelForm):
+    class Meta:
+        model = StockSetting
+        fields = ['name', 'priority', 'content']
+        widgets = {
+            'priority': NumberInput(attrs={
+                'onfocusout': 'checkPriority(this)',
+            }),
+            'content': Textarea(attrs={'cols': 50, 'rows': 3}),
         }

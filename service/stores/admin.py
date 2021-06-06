@@ -15,6 +15,7 @@ from .models import Warehouse
 
 from .models import Stock
 from .models import System
+from .models import StockSetting
 
 # Register your models here.
 admin.site.register(StoreStatus)
@@ -34,3 +35,4 @@ admin.site.register(Warehouse)
 
 admin.site.register(Stock)
 admin.site.register(System)
+admin.site.register(StockSetting)

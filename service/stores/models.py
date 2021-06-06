@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import CASCADE
 from django.db.models import SET_NULL
@@ -296,3 +297,23 @@ class System(models.Model):
         verbose_name = 'Учетная система'
         verbose_name_plural = 'Учетные системы'
         ordering = ['id']
+
+
+class StockSetting(models.Model):
+    name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
+    priority = models.PositiveIntegerField(verbose_name='Порядок', blank=False, null=False,
+                                           validators=[MinValueValidator(1), ])
+    content = models.TextField(verbose_name='Условия', blank=True, null=False)
+    description = models.TextField(verbose_name='Описание', max_length=1000, null=True, blank=True)
+    store = models.ForeignKey(Store, verbose_name='Магазин', on_delete=CASCADE, related_name='store',
+                              blank=True, null=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт')
+
+    def __str__(self):
+        return f'({self.store.name}) {self.name}'
+
+    class Meta:
+        db_table = 'stock_settings'
+        verbose_name = 'Настройка остатков товаров'
+        verbose_name_plural = 'Настройки остатков товаров'
+        ordering = ['priority']

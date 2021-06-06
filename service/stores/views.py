@@ -37,6 +37,7 @@ from .models import WarehouseType
 
 from .models import Stock
 from .models import System
+from .models import StockSetting
 
 # noinspection PyProtectedMember
 from .helpers.common import _exc
@@ -64,8 +65,10 @@ from .forms import BatchGoodsUploadForm
 from .forms import CreateSupplierForm
 from .forms import CreateWarehouseForm
 from .forms import CreateSystemForm
+from .forms import CreateStockSettingForm
 
 BASE_URL = 'https://marketplace-market.ru'
+ACTIVE_STORE_STATUS = 'подключен'
 
 
 @require_POST
@@ -386,6 +389,48 @@ def _get_store_api_url(store_id):
     return f'{BASE_URL}/{API.get_api_full_path()}/stores/{store_id}'
 
 
+def is_active_store(store):
+    return store.status.name.lower() == ACTIVE_STORE_STATUS
+
+
+def get_store_by_id(store_id, user):
+    err_msg = f'неверный id магазина: {store_id}'
+    if not isinstance(store_id, int):
+        return None, err_msg
+    # noinspection PyUnresolvedReferences
+    rows = Store.objects.filter(user=user).filter(id=store_id)
+    if not len(rows):
+        return None, err_msg
+
+    store = rows[0]
+    if not is_active_store(store):
+        return None, f'Магазин {store.name} не активен, настройки доступны только для активных магазинов.'
+
+    return store, None
+
+
+# noinspection PyUnresolvedReferences
+def get_store_stock_settings(store):
+    if store is None:
+        return
+    rows = StockSetting.objects.filter(user=store.user).filter(store=store)
+    return rows
+
+
+def is_stock_settings_priority_used(priority, store, skip_setting_id=None):
+    rows = get_store_stock_settings(store=store)
+    if skip_setting_id:
+        is_used = any(row.priority == priority for row in rows if row.id != skip_setting_id)
+    else:
+        is_used = any(row.priority == priority for row in rows)
+    return is_used
+
+
+def is_valid_stock_setting_content(content):
+    # TODO - actual validation based on types of conditions
+    return bool(content)
+
+
 # STORE
 class StoreListView(LoginRequiredMixin, ListView):
     template_name = 'stores/store/list_stores.html'
@@ -395,7 +440,10 @@ class StoreListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         # noinspection PyUnresolvedReferences
-        return Store.objects.filter(user=self.request.user)
+        qs = Store.objects.filter(user=self.request.user).order_by('id')
+        for row in qs:
+            setattr(row, 'is_active', is_active_store(row))
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -495,6 +543,7 @@ def view_store(request, pk):
 
     context = {
         'item': store,
+        'is_active': is_active_store(store),
         'props': props,
         'marketplace': store.marketplace.name,
         'title': 'Просмотр магазина',
@@ -529,7 +578,7 @@ def update_store(request, pk):
             marketplace = form.cleaned_data['marketplace']
             form_data = dict(form.data)
 
-            # delete olf props values from db
+            # delete old props values from db
             # noinspection PyUnresolvedReferences
             StoreProperty.objects.filter(store=store).delete()
 
@@ -1691,13 +1740,203 @@ class SystemDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return context
 
 
-# api
+# STOCK SETTING
+class StockSettingListView(LoginRequiredMixin, ListView):
+    template_name = 'stores/stock_setting/list_stock_settings.html'
+    model = StockSetting
+    context_object_name = 'items'
+    ordering = ['id']
+    _store = None
+
+    def get(self, *args, **kwargs):
+        redirect_to = redirect('stores-list')
+        store_id = kwargs.get('store_pk')
+        store, err = get_store_by_id(store_id, self.request.user)
+
+        if err:
+            messages.error(self.request, err)
+            return redirect_to
+
+        self._store = store
+        return super().get(*args, **kwargs)
+
+    def get_queryset(self):
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user).filter(store=self._store).order_by('priority')
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['items_count'] = len(context['items'])
+        # noinspection PyTypeChecker,PyTypeChecker
+        context['title'] = f'{_get_model_list_title(self.model)} - {self._store.name}'
+        context['store_name'] = self._store.name
+        context['store_id'] = self._store.id
+        return context
+
+
+class StockSettingCreateView(LoginRequiredMixin, CreateView):
+    model = StockSetting
+    form_class = CreateStockSettingForm
+    template_name = 'stores/stock_setting/add_setting.html'
+    _store = None
+
+    def get(self, *args, **kwargs):
+        redirect_to = redirect('stores-list')
+        store_id = kwargs.get('store_pk')
+        store, err = get_store_by_id(store_id, self.request.user)
+
+        if err:
+            messages.error(self.request, err)
+            return redirect_to
+
+        self._store = store
+        return super().get(*args, **kwargs)
+
+    def get_success_url(self):
+        messages.success(self.request, f'Настройка "{self.object.name}" успешно создана')
+        return reverse_lazy('stock-settings-list', kwargs={'store_pk': self._store.id})
+
+    def form_valid(self, form):
+        user = self.request.user
+        store_id = self.kwargs.get('store_pk')
+
+        # validation
+        store, err = get_store_by_id(store_id, user)
+        if err:
+            form.errors['Указан неверный id магазина'] = err
+            return self.form_invalid(form)
+        self._store = store
+
+        form_is_valid = True
+        priority = form.cleaned_data['priority']
+        content = form.cleaned_data['content']
+
+        if not is_valid_stock_setting_content(content):
+            # TODO - detailed error
+            form.errors['Неверно заполнены условия'] = f'Некорректные или пустые условия'
+            form_is_valid = False
+
+        min_val = 1
+        if priority < min_val:
+            form.errors['Неверный порядок'] = f'Разрешены значения не меньше {min_val}'
+            form_is_valid = False
+
+        if is_stock_settings_priority_used(priority, store):
+            form.errors['Не уникальный порядок'] = f'Найдена другая настройка с порядком {priority} ' \
+                                                   f'для магазина {self._store.name}'
+            form_is_valid = False
+
+        if not form_is_valid:
+            return self.form_invalid(form)
+
+        form.instance.store = self._store
+        form.instance.user = user
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        errors = '. '.join(f'{k}: {v}' for k, v in form.errors.items())
+        messages.error(self.request, f'Неверно заполнена форма. {errors}')
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Создание настройки остатков'
+        if self._store:
+            context['title'] = f'{context["title"]} - {self._store.name}'
+            context['store_name'] = self._store.name
+            context['store_id'] = self._store.id
+        return context
+
+
+class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = StockSetting
+    form_class = CreateStockSettingForm
+    template_name = 'stores/stock_setting/update_setting.html'
+    _store = None
+
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
+    def get_success_url(self):
+        messages.success(self.request, f'Изменения успешно сохранены')
+        return reverse_lazy('stock-settings-list', kwargs={'store_pk': self.object.store.id})
+
+    def form_valid(self, form):
+        self._store = form.instance.store
+
+        form_is_valid = True
+        priority = form.cleaned_data['priority']
+        content = form.cleaned_data['content']
+
+        if not is_valid_stock_setting_content(content):
+            # TODO - detailed error
+            form.errors['Неверно заполнены условия'] = f'Некорректные или пустые условия'
+            form_is_valid = False
+
+        min_val = 1
+        if priority < min_val:
+            form.errors['Неверный порядок'] = f'Разрешены значения не меньше {min_val}'
+            form_is_valid = False
+
+        if is_stock_settings_priority_used(priority, self._store, form.instance.id):
+            form.errors['Не уникальный порядок'] = f'Найдена другая настройка с порядком {priority} ' \
+                                                   f'для магазина {self._store.name}'
+            form_is_valid = False
+
+        if not form_is_valid:
+            return self.form_invalid(form)
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        errors = ''.join(f'{k}: {v}. ' for k, v in form.errors.items())
+        messages.error(self.request, f'Неверно заполнена форма. {errors}')
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Редактирование настройки остатков'
+
+        store = self.object.store
+        context['title'] = f'{context["title"]} - {store.name}'
+        context['store_name'] = store.name
+        context['store_id'] = store.id
+        return context
+
+
+class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = StockSetting
+    template_name = 'stores/stock_setting/delete_setting.html'
+
+    def get_success_url(self):
+        return reverse_lazy('stock-settings-list', kwargs={'store_pk': self.object.store.id})
+
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Удаление настройки остатков'
+
+        store = self.object.store
+        context['title'] = f'{context["title"]} - {store.name}'
+        context['store_name'] = store.name
+        context['store_id'] = store.id
+        return context
+
+
+# API
 
 # help page
 @require_GET
 def api_help(request):
     context = API().get_api_help()
     return render(request, 'stores/api/help.html', context=context)
+
 
 # warehouse
 @require_GET

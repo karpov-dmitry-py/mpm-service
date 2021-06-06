@@ -24,6 +24,20 @@
         <dd class="col-sm-9 mb-3">{% if item.description %} {{ item.description }} {% else %}Не заполнено значение{% endif %}
         </dd>
     </dl>
+
+    <!-- settings -->
+    {% if is_active %}
+        <h5 class="border-bottom mb-3">Настройки остатков и цен для выгрузки в маркетплейс</h5>
+        <dl class="row">
+            <dt class="col-sm-3">Настройки</dt>
+            <dd class="col-sm-9 mb-3">
+                <a href="{% url 'stock-settings-list' item.id %}">Остатки</a>
+            </dd>
+            <dt class="col-sm-3"></dt>
+            <dd class="col-sm-9 mb-3"><span class="text-muted">Цены</span></dd>
+        </dl>
+    {% endif %}
+
     <h5 class="border-bottom mb-3">Настройки интеграции c маркетплейсом {{ marketplace }}</h5>
     {% if props %}
     <dl class="row">
