@@ -2,10 +2,25 @@
     border-radius: 5px;
     border-style: solid;
     border-width: 1px;
-    border-color: lightgrey;
+    border-color: #1E90FF;
     padding: 20px;
 }
 
-.types {
+.types, .brands {
     width: 40rem;
+}
+
+select[multiple]:focus option:checked {
+  background: #1E90FF linear-gradient(0deg, #1E90FF 0%, #1E90FF 100%);
+}
+
+.toolbar-cmd {
+    margin: 0px 10px;
+    cursor: pointer;
+    background: #E0FFFF;
+    font-size: 0.9rem;
+}
+
+.toolbar-lbl{
+    margin-right: 10px;
 }
