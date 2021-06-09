@@ -1843,6 +1843,11 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Создание настройки остатков'
+
+        context['condition_types'] = get_stock_condition_types()
+        context['condition_fields'] = get_stock_condition_fields()
+        context['brands'] = get_brands_by_user(self.request.user)
+
         if self._store:
             context['title'] = f'{context["title"]} - {self._store.name}'
             context['store_name'] = self._store.name
@@ -1927,6 +1932,71 @@ class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
         context['store_name'] = store.name
         context['store_id'] = store.id
         return context
+
+
+def _json(obj):
+    return json.dumps(obj, ensure_ascii=False)
+
+
+def get_stock_condition_types():
+    items = [
+        {
+            'val': None,
+            'text': 'Выберите тип условия',
+        },
+        {
+            'val': 'include',
+            'text': 'Включить',
+        },
+        {
+            'val': 'exclude',
+            'text': 'Исключить',
+        },
+        {
+            'val': 'stock',
+            'text': 'Остаток',
+        },
+    ]
+    return _json(items)
+
+
+# noinspection PyTypeChecker
+def get_brands_by_user(user):
+    rows = _qs_filtered_by_user(model=GoodsBrand, user=user)
+    items = []
+    for row in rows:
+        _row = {
+            'val': row.id,
+            'text': row.name,
+        }
+        items.append(_row)
+    return _json(items)
+
+
+def get_stock_condition_fields():
+    items = [
+        {
+            'val': None,
+            'text': 'Выберите тип поля для условия',
+        },
+        {
+            'val': 'warehouse',
+            'text': 'Склад',
+        },
+        {
+            'val': 'cat',
+            'text': 'Категория',
+        },
+        {
+            'val': 'brand',
+            'text': 'Бренд',
+        },
+        {
+            'val': 'good',
+            'text': 'Товар',
+        },
+    ]
+    return _json(items)
 
 
 # API

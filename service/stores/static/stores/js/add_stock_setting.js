@@ -32,7 +32,7 @@ UI.selectOptions = function(list, selected) {
         let option = list.options[i];
         option.selected = selected;
     }
-}
+}       
 
 UI.selectOptionsByCmd = function(cmd, selected) {
     const wantedClassName = 'list';
@@ -74,22 +74,6 @@ UI.newConditionTypesList = function() {
     return container;
 }
 
-UI.getBrands = function() {
-    result = [
-        {id: 1, name: "Brand 1"},
-        {id: 2, name: "Brand 2"},
-        {id: 3, name: "Brand 3"},
-        {id: 4, name: "Brand 4"},
-        {id: 5, name: "Brand 5"},
-        {id: 6, name: "Brand 6"},
-        {id: 7, name: "Brand 7"},
-        {id: 8, name: "Brand 8"},
-        {id: 9, name: "Brand 9"},
-        {id: 10, name: "Brand 10"},
-    ]
-    return result;
-}
-
 UI.newMultipleSelectList = function() {
     const container = document.createElement('div');
     container.className = 'form-group brands';
@@ -118,14 +102,14 @@ UI.newMultipleSelectList = function() {
     
     const list = document.createElement('select');
     list.multiple = true;
-    list.size = 6;
+    list.size = 10;
     list.className = 'csvselect form-control list';
     
     const brands = this.getBrands();
     brands.forEach(function(brand) {
         const option = document.createElement('option');
-        option.value = brand.id;
-        option.text = brand.name;
+        option.value = brand.val;
+        option.text = brand.text;
         list.appendChild(option);
     });
 
@@ -133,19 +117,27 @@ UI.newMultipleSelectList = function() {
     return container;
 }
 
-UI.getConditionTypes = function() {
-    const types = [
-        {val: null, text: "Выберите тип условия"},
-        {val: "include", text: "Включить"},
-        {val: "exclude", text: "Исключить"},
-        {val: "stock", text: "Остаток"},
-    ]
-    return types;
+UI.parseJson = function(el) {
+    content = JSON.parse(el.innerHTML);
+    return content;
 }
 
+UI.getConditionTypes = function() {
+    const el = document.getElementById('condition_types');
+    return this.parseJson(el); 
+}
+
+UI.getConditionFields= function() {
+    const el = document.getElementById('condition_fields');
+    return this.parseJson(el); 
+}
+
+UI.getBrands = function() {
+    const el = document.getElementById('brands');
+    return this.parseJson(el); 
+}
 
 // elements
-
 UI.getSubmitBtn = function() {
     const buttons = document.getElementsByTagName('button');
     for (let i = 0; i < buttons.length; i++) {
