@@ -496,7 +496,7 @@ class API:
 
         # check if items obj is iterable
         if not self._is_iterable(items):
-            err = f'wrong type of "{key}", must be  an array'
+            err = f'wrong type of "{key}", must be an array'
             return self._system_request_err(err)['response']
 
         # check items length against limit

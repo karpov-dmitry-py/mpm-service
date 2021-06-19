@@ -2,8 +2,9 @@
     border-radius: 5px;
     border-style: solid;
     border-width: 1px;
-    border-color: #1E90FF;
+    border-color: #d5dbe0;
     padding: 20px;
+    padding-top: 5px;
 }
 
 .types, .brands {
@@ -27,4 +28,32 @@ select[multiple]:focus option:checked {
 
 .hidden {
     display: none;
+}
+
+.btn {
+    min-width: 12rem;
+}
+
+.btn-scroll {
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: lightgray;
+}
+
+.condition-header-text {
+    font-weight: bolder;
+}
+
+.delete-condition-bar {
+    text-align: right;
+    margin-right: 0  px;
+}
+
+.delete-condition-btn {
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.9em;
+    background: #d8ecf3;
+    back
 }
