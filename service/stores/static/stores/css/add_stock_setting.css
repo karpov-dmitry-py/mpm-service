@@ -43,11 +43,12 @@ select[multiple]:focus option:checked {
 
 .condition-header-text {
     font-weight: bolder;
+    background: #d8ecf3;
 }
 
 .delete-condition-bar {
     text-align: right;
-    margin-right: 0  px;
+    padding-right: 5px;
 }
 
 .delete-condition-btn {
@@ -55,5 +56,4 @@ select[multiple]:focus option:checked {
     text-decoration: underline;
     font-size: 0.9em;
     background: #d8ecf3;
-    back
 }

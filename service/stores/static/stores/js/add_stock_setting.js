@@ -1,11 +1,9 @@
 // document.addEventListener("DOMContentLoaded", onLoad);
 
 function checkPriority(numberInput) {
-    console.log(numberInput.value);
     if (numberInput.value < 1) {
         numberInput.value = 1;
     }
-    console.log(numberInput.value);
 }
 
 function scrollToBottom() {
@@ -84,14 +82,14 @@ UI.getConditionsDiv = function () {
 UI.newCondition = function () {
     const conditions = this.getConditionsDiv();
     const types = this.newConditionTypesList();
-    const brands = this.newMultipleSelectList();
+    // const brands = this.newMultipleSelectList();
     const header = this.newConditionHeader();
 
     const condition = document.createElement('div')
     condition.className = 'condition mb-5';
     condition.appendChild(header);
     condition.appendChild(types);
-    condition.appendChild(brands);
+    // condition.appendChild(brands);   
 
     conditions.appendChild(condition);
     scrollToBottom();
@@ -121,6 +119,20 @@ UI.selectOptionsByCmd = function (cmd, selected) {
     }
 }
 
+UI.handleConditionTypeChoice = function(list) {
+    const selectedType = list.value;
+    if (selectedType === 'null') {
+        console.log("null");
+        return
+    } else if (selectedType === 'include') {
+        console.log("вкл");
+    } else if (selectedType === 'exclude') {
+        console.log("выкл");
+    } else if (selectedType === 'stock') {
+        console.log("остаток");
+    }
+}
+
 UI.newConditionTypesList = function () {
     const container = document.createElement('div');
     container.className = 'form-group types';
@@ -131,6 +143,7 @@ UI.newConditionTypesList = function () {
 
     const typesList = document.createElement('select');
     typesList.className = 'csvselect form-control';
+    typesList.setAttribute('onchange', 'UI.handleConditionTypeChoice(this);');
 
     const types = this.getConditionTypes();
     types.forEach(function (typeItem) {
@@ -188,13 +201,15 @@ UI.newMultipleSelectList = function () {
 }
 
 UI.parseJson = function (el) {
-    content = JSON.parse(el.innerHTML);
+    const content = JSON.parse(el.innerHTML);
     return content;
 }
 
 UI.getConditionTypes = function () {
     const el = document.getElementById('condition_types');
-    return this.parseJson(el);
+    const result = this.parseJson(el);
+    console.log(result);
+    return result;
 }
 
 UI.getConditionFields = function () {
