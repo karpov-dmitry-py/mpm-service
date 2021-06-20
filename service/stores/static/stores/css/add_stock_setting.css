@@ -7,8 +7,8 @@
     padding-top: 5px;
 }
 
-.types, .brands {
-    width: 40rem;
+.types, .brands, .fields, .incl-excl-types {
+    width: 35rem;
 }
 
 select[multiple]:focus option:checked {
@@ -30,7 +30,7 @@ select[multiple]:focus option:checked {
     display: none;
 }
 
-.btn {
+.setting-btn {
     min-width: 12rem;
 }
 
@@ -51,9 +51,12 @@ select[multiple]:focus option:checked {
     padding-right: 5px;
 }
 
+.delete-condition-bar:hover {
+    text-decoration: underline;
+}
+
 .delete-condition-btn {
     cursor: pointer;
-    text-decoration: underline;
-    font-size: 0.9em;
+    font-size: 0.8em;
     background: #d8ecf3;
 }

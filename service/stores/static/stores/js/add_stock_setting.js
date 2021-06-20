@@ -39,6 +39,7 @@ UI.newConditionHeader = function () {
     span = document.createElement('span');
     span.className = 'delete-condition-btn text-muted';
     span.appendChild(document.createTextNode('удалить условие'));
+    span.setAttribute('title', 'удалить это условие');
     span.setAttribute('onclick', 'UI.deleteCondition(this);');
     deleteDiv.appendChild(span);
 
@@ -59,7 +60,7 @@ UI.getConditionsCount = function () {
     return result;
 }
 
-UI.getConditionHeaderText = function(number) {
+UI.getConditionHeaderText = function (number) {
     const result = `Условие № ${number}`;
     return result;
 }
@@ -84,12 +85,16 @@ UI.newCondition = function () {
     const types = this.newConditionTypesList();
     // const brands = this.newMultipleSelectList();
     const header = this.newConditionHeader();
+    const content = document.createElement('div')
+    content.className = 'condition-content';
+    content.appendChild(document.createTextNode('Состав условия:'));
 
     const condition = document.createElement('div')
-    condition.className = 'condition mb-5';
+    condition.className = 'condition mb-3';
+
     condition.appendChild(header);
     condition.appendChild(types);
-    // condition.appendChild(brands);   
+    condition.appendChild(content);
 
     conditions.appendChild(condition);
     scrollToBottom();
@@ -119,18 +124,67 @@ UI.selectOptionsByCmd = function (cmd, selected) {
     }
 }
 
-UI.handleConditionTypeChoice = function(list) {
+UI.getConditionContentDiv = function (conditionDiv) {
+    const wantedClass = 'condition-content';
+    const children = conditionDiv.children;
+    for (let i = 0; i <= children.length; i++) {
+        const child = children[i];
+        if (child.classList.contains(wantedClass)) {
+            return child;
+        }
+    }
+}
+
+UI.clearConditionContentDiv = function (conditionDiv) {
+    const div = this.getConditionContentDiv(conditionDiv);
+    this.clearInnerHTML(div);
+}
+
+UI.clearInnerHTML = function (el) {
+    if (el === undefined || el === null) {
+        return;
+    }
+    el.innerHTML = '';
+}
+
+UI.handleConditionTypeChoice = function (list) {
     const selectedType = list.value;
+    const typesDiv = list.parentElement;
+    const conditionDiv = typesDiv.parentElement;
+    
+    // always reset content
+    this.clearConditionContentDiv(conditionDiv);
+
     if (selectedType === 'null') {
-        console.log("null");
-        return
-    } else if (selectedType === 'include') {
-        console.log("вкл");
-    } else if (selectedType === 'exclude') {
-        console.log("выкл");
+        return;
+    }
+
+
+    const fieldsList = this.newConditionFieldsList();
+    const conditionContentDiv = this.getConditionContentDiv(conditionDiv);
+    conditionContentDiv.appendChild(fieldsList);
+
+    if (selectedType === 'include' || selectedType === 'exclude') {
+        const InclExclTypesList = this.newInclExclTypesList();
+        conditionContentDiv.appendChild(InclExclTypesList);
+        console.log("вкл/выкл");
     } else if (selectedType === 'stock') {
         console.log("остаток");
     }
+}
+
+UI.newInclExclTypesList = function () {
+    const container = document.createElement('div');
+    container.className = 'form-group incl-excl-types';
+
+    label = document.createElement('label');
+    label.appendChild(document.createTextNode('Остаток по полю условия'));
+    container.appendChild(label);
+
+    const types = this.getInclExclTypes();
+    const select = this.newOptionList(types);
+    container.appendChild(select);
+    return container;
 }
 
 UI.newConditionTypesList = function () {
@@ -154,6 +208,43 @@ UI.newConditionTypesList = function () {
     });
 
     container.appendChild(typesList);
+    return container;
+}
+
+UI.newOptionList = function (src) {
+    const select = document.createElement('select');
+    select.className = 'csvselect form-control';
+
+    src.forEach(function (item) {
+        const option = document.createElement('option');
+        option.value = item.val;
+        option.text = item.text;
+        select.appendChild(option);
+    });
+    return select;
+}
+
+UI.newConditionFieldsList = function () {
+    const container = document.createElement('div');
+    container.className = 'form-group fields';
+
+    label = document.createElement('label');
+    label.appendChild(document.createTextNode('Поле условия'));
+    container.appendChild(label);
+
+    const fieldsList = document.createElement('select');
+    fieldsList.className = 'csvselect form-control';
+    // fieldsList.setAttribute('onchange', 'UI.handleConditionTypeChoice(this);');
+
+    const fields = this.getConditionFields();
+    fields.forEach(function (field) {
+        const option = document.createElement('option');
+        option.value = field.val;
+        option.text = field.text;
+        fieldsList.appendChild(option);
+    });
+
+    container.appendChild(fieldsList);
     return container;
 }
 
@@ -207,9 +298,12 @@ UI.parseJson = function (el) {
 
 UI.getConditionTypes = function () {
     const el = document.getElementById('condition_types');
-    const result = this.parseJson(el);
-    console.log(result);
-    return result;
+    return this.parseJson(el);
+}
+
+UI.getInclExclTypes = function () {
+    const el = document.getElementById('include_types');
+    return this.parseJson(el);
 }
 
 UI.getConditionFields = function () {

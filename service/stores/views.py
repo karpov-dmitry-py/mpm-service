@@ -1846,6 +1846,7 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
 
         context['condition_types'] = get_stock_condition_types()
         context['condition_fields'] = get_stock_condition_fields()
+        context['include_types'] = get_stock_include_types()
         context['brands'] = get_brands_by_user(self.request.user)
 
         if self._store:
@@ -1977,7 +1978,7 @@ def get_stock_condition_fields():
     items = [
         {
             'val': None,
-            'text': 'Выберите тип поля для условия',
+            'text': 'Выберите поле условия',
         },
         {
             'val': 'warehouse',
@@ -1994,6 +1995,20 @@ def get_stock_condition_fields():
         {
             'val': 'good',
             'text': 'Товар',
+        },
+    ]
+    return _json(items)
+
+
+def get_stock_include_types():
+    items = [
+        {
+            'val': 'in_list',
+            'text': 'В списке',
+        },
+        {
+            'val': 'not_in_list',
+            'text': 'Не в списке',
         },
     ]
     return _json(items)
