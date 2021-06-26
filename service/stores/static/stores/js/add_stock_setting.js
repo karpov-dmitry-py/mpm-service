@@ -18,7 +18,7 @@ class UI {
     constructor() { }
 }
 
-UI.newConditionHeader = function () {
+UI.newHeader = function () {
     const header = document.createElement('div');
     header.className = 'condition-header row mb-4';
 
@@ -79,15 +79,31 @@ UI.getConditionsDiv = function () {
     return document.getElementById('conditions');
 }
 
+UI.newContent = function () {
+    const content = document.createElement('div');
+    content.className = 'condition-content';
+    // content.appendChild(document.createTextNode('Состав этого условия:'));
+    return content;
+}
+
+UI.collectConditions = function () {
+    const conditionsTextArea = document.getElementById('id_content');
+    items = [
+        { id: 1, content: 'item 1' },
+        { id: 2, content: 'item 2' },
+        { id: 3, content: 'item 3' },
+    ]
+    result = JSON.stringify(items);
+    conditionsTextArea.value = result;
+}
+
+
 // conditions
 UI.newCondition = function () {
     const conditions = this.getConditionsDiv();
-    const types = this.newConditionTypesList();
-    // const brands = this.newMultipleSelectList();
-    const header = this.newConditionHeader();
-    const content = document.createElement('div')
-    content.className = 'condition-content';
-    content.appendChild(document.createTextNode('Состав условия:'));
+    const types = this.newTypesList();
+    const header = this.newHeader();
+    const content = this.newContent();
 
     const condition = document.createElement('div')
     condition.className = 'condition mb-3';
@@ -107,24 +123,24 @@ UI.selectOptions = function (list, selected) {
     }
 }
 
-UI.selectOptionsByCmd = function (cmd, selected) {
-    const wantedClassName = 'list';
-    parent = cmd.parentElement.parentElement;
-    for (let i = 0; i < parent.children.length; i++) {
-        let child = parent.children[i];
-
-        // search for class
-        for (let k = 0; k < child.classList.length; k++) {
-            let className = child.classList[k];
-            if (className === wantedClassName) {
-                this.selectOptions(child, selected);
-                return;
-            }
+UI.getChildByClassName = function (parent, childClassName) {
+    const children = parent.children;
+    for (let i = 0; i <= children.length; i++) {
+        let child = children[i];
+        if (child.classList.contains(childClassName)) {
+            return child;
         }
     }
 }
 
-UI.getConditionContentDiv = function (conditionDiv) {
+UI.selectOptionsByCmd = function (cmd, selected) {
+    const parent = cmd.parentElement.parentElement;
+    const wantedClassName = 'multi-select-list';
+    const selectList = this.getChildByClassName(parent, wantedClassName);
+    this.selectOptions(selectList, selected);
+}
+
+UI.getContentDiv = function (conditionDiv) {
     const wantedClass = 'condition-content';
     const children = conditionDiv.children;
     for (let i = 0; i <= children.length; i++) {
@@ -135,8 +151,8 @@ UI.getConditionContentDiv = function (conditionDiv) {
     }
 }
 
-UI.clearConditionContentDiv = function (conditionDiv) {
-    const div = this.getConditionContentDiv(conditionDiv);
+UI.clearContentDiv = function (conditionDiv) {
+    const div = this.getContentDiv(conditionDiv);
     this.clearInnerHTML(div);
 }
 
@@ -147,22 +163,19 @@ UI.clearInnerHTML = function (el) {
     el.innerHTML = '';
 }
 
-UI.handleConditionTypeChoice = function (list) {
+UI.onTypeChange = function (list) {
     const selectedType = list.value;
     const typesDiv = list.parentElement;
     const conditionDiv = typesDiv.parentElement;
-    
+
     // always reset content
-    this.clearConditionContentDiv(conditionDiv);
+    this.clearContentDiv(conditionDiv);
 
     if (selectedType === 'null') {
         return;
     }
 
-
-    const fieldsList = this.newConditionFieldsList();
-    const conditionContentDiv = this.getConditionContentDiv(conditionDiv);
-    conditionContentDiv.appendChild(fieldsList);
+    const conditionContentDiv = this.getContentDiv(conditionDiv);
 
     if (selectedType === 'include' || selectedType === 'exclude') {
         const InclExclTypesList = this.newInclExclTypesList();
@@ -171,6 +184,9 @@ UI.handleConditionTypeChoice = function (list) {
     } else if (selectedType === 'stock') {
         console.log("остаток");
     }
+
+    const fieldsList = this.newFieldsList();
+    conditionContentDiv.appendChild(fieldsList);
 }
 
 UI.newInclExclTypesList = function () {
@@ -187,7 +203,7 @@ UI.newInclExclTypesList = function () {
     return container;
 }
 
-UI.newConditionTypesList = function () {
+UI.newTypesList = function () {
     const container = document.createElement('div');
     container.className = 'form-group types';
 
@@ -195,36 +211,80 @@ UI.newConditionTypesList = function () {
     label.appendChild(document.createTextNode('Тип условия'));
     container.appendChild(label);
 
-    const typesList = document.createElement('select');
-    typesList.className = 'csvselect form-control';
-    typesList.setAttribute('onchange', 'UI.handleConditionTypeChoice(this);');
-
     const types = this.getConditionTypes();
-    types.forEach(function (typeItem) {
-        const option = document.createElement('option');
-        option.value = typeItem.val;
-        option.text = typeItem.text;
-        typesList.appendChild(option);
-    });
-
+    const typesList = this.newOptionList(types);
+    typesList.setAttribute('onchange', 'UI.onTypeChange(this);');
     container.appendChild(typesList);
+
     return container;
 }
 
-UI.newOptionList = function (src) {
-    const select = document.createElement('select');
-    select.className = 'csvselect form-control';
+UI.getConditionCurrentType = function (conditionDiv) {
+    const children = conditionDiv.children;
 
+    // get types div
+    for (let i = 0; i < children.length; i++) {
+        let child = children[i];
+        if (child.classList.contains('types')) {
+
+            // get select list
+            let innerChildren = child.children;
+            for (let ii = 0; ii < innerChildren.length; ii++) {
+                let innerChild = innerChildren[ii];
+                if (innerChild.classList.contains('select-list')) {
+                    return innerChild.value;
+                }
+            }
+        }
+    }
+}
+
+
+UI.newOptionList = function (src) {
+    const selectList = document.createElement('select');
+    selectList.className = 'csvselect form-control select-list';
     src.forEach(function (item) {
         const option = document.createElement('option');
         option.value = item.val;
         option.text = item.text;
-        select.appendChild(option);
+        selectList.appendChild(option);
     });
-    return select;
+    return selectList;
 }
 
-UI.newConditionFieldsList = function () {
+UI.onFieldChange = function (fieldsSelectList) {
+    const selectedField = fieldsSelectList.value;
+    const fieldContent = fieldsSelectList.nextSibling;
+    this.clearInnerHTML(fieldContent);
+
+    let items = null;
+    let content = null;
+
+    // get type of current condition
+    // const conditionDiv = fieldsSelectList.parentElement.parentElement.parentElement;
+    // const currentType = this.getConditionCurrentType(conditionDiv);
+
+    if (selectedField === 'brand') {
+        items = this.getBrands();
+        content = this.newMultiSelectList('brands', 'Бренды', items);
+        fieldContent.appendChild(content);
+
+    } else if (selectedField === 'warehouse') {
+        items = this.getWarehouses();
+        content = this.newMultiSelectList('warehouses', 'Склады', items);
+        fieldContent.appendChild(content);
+    } else if (selectedField === 'cat') {
+        items = this.getCats();
+        content = this.newMultiSelectList('cats', 'Категории', items);
+        const selectList = this.getChildByClassName(content, 'multi-select-list');
+        selectList.innerHTML = this.buildTreeSelectList(items);
+        fieldContent.appendChild(content);
+    } else {
+        fieldContent.innerHTML = selectedField;
+    }
+}
+
+UI.newFieldsList = function () {
     const container = document.createElement('div');
     container.className = 'form-group fields';
 
@@ -232,32 +292,29 @@ UI.newConditionFieldsList = function () {
     label.appendChild(document.createTextNode('Поле условия'));
     container.appendChild(label);
 
-    const fieldsList = document.createElement('select');
-    fieldsList.className = 'csvselect form-control';
-    // fieldsList.setAttribute('onchange', 'UI.handleConditionTypeChoice(this);');
-
     const fields = this.getConditionFields();
-    fields.forEach(function (field) {
-        const option = document.createElement('option');
-        option.value = field.val;
-        option.text = field.text;
-        fieldsList.appendChild(option);
-    });
+    const fieldsSelectList = this.newOptionList(fields);
+    fieldsSelectList.setAttribute('onchange', 'UI.onFieldChange(this);');
 
-    container.appendChild(fieldsList);
+    container.appendChild(fieldsSelectList);
+
+    const fieldContent = document.createElement('div');
+    fieldContent.className = 'form-group field-content';
+    container.appendChild(fieldContent);
+
     return container;
 }
 
-UI.newMultipleSelectList = function () {
+UI.newMultiSelectList = function (className, labelStr, items) {
     const container = document.createElement('div');
-    container.className = 'form-group brands';
+    container.className = `form-group mt-3 ${className}`;
 
     const toolBar = document.createElement('div');
     toolBar.className = 'multiple-list-tool-bar';
 
     label = document.createElement('label');
     label.className = 'toolbar-lbl';
-    label.appendChild(document.createTextNode('Бренд'));
+    label.appendChild(document.createTextNode(labelStr));
     toolBar.appendChild(label);
 
     selectAll = document.createElement('span');
@@ -277,13 +334,12 @@ UI.newMultipleSelectList = function () {
     const list = document.createElement('select');
     list.multiple = true;
     list.size = 10;
-    list.className = 'csvselect form-control list';
+    list.className = 'csvselect form-control multi-select-list';
 
-    const brands = this.getBrands();
-    brands.forEach(function (brand) {
+    items.forEach(function (item) {
         const option = document.createElement('option');
-        option.value = brand.val;
-        option.text = brand.text;
+        option.value = item.val;
+        option.text = item.text;
         list.appendChild(option);
     });
 
@@ -291,30 +347,47 @@ UI.newMultipleSelectList = function () {
     return container;
 }
 
-UI.parseJson = function (el) {
-    const content = JSON.parse(el.innerHTML);
-    return content;
+UI.fromJson = function (el) {
+    const result = JSON.parse(el.innerHTML);
+    return result;
+}
+
+UI.toJson = function (src) {
+    const result = JSON.stringify(src);
+    return result;
 }
 
 UI.getConditionTypes = function () {
     const el = document.getElementById('condition_types');
-    return this.parseJson(el);
+    return this.fromJson(el);
 }
 
 UI.getInclExclTypes = function () {
     const el = document.getElementById('include_types');
-    return this.parseJson(el);
+    return this.fromJson(el);
 }
 
 UI.getConditionFields = function () {
     const el = document.getElementById('condition_fields');
-    return this.parseJson(el);
+    return this.fromJson(el);
 }
 
 UI.getBrands = function () {
     const el = document.getElementById('brands');
-    return this.parseJson(el);
+    return this.fromJson(el);
 }
+
+UI.getCats = function () {
+    const el = document.getElementById('cats');
+    return this.fromJson(el);
+}
+
+UI.getWarehouses = function () {
+    const el = document.getElementById('warehouses');
+    return this.fromJson(el);
+}
+
+// TODO - cats, goods 
 
 // elements
 UI.getSubmitBtn = function () {
@@ -331,4 +404,49 @@ UI.getMainForm = function () {
     const forms = document.getElementsByTagName('form');
     const form = forms[0];
     return form;
+}
+
+UI.buildTreeSelectList = function (items) {
+    const initialData = {
+        str: '',
+        level: 0,
+    }
+    buildTreeSelectList(items, initialData)
+    return initialData.str;
+}
+
+function buildTreeSelectList(items, initialData) {
+    items.forEach(function (item) {
+        const level = initialData.level;
+        const levelStrBaseChar = '&emsp;';
+        let levelStr = '';
+        let i = 1;
+        while (i <= level) {
+            i++;
+            levelStr += levelStrBaseChar;
+        }
+        const label = levelStr + item.name;
+        option = `<option value=${item.id}>${label}</option>`;
+        initialData.str += option;
+        if ('childs' in item) {
+            initialData.level += 1;
+            buildTreeSelectList(item.childs, initialData)
+            initialData.level -= 1;
+        }
+    });
+}
+
+class Storage {
+    constructor() { }
+}
+
+Storage.set = function (key, val) {
+    sessionStorage.setItem(key, toJson(val))
+}
+
+Storage.get = function (key) {
+    const val = sessionStorage.getItem(key); toJson(val))
+    if (val !== null) {
+        return fromJson(val);
+    }
 }

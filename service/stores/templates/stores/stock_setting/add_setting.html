@@ -13,22 +13,28 @@
                 {{ form|crispy }}
             </fieldset>
             <div class="form-group mb-4" id="new-condition-div">
-                <button type="button" onclick="UI.newCondition();" class="btn btn-outline-info setting-btn" id="new-condition-btn">
+                <button type="button" onclick="UI.newCondition();" class="btn btn-outline-info setting-btn">
                     <span><strong>&#65291;</strong></span>
-                    Добавить условие
-                </button>
+                    Добавить условие</button>
                 <button type="button" class="btn btn-light setting-btn btn-scroll" onclick="scrollToBottom();">Вниз</button>
             </div>
             <div class="form-group mb-4" id="conditions"></div>
             <div class="form-group mb-4">
-                <button class="btn btn-success setting-btn" type="submit">Создать настройку</button>
+                <button type="button" onclick="UI.newCondition();" class="btn btn-outline-info setting-btn">
+                    <span><strong>&#65291;</strong></span>
+                    Добавить условие</button>
                 <button type="button" class="btn btn-light setting-btn btn-scroll" onclick="scrollToTop();">Наверх</button>
+            </div>
+            <div class="form-group mb-4">
+                <button onclick="UI.collectConditions();" class="btn btn-success setting-btn" type="submit">Создать настройку</button>
             </div>
         </form>
         <div id="condition_types" class="hidden">{{ condition_types }}</div>
         <div id="condition_fields" class="hidden">{{ condition_fields }}</div>
         <div id="include_types" class="hidden">{{ include_types }}</div>
         <div id="brands" class="hidden">{{ brands }}</div>
+        <div id="cats" class="hidden">{{ cats }}</div>
+        <div id="warehouses" class="hidden">{{ warehouses }}</div>
 </div>
 <script type="text/javascript" src="{% static 'stores/js/add_stock_setting.js' %}"></script>
 {% endblock content %}

@@ -11,7 +11,7 @@
     width: 35rem;
 }
 
-select[multiple]:focus option:checked {
+select[multiple] option:checked {
   background: linear-gradient(#1E90FF, #1E90FF);
 }
 
@@ -39,6 +39,7 @@ select[multiple]:focus option:checked {
     border-width: 1px;
     border-radius: 5px;
     border-color: lightgray;
+    color: grey;
 }
 
 .condition-header-text {
@@ -59,4 +60,8 @@ select[multiple]:focus option:checked {
     cursor: pointer;
     font-size: 0.8em;
     background: #d8ecf3;
+}
+
+label {
+    margin-bottom: 1px;
 }

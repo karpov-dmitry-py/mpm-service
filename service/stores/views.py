@@ -67,7 +67,7 @@ from .forms import CreateWarehouseForm
 from .forms import CreateSystemForm
 from .forms import CreateStockSettingForm
 
-BASE_URL = 'https://marketplace-market.ru'
+BASE_URL = 'https://stl-market.ru'
 ACTIVE_STORE_STATUS = 'подключен'
 
 
@@ -466,6 +466,8 @@ def add_store(request):
             unwanted_fields = ['encoding', 'csrfmiddlewaretoken', ] + list(form.cleaned_data.keys())
             marketplace = form.cleaned_data['marketplace']
             form_data = dict(form.data)
+
+            # TODO - use better condition
             if marketplace.name == 'Покупки.Yandex.Market':
                 attr_name = 'store_api_url'
                 store_api_url = _get_store_api_url(store_id)
@@ -806,7 +808,7 @@ def build_tree(node, dependencies, source):
     return node
 
 
-def _get_tree(request, add_empty_node=False):
+def _get_tree(user, add_empty_node=False):
     items = []
     if add_empty_node:
         node = {
@@ -817,7 +819,7 @@ def _get_tree(request, add_empty_node=False):
         }
         items.append(node)
     # noinspection PyUnresolvedReferences
-    for row in GoodsCategory.objects.filter(user=request.user):
+    for row in GoodsCategory.objects.filter(user=user):
         _dict = {
             'id': row.id,
             'name': row.name,
@@ -835,15 +837,15 @@ def _get_tree(request, add_empty_node=False):
     }
 
 
-def _get_category_parent_select_list(request, add_empty_node=False):
+def _get_cats_tree(user, add_empty_node=False):
     # noinspection PyNoneFunctionAssignment
-    items = _get_tree(request, add_empty_node).get('tree')
+    items = _get_tree(user, add_empty_node).get('tree')
     return json.dumps(items, indent=4)
 
 
 @login_required()
 def get_categories_list(request):
-    result = _get_tree(request)
+    result = _get_tree(request.user)
     tree = result.get('tree')
     items = result.get('items')
     context = {
@@ -861,7 +863,7 @@ class GoodsCategoryCreateView(LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['parent_select_list'] = _get_category_parent_select_list(self.request)
+        context['parent_select_list'] = _get_cats_tree(self.request.user)
 
         context['title'] = 'Создание категории'
         return context
@@ -927,7 +929,7 @@ class GoodsCategoryUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVie
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['parent_select_list'] = _get_category_parent_select_list(self.request)
+        context['parent_select_list'] = _get_cats_tree(self.request.user)
         context['parent_id'] = context['object'].parent_id or ''
         context['title'] = 'Редактирование категории'
         return context
@@ -1010,7 +1012,7 @@ class GoodListView(LoginRequiredMixin, ListView):
         context['title'] = 'Товары'
         context['batch_update_brand_form'] = BatchUpdateGoodsBrandForm(self.request.user)
         context['batch_update_category_form'] = BatchUpdateGoodsCategoryForm(self.request.user)
-        context['categories_list'] = _get_category_parent_select_list(self.request)
+        context['categories_list'] = _get_cats_tree(self.request.user)
 
         # data for filters
         # noinspection PyTypeChecker
@@ -1029,7 +1031,7 @@ class GoodListView(LoginRequiredMixin, ListView):
 
         if categories_filter := self.request.GET.get('cats'):
             context['page_filter'] += f'&cats={categories_filter}'
-        context['categories_filter_source'] = _get_category_parent_select_list(self.request, add_empty_node=True)
+        context['categories_filter_source'] = _get_cats_tree(self.request.user, add_empty_node=True)
 
         context['pages'] = _get_pages_list(context['page_obj'])
         return context
@@ -1065,7 +1067,7 @@ class GoodCreateView(LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories_list'] = _get_category_parent_select_list(self.request)
+        context['categories_list'] = _get_cats_tree(self.request.user)
         context['title'] = 'Создание товара'
         _filter_user_brands(context=context, request=self.request)
         return context
@@ -1141,7 +1143,7 @@ class GoodUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories_list'] = _get_category_parent_select_list(self.request)
+        context['categories_list'] = _get_cats_tree(self.request.user)
         context['category_id'] = context['object'].category_id or ''
         context['title'] = 'Редактирование товара'
         _filter_user_brands(context=context, request=self.request)
@@ -1782,6 +1784,9 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
     _store = None
 
     def get(self, *args, **kwargs):
+        if not hasattr(self, 'request'):
+            return
+
         redirect_to = redirect('stores-list')
         store_id = kwargs.get('store_pk')
         store, err = get_store_by_id(store_id, self.request.user)
@@ -1807,6 +1812,9 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
             form.errors['Указан неверный id магазина'] = err
             return self.form_invalid(form)
         self._store = store
+
+        # form.errors['Тестовая ошибка'] = 'test'
+        # return self.form_invalid(form)
 
         form_is_valid = True
         priority = form.cleaned_data['priority']
@@ -1848,6 +1856,8 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
         context['condition_fields'] = get_stock_condition_fields()
         context['include_types'] = get_stock_include_types()
         context['brands'] = get_brands_by_user(self.request.user)
+        context['cats'] = _get_cats_tree(self.request.user)
+        context['warehouses'] = get_warehouses_by_user(self.request.user)
 
         if self._store:
             context['title'] = f'{context["title"]} - {self._store.name}'
@@ -1964,6 +1974,20 @@ def get_stock_condition_types():
 # noinspection PyTypeChecker
 def get_brands_by_user(user):
     rows = _qs_filtered_by_user(model=GoodsBrand, user=user)
+    items = []
+    for row in rows:
+        _row = {
+            'val': row.id,
+            'text': row.name,
+        }
+        items.append(_row)
+    return _json(items)
+
+
+# noinspection PyTypeChecker
+def get_warehouses_by_user(user):
+    rows = _qs_filtered_by_user(model=Warehouse, user=user)
+    rows = rows.filter(active=True)
     items = []
     for row in rows:
         _row = {

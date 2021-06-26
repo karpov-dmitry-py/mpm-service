@@ -122,6 +122,7 @@
                 <th>Наименование</th>
                 <th>Бренд</th>
                 <th>Категория</th>
+                <th>Остаток</th>
                 <th style="text-align: center">Действия</th>
             </tr>
             </thead>
@@ -139,6 +140,7 @@
                 <td><a href="{% url 'goods-detail' item.id %}">{{ item.name }}</a></td>
                 <td>{% if item.brand %} {{ item.brand }} {% else %} - {% endif %}</td>
                 <td>{% if item.category %} {{ item.category.name }} {% else %} - {% endif %}</td>
+                <td>TODO</td>
                 <td style="text-align: center; padding-right: 0rem; width: 13rem;">
                     <a class="btn btn-primary" href="{% url 'goods-update' item.id %}">Изменить</a>
                     <a class="btn btn-secondary" href="{% url 'goods-delete' item.id %}">Удалить</a>
