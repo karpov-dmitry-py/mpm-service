@@ -8,6 +8,7 @@ from django.db.models import SET_NULL
 from django.utils import timezone
 
 from .helpers.common import new_uuid
+from .helpers.common import _err
 
 
 def _now():
@@ -130,7 +131,13 @@ class GoodsCategory(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name='Аккаунт')
 
     def __str__(self):
+        # try:
+        #     parent = self.parent
+        # except (AttributeError, Exception) as err:
+        #     err_msg = f'err: {err}'
+        #     _err(err_msg)
         return self.name if not self.parent else f'{self.parent} \\ {self.name}'
+
 
     class Meta:
         db_table = 'goods_categories'

@@ -445,7 +445,7 @@ Storage.set = function (key, val) {
 }
 
 Storage.get = function (key) {
-    const val = sessionStorage.getItem(key); toJson(val))
+    const val = sessionStorage.getItem(key);
     if (val !== null) {
         return fromJson(val);
     }
