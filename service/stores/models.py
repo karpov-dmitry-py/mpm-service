@@ -131,11 +131,6 @@ class GoodsCategory(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name='Аккаунт')
 
     def __str__(self):
-        # try:
-        #     parent = self.parent
-        # except (AttributeError, Exception) as err:
-        #     err_msg = f'err: {err}'
-        #     _err(err_msg)
         return self.name if not self.parent else f'{self.parent} \\ {self.name}'
 
 

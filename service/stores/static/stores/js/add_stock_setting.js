@@ -1,4 +1,4 @@
-// document.addEventListener("DOMContentLoaded", onLoad);
+
 
 function checkPriority(numberInput) {
     if (numberInput.value < 1) {
@@ -24,7 +24,6 @@ UI.newHeader = function () {
 
     const headerDiv = document.createElement('div');
     headerDiv.className = 'col-10 condition-header-bar';
-
     let span = document.createElement('span');
     span.className = 'condition-header-text';
     const headerText = this.getConditionHeaderText(this.getConditionsCount() + 1);
@@ -200,6 +199,20 @@ UI.newInclExclTypesList = function () {
     const types = this.getInclExclTypes();
     const select = this.newOptionList(types);
     container.appendChild(select);
+    return container;
+}
+
+UI.newNumberInput = function (className, labelStr) {
+    const container = document.createElement('div');
+    container.className = `form-group ${className}`;
+
+    label = document.createElement('label');
+    label.appendChild(document.createTextNode(labelStr));
+    container.appendChild(label);
+
+    const input = document.createElement('input');
+    input.className =
+        container.appendChild(input);
     return container;
 }
 
@@ -387,7 +400,7 @@ UI.getWarehouses = function () {
     return this.fromJson(el);
 }
 
-// TODO - cats, goods 
+// TODO - goods
 
 // elements
 UI.getSubmitBtn = function () {
@@ -441,12 +454,54 @@ class Storage {
 }
 
 Storage.set = function (key, val) {
-    sessionStorage.setItem(key, toJson(val))
+    sessionStorage.setItem(key, UI.toJson(val))
+    console.log('saved data to storage.');
 }
 
 Storage.get = function (key) {
     const val = sessionStorage.getItem(key);
-    if (val !== null) {
-        return fromJson(val);
+    if (val !== null && val !== undefined) {
+        console.log('read data from storage.');
+        return UI.fromJson(val);
     }
+    console.log('no data found in storage.');
 }
+
+class Api {
+    constructor() { }
+}
+
+Api.callback = function (result) {
+    console.log(result);
+    const key = "goods";
+    Storage.set(key, result);
+    const goods = Storage.get(key);
+    console.log(goods);
+
+}
+
+Api.get = function (url) {
+    fetch(url)
+        .then((response) => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                console.log(`API call returned ${response.status} response`);
+                // return response.text();
+            }
+        })
+        .then((data) => {
+            this.callback(data);
+            return;
+        })
+        .catch((error) => {
+            console.log(`API call returned an error: ${error}`);
+        });
+}
+
+function testAPI(url) {
+    Api.get(url);
+}
+
+const testUrl = "/goods/user";
+document.addEventListener("DOMContentLoaded", testAPI(testUrl));

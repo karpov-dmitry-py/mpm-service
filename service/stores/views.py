@@ -17,6 +17,7 @@ from django.views.generic import CreateView
 from django.views.generic import UpdateView
 from django.views.generic import DeleteView
 
+from django.http import JsonResponse
 from django.urls import reverse_lazy
 from django.shortcuts import render
 from django.shortcuts import redirect
@@ -338,8 +339,11 @@ def drop_stock(request):
 
 
 # utils
-def _qs_filtered_by_user(model, user):
-    qs = model.objects.filter(user=user)
+def _qs_filtered_by_user(model, user, limit=None):
+    if limit is None:
+        qs = model.objects.filter(user=user)
+    else:
+        qs = model.objects.filter(user=user)[:limit]
     return qs
 
 
@@ -1943,6 +1947,16 @@ class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
         context['store_name'] = store.name
         context['store_id'] = store.id
         return context
+
+
+@require_GET
+@login_required()
+def get_user_goods(request):
+    rows = _qs_filtered_by_user(Good, request.user, 10)
+    if not len(rows):
+        return JsonResponse(data=None, status=404, safe=False)
+    items = [{'sku': row.sku, 'name': row.name} for row in rows]
+    return JsonResponse(data=items, status=200, safe=False)
 
 
 def _json(obj):

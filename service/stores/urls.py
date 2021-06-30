@@ -44,6 +44,9 @@ urlpatterns = [
     path('goods/generate/<int:count>', views.gen_goods, name='goods-generate'),
     path('goods/drop/', views.drop_goods, name='goods-drop'),
 
+    # internal api
+    path('goods/user', views.get_user_goods, name='user-goods'),
+
     # supplier
     path('suppliers/', views.SupplierListView.as_view(), name='suppliers-list'),
     path('suppliers/<int:pk>/detail/', views.SupplierDetailView.as_view(), name='suppliers-detail'),
@@ -63,6 +66,7 @@ urlpatterns = [
 
     # stock
     path('stock/', views.StockListView.as_view(), name='stock-list'),
+
     # tmp utils for stock
     path('stock/generate/', views.gen_stock, name='stock-generate'),
     path('stock/drop/', views.drop_stock, name='stock-drop'),
