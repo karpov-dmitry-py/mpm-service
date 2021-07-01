@@ -365,11 +365,6 @@ UI.fromJson = function (el) {
     return result;
 }
 
-UI.toJson = function (src) {
-    const result = JSON.stringify(src);
-    return result;
-}
-
 UI.getConditionTypes = function () {
     const el = document.getElementById('condition_types');
     return this.fromJson(el);
@@ -454,7 +449,7 @@ class Storage {
 }
 
 Storage.set = function (key, val) {
-    sessionStorage.setItem(key, UI.toJson(val))
+    sessionStorage.setItem(key, toJson(val))
     console.log('saved data to storage.');
 }
 
@@ -462,7 +457,7 @@ Storage.get = function (key) {
     const val = sessionStorage.getItem(key);
     if (val !== null && val !== undefined) {
         console.log('read data from storage.');
-        return UI.fromJson(val);
+        return fromJson(val);
     }
     console.log('no data found in storage.');
 }
@@ -499,9 +494,21 @@ Api.get = function (url) {
         });
 }
 
+function fromJson(src) {
+    const result = JSON.parse(src);
+    return result;
+}
+
+function toJson(src) {
+    const result = JSON.stringify(src);
+    return result;
+}
+
+
 function testAPI(url) {
     Api.get(url);
 }
 
 const testUrl = "/goods/user";
 document.addEventListener("DOMContentLoaded", testAPI(testUrl));
+
