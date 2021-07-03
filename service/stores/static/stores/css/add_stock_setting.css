@@ -11,6 +11,10 @@
     width: 35rem;
 }
 
+.wide {
+    width: 63rem;
+}
+
 select[multiple] option:checked {
   background: linear-gradient(#1E90FF, #1E90FF);
 }

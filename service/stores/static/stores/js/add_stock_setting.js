@@ -1,5 +1,3 @@
-
-
 function checkPriority(numberInput) {
     if (numberInput.value < 1) {
         numberInput.value = 1;
@@ -202,17 +200,28 @@ UI.newInclExclTypesList = function () {
     return container;
 }
 
-UI.newNumberInput = function (className, labelStr) {
+UI.newInput = function (type, className, labelStr, eventName, eventHandler) {
+    const types = {
+        text: 'textinput',
+        number: 'numberinput',
+    }
+
     const container = document.createElement('div');
-    container.className = `form-group ${className}`;
+    container.className = `form-group mt-3 ${className}`;
 
     label = document.createElement('label');
     label.appendChild(document.createTextNode(labelStr));
     container.appendChild(label);
 
     const input = document.createElement('input');
-    input.className =
-        container.appendChild(input);
+    input.className = `${types[type]} form-control`;
+    input.type = type;
+
+    if (eventName !== null) {
+        input.setAttribute(eventName, `${eventHandler}(this);`);
+    }
+
+    container.appendChild(input);
     return container;
 }
 
@@ -292,9 +301,71 @@ UI.onFieldChange = function (fieldsSelectList) {
         const selectList = this.getChildByClassName(content, 'multi-select-list');
         selectList.innerHTML = this.buildTreeSelectList(items);
         fieldContent.appendChild(content);
+    } else if (selectedField === 'good') {
+        const resultsBox = this.newMultiSelectList('goods', searchResultsInitialHeader, [], true);
+        const searchInput = this.newInput(
+            'text',
+            'text-input',
+            `Поиск товаров по коду/наименованию (min. ${minSearchInputLength} символа)`,
+            'oninput',
+            'UI.onSearchInput');
+
+        fieldContent.appendChild(searchInput);
+        fieldContent.appendChild(resultsBox);
     } else {
         fieldContent.innerHTML = selectedField;
     }
+}
+
+UI.clearSelectList = function (list) {
+    while (list.length > 0) {
+        list.remove(list[0]);
+    }
+}
+
+const searchResultsInitialHeader = 'Найденные товары';
+const minSearchInputLength = 3;
+
+UI.setSearchResultsHeaderText = function (el, matched) {
+    let header = '';
+    if (matched === 0) {
+        header = `${searchResultsInitialHeader}`;
+    } else {
+        header = `${searchResultsInitialHeader} (${matched})`;
+    }
+    console.log(header);
+    el.innerHTML = header;
+}
+
+UI.onSearchInput = function (el) {
+    // delete current items
+    const resultsDiv = el.parentElement.nextSibling;
+    const resultsList = this.getChildByClassName(resultsDiv, 'multi-select-list');
+    this.clearSelectList(resultsList);
+
+    const toolbarDiv = resultsList.previousSibling;
+    const label = this.getChildByClassName(toolbarDiv, 'toolbar-lbl');
+
+    const input = el.value.toLowerCase();
+    if (input.length < minSearchInputLength) {
+        resultsList.size = 1;
+        this.setSearchResultsHeaderText(label, 0);
+        return;
+    }
+
+    const items = Storage.get('goods');
+    let matched = 0;
+    items.forEach(function (item) {
+        if (item.sku.toLowerCase().includes(input) || item.name.toLowerCase().includes(input)) {
+            matched++;
+            const option = document.createElement('option');
+            option.value = item.sku;
+            option.text = `(${item.sku}) ${item.name}`;
+            resultsList.appendChild(option);
+        }
+    });
+    resultsList.size = this.getSelectListWantedSize(matched);
+    this.setSearchResultsHeaderText(label, matched);
 }
 
 UI.newFieldsList = function () {
@@ -318,9 +389,21 @@ UI.newFieldsList = function () {
     return container;
 }
 
-UI.newMultiSelectList = function (className, labelStr, items) {
+UI.getDefaultSelectListSize = function () {
+    return 10;
+}
+
+UI.getSelectListWantedSize = function (itemsLength) {
+    return Math.min(this.getDefaultSelectListSize(), itemsLength + 1);
+}
+
+UI.newMultiSelectList = function (className, labelStr, items, isWide) {
     const container = document.createElement('div');
     container.className = `form-group mt-3 ${className}`;
+
+    if (isWide) {
+        container.classList.add('wide');
+    }
 
     const toolBar = document.createElement('div');
     toolBar.className = 'multiple-list-tool-bar';
@@ -346,7 +429,15 @@ UI.newMultiSelectList = function (className, labelStr, items) {
 
     const list = document.createElement('select');
     list.multiple = true;
-    list.size = 10;
+
+    const listSize = this.getSelectListWantedSize(items.length);
+
+    if (className === 'cats') {
+        list.size = this.getDefaultSelectListSize();
+    } else {
+        list.size = listSize;
+    }
+
     list.className = 'csvselect form-control multi-select-list';
 
     items.forEach(function (item) {
@@ -450,7 +541,6 @@ class Storage {
 
 Storage.set = function (key, val) {
     sessionStorage.setItem(key, toJson(val))
-    console.log('saved data to storage.');
 }
 
 Storage.get = function (key) {
@@ -467,12 +557,8 @@ class Api {
 }
 
 Api.callback = function (result) {
-    console.log(result);
     const key = "goods";
     Storage.set(key, result);
-    const goods = Storage.get(key);
-    console.log(goods);
-
 }
 
 Api.get = function (url) {
