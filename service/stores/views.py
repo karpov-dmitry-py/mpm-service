@@ -1952,21 +1952,10 @@ class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
 @require_GET
 @login_required()
 def get_user_goods(request):
-    rows = _qs_filtered_by_user(Good, request.user, 2300)
+    rows = _qs_filtered_by_user(Good, request.user)
     if not len(rows):
         return JsonResponse(data=None, status=404, safe=False)
-    items = [
-        {
-            'sku': row.sku,
-            'name': row.name,
-        }
-        for row in rows
-    ]
-
-    # TODO - testing
-    # with open('goods.json', 'w') as file:
-    #     json.dump(items, file, indent=4, ensure_ascii=False)
-
+    items = [{'sku': row.sku, 'name': row.name, } for row in rows]
     return JsonResponse(data=items, status=200, safe=False)
 
 

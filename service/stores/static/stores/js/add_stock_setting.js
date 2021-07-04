@@ -1,3 +1,12 @@
+const searchResultsHeader = 'Найденные товары';
+const savedGoodsHeader = 'Добавленные к условию товары';
+const savedGoodsListClass = 'saved-goods-list';
+const toolbarLabel = 'toolbar-lbl';
+
+const multiselectListClass = 'multi-select-list';
+const goodsSearchResultsSelectAllCmdClass = 'goods-toolbar-cmd';
+const minGoodsSearchInputLength = 3;
+
 function checkPriority(numberInput) {
     if (numberInput.value < 1) {
         numberInput.value = 1;
@@ -132,9 +141,12 @@ UI.getChildByClassName = function (parent, childClassName) {
 
 UI.selectOptionsByCmd = function (cmd, selected) {
     const parent = cmd.parentElement.parentElement;
-    const wantedClassName = 'multi-select-list';
-    const selectList = this.getChildByClassName(parent, wantedClassName);
+    const selectList = this.getChildByClassName(parent, multiselectListClass);
     this.selectOptions(selectList, selected);
+
+    if (selected && cmd.classList.contains(goodsSearchResultsSelectAllCmdClass)) {
+        this.onSelectSearchResult(selectList);
+    }
 }
 
 UI.getContentDiv = function (conditionDiv) {
@@ -177,7 +189,6 @@ UI.onTypeChange = function (list) {
     if (selectedType === 'include' || selectedType === 'exclude') {
         const InclExclTypesList = this.newInclExclTypesList();
         conditionContentDiv.appendChild(InclExclTypesList);
-        console.log("вкл/выкл");
     } else if (selectedType === 'stock') {
         console.log("остаток");
     }
@@ -295,26 +306,58 @@ UI.onFieldChange = function (fieldsSelectList) {
         items = this.getWarehouses();
         content = this.newMultiSelectList('warehouses', 'Склады', items);
         fieldContent.appendChild(content);
+
     } else if (selectedField === 'cat') {
         items = this.getCats();
         content = this.newMultiSelectList('cats', 'Категории', items);
-        const selectList = this.getChildByClassName(content, 'multi-select-list');
+        const selectList = this.getChildByClassName(content, multiselectListClass);
         selectList.innerHTML = this.buildTreeSelectList(items);
         fieldContent.appendChild(content);
+
     } else if (selectedField === 'good') {
-        const resultsBox = this.newMultiSelectList('goods', searchResultsInitialHeader, [], true);
         const searchInput = this.newInput(
             'text',
             'text-input',
-            `Поиск товаров по коду/наименованию (min. ${minSearchInputLength} символа)`,
+            `Поиск товаров по коду/наименованию (мин. ${minGoodsSearchInputLength} символа)`,
             'oninput',
             'UI.onSearchInput');
-
         fieldContent.appendChild(searchInput);
+
+        const resultsBox = this.newMultiSelectList('goods', searchResultsHeader, [], true, true);
+        const resultsList = this.getChildByClassName(resultsBox, multiselectListClass);
+        resultsList.setAttribute('onchange', 'UI.onSelectSearchResult(this);');
         fieldContent.appendChild(resultsBox);
+
+        const savedGoodsBox = this.newUL('saved-goods', savedGoodsHeader, [], true);
+        fieldContent.appendChild(savedGoodsBox);
+
     } else {
         fieldContent.innerHTML = selectedField;
     }
+}
+
+UI.getListSelectedOptions = function (list) {
+    const items = [];
+    for (let i = 0; i < list.length; i++) {
+        const option = list.options[i];
+        if (option.selected) {
+            const item = { val: option.value, text: option.text }
+            items.push(item);
+        }
+    }
+    return items;
+}
+
+UI.onSelectSearchResult = function (list) {
+    const selectedItems = this.getListSelectedOptions(list);
+    const listBox = list.parentElement;
+    const savedGoodsBox = listBox.nextSibling;
+    const savedGoodsList = this.getChildByClassName(savedGoodsBox, savedGoodsListClass);
+    this.appendToUL(savedGoodsList, selectedItems);
+
+    const savedGoodsToolbar = savedGoodsList.previousSibling;
+    const savedGoodsLabel = this.getChildByClassName(savedGoodsToolbar, toolbarLabel);
+    this.setSavedGoodsHeader(savedGoodsLabel, savedGoodsList.children.length);
 }
 
 UI.clearSelectList = function (list) {
@@ -323,31 +366,37 @@ UI.clearSelectList = function (list) {
     }
 }
 
-const searchResultsInitialHeader = 'Найденные товары';
-const minSearchInputLength = 3;
-
-UI.setSearchResultsHeaderText = function (el, matched) {
+UI.setSavedGoodsHeader = function (el, itemsCount) {
     let header = '';
-    if (matched === 0) {
-        header = `${searchResultsInitialHeader}`;
+    if (itemsCount === 0) {
+        header = savedGoodsHeader;
     } else {
-        header = `${searchResultsInitialHeader} (${matched})`;
+        header = `${savedGoodsHeader} (${itemsCount})`;
     }
-    console.log(header);
+    el.innerHTML = header;
+}
+
+UI.setSearchResultsHeaderText = function (el, matchedCount) {
+    let header = '';
+    if (matchedCount === 0) {
+        header = searchResultsHeader;
+    } else {
+        header = `${searchResultsHeader} (${matchedCount})`;
+    }
     el.innerHTML = header;
 }
 
 UI.onSearchInput = function (el) {
     // delete current items
     const resultsDiv = el.parentElement.nextSibling;
-    const resultsList = this.getChildByClassName(resultsDiv, 'multi-select-list');
+    const resultsList = this.getChildByClassName(resultsDiv, multiselectListClass);
     this.clearSelectList(resultsList);
 
     const toolbarDiv = resultsList.previousSibling;
-    const label = this.getChildByClassName(toolbarDiv, 'toolbar-lbl');
+    const label = this.getChildByClassName(toolbarDiv, toolbarLabel);
 
     const input = el.value.toLowerCase();
-    if (input.length < minSearchInputLength) {
+    if (input.length < minGoodsSearchInputLength) {
         resultsList.size = 1;
         this.setSearchResultsHeaderText(label, 0);
         return;
@@ -409,12 +458,12 @@ UI.newMultiSelectList = function (className, labelStr, items, isWide) {
     toolBar.className = 'multiple-list-tool-bar';
 
     label = document.createElement('label');
-    label.className = 'toolbar-lbl';
+    label.className = toolbarLabel;
     label.appendChild(document.createTextNode(labelStr));
     toolBar.appendChild(label);
 
     selectAll = document.createElement('span');
-    selectAll.className = 'toolbar-cmd text-muted';
+    selectAll.className = `toolbar-cmd text-muted ${goodsSearchResultsSelectAllCmdClass}`;
     selectAll.setAttribute('onclick', 'UI.selectOptionsByCmd(this, true);');
     selectAll.appendChild(document.createTextNode('выделить все'));
     toolBar.appendChild(selectAll);
@@ -438,7 +487,7 @@ UI.newMultiSelectList = function (className, labelStr, items, isWide) {
         list.size = listSize;
     }
 
-    list.className = 'csvselect form-control multi-select-list';
+    list.className = `csvselect form-control ${multiselectListClass}`;
 
     items.forEach(function (item) {
         const option = document.createElement('option');
@@ -450,6 +499,91 @@ UI.newMultiSelectList = function (className, labelStr, items, isWide) {
     container.appendChild(list);
     return container;
 }
+
+UI.newUL = function (className, labelStr, items, isWide) {
+    const container = document.createElement('div');
+    container.className = `form-group mt-3 ${className}`;
+
+    if (isWide) {
+        container.classList.add('wide');
+    }
+
+    const toolBar = document.createElement('div');
+    toolBar.className = 'multiple-list-tool-bar';
+
+    label = document.createElement('label');
+    label.className = toolbarLabel;
+    label.appendChild(document.createTextNode(labelStr));
+    toolBar.appendChild(label);
+
+    deleteAll = document.createElement('span');
+    deleteAll.className = 'toolbar-cmd text-muted';
+    deleteAll.setAttribute('onclick', 'UI.clearUL(this);');
+    deleteAll.appendChild(document.createTextNode('удалить все'));
+    toolBar.appendChild(deleteAll);
+    container.appendChild(toolBar);
+
+    const list = document.createElement('ul');
+    list.className = `list-group ${className}-list`;
+    this.appendToUL(list, items);
+
+    container.appendChild(list);
+    return container;
+}
+
+UI.clearUL = function (dltElement) {
+    const toolbar = dltElement.parentElement;
+    const list = toolbar.nextSibling;
+    this.clearInnerHTML(list);
+    
+    const toolbarLbl = this.getChildByClassName(toolbar, toolbarLabel);
+    this.setSavedGoodsHeader(toolbarLbl, list.children.length);
+}
+
+UI.getValuesFromUL = function (list) {
+    const vals = [];
+    for (let i = 0; i < list.children.length; i++) {
+        const child = list.children[i];
+        vals.push(child.getAttribute('val'));
+    }
+    return vals;
+}
+
+UI.appendToUL = function (list, items) {
+    currentVals = this.getValuesFromUL(list);
+    for (let i = 0; i < items.length; i++) {
+
+        const item = items[i];
+        if (currentVals.includes(item.val)) {
+            continue;
+        }
+
+        const li = document.createElement('li');
+        li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center li-small';
+        li.setAttribute('val', item.val);
+        li.appendChild(document.createTextNode(item.text));
+
+        const span = document.createElement('span');
+        span.className = 'badge badge-light badge-pill text-muted li-delete';
+        span.appendChild(document.createTextNode('X'));
+        span.setAttribute('title', 'удалить этот товар');
+        span.setAttribute('onclick', 'UI.deleteLI(this)');
+
+        li.appendChild(span);
+        list.appendChild(li);
+    }
+}
+
+UI.deleteLI = function (span) {
+    const li = span.parentElement;
+    const list = li.parentElement;
+    list.removeChild(li);
+
+    const searchResultsBox = list.previousSibling;
+    const searchResultsLabel = this.getChildByClassName(searchResultsBox, toolbarLabel);
+    this.setSavedGoodsHeader(searchResultsLabel, list.children.length);
+}
+
 
 UI.fromJson = function (el) {
     const result = JSON.parse(el.innerHTML);
@@ -546,10 +680,9 @@ Storage.set = function (key, val) {
 Storage.get = function (key) {
     const val = sessionStorage.getItem(key);
     if (val !== null && val !== undefined) {
-        console.log('read data from storage.');
         return fromJson(val);
     }
-    console.log('no data found in storage.');
+    console.log('no data found in storage!');
 }
 
 class Api {
@@ -568,7 +701,6 @@ Api.get = function (url) {
                 return response.json();
             } else {
                 console.log(`API call returned ${response.status} response`);
-                // return response.text();
             }
         })
         .then((data) => {
