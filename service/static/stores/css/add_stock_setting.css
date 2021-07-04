@@ -1,0 +1,80 @@
+.condition {
+    border-radius: 5px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #d5dbe0;
+    padding: 20px;
+    padding-top: 5px;
+}
+
+.types, .brands, .fields, .incl-excl-types {
+    width: 35rem;
+}
+
+.wide {
+    width: 63rem;
+}
+
+.li-small {
+    padding: 5px 4px;
+}
+
+.li-delete {
+    font-weight: normal;
+    cursor: pointer;
+}
+
+select[multiple] option:checked {
+  background: linear-gradient(#1E90FF, #1E90FF);
+}
+
+.toolbar-cmd {
+    margin: 0px 10px;
+    cursor: pointer;
+    background: #d8ecf3;
+    font-size: 0.9rem;
+}
+
+.toolbar-lbl{
+    margin-right: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+.setting-btn {
+    min-width: 12rem;
+}
+
+.btn-scroll {
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: lightgray;
+    color: grey;
+}
+
+.condition-header-text {
+    font-weight: bolder;
+    background: #d8ecf3;
+}
+
+.delete-condition-bar {
+    text-align: right;
+    padding-right: 5px;
+}
+
+.delete-condition-bar:hover {
+    text-decoration: underline;
+}
+
+.delete-condition-btn {
+    cursor: pointer;
+    font-size: 0.8em;
+    background: #d8ecf3;
+}
+
+label {
+    margin-bottom: 1px;
+}

@@ -127,7 +127,7 @@ class CreateStockSettingForm(ModelForm):
         fields = ['name', 'priority', 'content']
         widgets = {
             'priority': NumberInput(attrs={
-                'onfocusout': 'checkPriority(this)',
+                'onkeyup': 'validateNumberInputMinValue(this, 1)',
             }),
             'content': Textarea(attrs={'cols': 50, 'rows': 3}),
         }
