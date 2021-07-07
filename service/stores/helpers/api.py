@@ -88,7 +88,7 @@ class API:
                     },
                     {
                         'param': 'offers[][sku]',
-                        'type': 'integer',
+                        'type': 'string',
                         'desc': 'Идентификатор товара',
                     },
                     {

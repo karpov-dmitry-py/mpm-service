@@ -96,6 +96,8 @@ UI.collectConditions = function () {
     
     const conditions = [];
     const conditionsDiv = this.getConditionsDiv();
+    const includeTypes = ["include", "exclude"]
+
 
     for (let i = 0; i < conditionsDiv.children.length; i++) {
         
@@ -103,7 +105,7 @@ UI.collectConditions = function () {
         const conditionObject = {
             type: null,
             field: null,
-            values: [],
+            values: null,
             includeType: null,
             minStock: null,
         } 
@@ -114,6 +116,12 @@ UI.collectConditions = function () {
             currentType = null;
         }
         conditionObject.type = currentType;
+
+        const conditionContentDiv =  
+
+        
+
+        
 
         if (currentType === null) {
             conditions.push(conditionObject);
