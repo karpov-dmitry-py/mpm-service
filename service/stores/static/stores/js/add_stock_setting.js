@@ -1,7 +1,9 @@
+const getGoodsApiUrl = "/goods/user";
 const searchResultsHeader = 'Найденные товары';
 const savedGoodsHeader = 'Добавленные к условию товары';
-const toolbarLabel = 'toolbar-lbl';
+const minGoodsSearchInputLength = 3;
 
+const toolbarLabel = 'toolbar-lbl';
 const savedGoodsDivClass = 'saved-goods';
 const savedGoodsListClass = 'saved-goods-list';
 const inclExclTypesClass = 'incl-excl-types';
@@ -10,9 +12,15 @@ const conditionContentClass = 'condition-content';
 const fieldContentClass = 'field-content';
 const selectListClass = 'select-list';
 const multiselectListClass = 'multi-select-list';
-
 const goodsSearchResultsToolbarCmdClass = 'goods-toolbar-cmd';
-const minGoodsSearchInputLength = 3;
+
+const includeTypes = ["include", "exclude",];
+const fldSelectTypes = ["warehouse", "cat", "brand",];
+const fldSelectListClasses = {
+    warehouse: "warehouses",
+    cat: "cats",
+    brand: "brands",
+}
 
 function validateNumberInputMinValue(numberInput, minValue) {
     if (numberInput.value < minValue) {
@@ -98,18 +106,84 @@ UI.newContent = function () {
     return content;
 }
 
+UI.buildConditions = function () {
+    const conditionsTextArea = document.getElementById('id_content');
+    if (conditionsTextArea === null) {
+        return;
+    }
+    const json = conditionsTextArea.value;
+
+    if (!isJSON(json)) {
+        return;
+    }
+    const conditions = fromJson(json);
+    if (conditions.length === 0) {
+        return;
+    }
+
+    // loop through conditions
+    for (let i = 0; i < conditions.length; i++) {
+
+        // current condition
+        const conditionData = conditions[i];
+
+        // create new condition
+        createdConditionData = this.newCondition();
+        const typesDiv = createdConditionData.types;
+        const contentDiv = createdConditionData.content;
+
+        // types choice
+        const typeSelectList = this.getChildByClassName(typesDiv, selectListClass);
+        typeSelectList.value = conditionData.type
+        this.onTypeChange(typeSelectList);
+
+        // check type, incl type, min stock
+        if (includeTypes.includes(conditionData.type)) {
+            const inclTypeDiv = this.getChildByClassName(contentDiv, inclExclTypesClass);
+            const inclTypeSelectList = this.getChildByClassName(inclTypeDiv, selectListClass);
+            inclTypeSelectList.value = conditionData.include_type;
+        } else if (conditionData.type === 'stock') {
+            const minStockDiv = this.getChildByClassName(contentDiv, minStockClass);
+            const minStockInput = this.getChildByClassName(minStockDiv, 'numberinput');
+            minStockInput.value = conditionData.min_stock;
+        }
+
+        // check field
+        const fld = conditionData.field;
+        if (fld === null || fld === 'null') {
+            continue;
+        }
+        
+        
+        const fieldDiv = this.getChildByClassName(contentDiv, 'fields');
+        const fieldSelectList = this.getChildByClassName(fieldDiv, selectListClass);
+        fieldSelectList.value = fld;
+        this.onFieldChange(fieldSelectList);
+
+        // populate content by field
+        const fldContent = this.getChildByClassName(fieldDiv, fieldContentClass);
+        
+        // wh, cat, brand
+        if (fldSelectTypes.includes(fld)) {
+            const valuesSelectDiv = this.getChildByClassName(fldContent, fldSelectListClasses[fld]);
+            const valuesSelectList = this.getChildByClassName(valuesSelectDiv, multiselectListClass);
+            this.markSelectList(valuesSelectList, conditionData.values);
+        
+        // custom ui for the good
+        } else if (fld === 'good') {
+            const savedGoodsDiv = this.getChildByClassName(fldContent, savedGoodsDivClass);
+            const savedGoodsList = this.getChildByClassName(savedGoodsDiv, savedGoodsListClass);
+            const goods = this.getGoodsBySku(conditionData.values);
+            this.appendToUL(savedGoodsList, goods);
+            this.setSavedGoodsHeaderByGoodsList(savedGoodsList);
+        }
+    }
+}
+
 UI.collectConditions = function () {
     const conditionsTextArea = document.getElementById('id_content');
     const conditions = [];
     const conditionsDiv = this.getConditionsDiv();
-    const includeTypes = ["include", "exclude",];
-
-    const fldSelectTypes = ["warehouse", "cat", "brand",];
-    const fldSelectListClasses = {
-        warehouse: "warehouses",
-        cat: "cats",
-        brand: "brands",
-    }
 
     for (let i = 0; i < conditionsDiv.children.length; i++) {
 
@@ -213,12 +287,12 @@ UI.collectConditions = function () {
                 conditions.push(conditionData);
                 continue;
             }
-            
+
             const values = this.getValuesFromSelectList(fldSelectList);
             conditionData.values = [].concat(values);
 
         } else if (fld === 'good') {
-            
+
             // get saved goods div
             const savedGoodsDiv = this.getChildByClassName(fldContentDiv, savedGoodsDivClass);
             if (savedGoodsDiv === null) {
@@ -235,7 +309,6 @@ UI.collectConditions = function () {
 
             const values = this.getValuesFromUL(savedGoodsList);
             conditionData.values = [].concat(values);
-            console.log(values.length);
         }
 
         conditions.push(conditionData);
@@ -262,6 +335,11 @@ UI.newCondition = function () {
 
     conditions.appendChild(condition);
     scrollToBottom();
+    return {
+        condition: condition,
+        types: types,
+        content: content,
+    };
 }
 
 UI.selectOptions = function (list, selected) {
@@ -530,6 +608,13 @@ UI.setSavedGoodsHeader = function (el, itemsCount) {
     el.innerHTML = header;
 }
 
+UI.setSavedGoodsHeaderByGoodsList = function (list) {
+    const searchResultsBox = list.previousSibling;
+    const searchResultsLabel = this.getChildByClassName(searchResultsBox, toolbarLabel);
+    this.setSavedGoodsHeader(searchResultsLabel, list.children.length);
+}
+
+
 UI.setSearchResultsHeaderText = function (el, matchedCount) {
     let header = '';
     if (matchedCount === 0) {
@@ -720,6 +805,30 @@ UI.getValuesFromSelectList = function (list) {
     return vals;
 }
 
+UI.markSelectList = function (list, vals) {
+    for (let i = 0; i < list.options.length; i++) {
+        const option = list.options[i];
+        if (vals.includes(option.value)) {
+            option.selected = true;
+        }
+    }
+}
+
+UI.getGoodsBySku = function (skus) {
+    items = [];
+    goods = Storage.get('goods');
+    goods.forEach(function(good) {
+        if (skus.includes(good.sku)) {
+            const item = {
+                val: good.sku,
+                text: good.name,
+            }
+            items.push(item);
+        }
+    });
+    return items;
+}
+
 UI.appendToUL = function (list, items) {
     currentVals = this.getValuesFromUL(list);
     for (let i = 0; i < items.length; i++) {
@@ -893,11 +1002,22 @@ function toJson(src) {
     return result;
 }
 
-
-function testAPI(url) {
-    Api.get(url);
+function isJSON(str) {
+    try {
+        return (JSON.parse(str) && !!str);
+    } catch (e) {
+        return false;
+    }
 }
 
-const testUrl = "/goods/user";
-document.addEventListener("DOMContentLoaded", testAPI(testUrl));
+function getGoodsViaApi(url) {
+    Api.get(getGoodsApiUrl);
+}
+
+function init() {
+    getGoodsViaApi();
+    UI.buildConditions();
+}
+
+document.addEventListener("DOMContentLoaded", init());
 
