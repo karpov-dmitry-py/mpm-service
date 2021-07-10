@@ -2,6 +2,7 @@ const searchResultsHeader = 'Найденные товары';
 const savedGoodsHeader = 'Добавленные к условию товары';
 const toolbarLabel = 'toolbar-lbl';
 
+const savedGoodsDivClass = 'saved-goods';
 const savedGoodsListClass = 'saved-goods-list';
 const inclExclTypesClass = 'incl-excl-types';
 const minStockClass = 'min-stock';
@@ -102,12 +103,17 @@ UI.collectConditions = function () {
     const conditions = [];
     const conditionsDiv = this.getConditionsDiv();
     const includeTypes = ["include", "exclude",];
+
     const fldSelectTypes = ["warehouse", "cat", "brand",];
-    const fldSelectListClasses = ["warehouses", "cats", "brands",];
+    const fldSelectListClasses = {
+        warehouse: "warehouses",
+        cat: "cats",
+        brand: "brands",
+    }
 
     for (let i = 0; i < conditionsDiv.children.length; i++) {
 
-        //current condiion div
+        //current condition div
         const conditionDiv = conditionsDiv.children[i];
 
         // put current condition content into this object
@@ -192,16 +198,9 @@ UI.collectConditions = function () {
 
         // warehouse, cat or brand
         if (fldSelectTypes.includes(fld)) {
-
             // get select list div
-            let selectListDiv = null;
-            for (let i = 0; i < fldSelectListClasses.length; i++) {
-                const className = fldSelectListClasses[i];
-                selectListDiv = this.getChildByClassName(fldContentDiv, className);
-                if (selectListDiv !== null) {
-                    break;
-                }
-            }
+            className = fldSelectListClasses[fld];
+            selectListDiv = this.getChildByClassName(fldContentDiv, className);
 
             // wanted div not found for some reason
             if (selectListDiv === null) {
@@ -214,10 +213,29 @@ UI.collectConditions = function () {
                 conditions.push(conditionData);
                 continue;
             }
-            console.log(fldSelectList);
+            
+            const values = this.getValuesFromSelectList(fldSelectList);
+            conditionData.values = [].concat(values);
 
         } else if (fld === 'good') {
-            // TODO
+            
+            // get saved goods div
+            const savedGoodsDiv = this.getChildByClassName(fldContentDiv, savedGoodsDivClass);
+            if (savedGoodsDiv === null) {
+                conditions.push(conditionData);
+                continue;
+            }
+
+            // get saved goods list
+            const savedGoodsList = this.getChildByClassName(savedGoodsDiv, savedGoodsListClass);
+            if (savedGoodsList === null) {
+                conditions.push(conditionData);
+                continue;
+            }
+
+            const values = this.getValuesFromUL(savedGoodsList);
+            conditionData.values = [].concat(values);
+            console.log(values.length);
         }
 
         conditions.push(conditionData);
@@ -255,7 +273,7 @@ UI.selectOptions = function (list, selected) {
 
 UI.getChildByClassName = function (parent, childClassName) {
     const children = parent.children;
-    for (let i = 0; i <= children.length; i++) {
+    for (let i = 0; i < children.length; i++) {
         let child = children[i];
         if (child.classList.contains(childClassName)) {
             return child;
@@ -268,6 +286,7 @@ UI.selectOptionsByCmd = function (cmd, selected) {
     const selectList = this.getChildByClassName(parent, multiselectListClass);
     this.selectOptions(selectList, selected);
 
+    // this is the goods searh results tool bar cmd
     if (selected && cmd.classList.contains(goodsSearchResultsToolbarCmdClass)) {
         this.onSelectSearchResult(selectList);
     }
@@ -463,7 +482,7 @@ UI.onFieldChange = function (fieldsSelectList) {
         resultsList.setAttribute('onchange', 'UI.onSelectSearchResult(this);');
         fieldContent.appendChild(resultsBox);
 
-        const savedGoodsBox = this.newUL('saved-goods', savedGoodsHeader, [], true);
+        const savedGoodsBox = this.newUL(savedGoodsDivClass, savedGoodsHeader, [], true);
         fieldContent.appendChild(savedGoodsBox);
 
     } else {
@@ -604,7 +623,7 @@ UI.newMultiSelectList = function (className, labelStr, items, isWide) {
     if (className === 'goods') {
         selectAll.classList.add(goodsSearchResultsToolbarCmdClass);
     }
-    
+
     selectAll.setAttribute('onclick', 'UI.selectOptionsByCmd(this, true);');
     selectAll.appendChild(document.createTextNode('выделить все'));
     toolBar.appendChild(selectAll);
@@ -686,6 +705,17 @@ UI.getValuesFromUL = function (list) {
     for (let i = 0; i < list.children.length; i++) {
         const child = list.children[i];
         vals.push(child.getAttribute('val'));
+    }
+    return vals;
+}
+
+UI.getValuesFromSelectList = function (list) {
+    const vals = [];
+    for (let i = 0; i < list.options.length; i++) {
+        const option = list.options[i];
+        if (option.selected) {
+            vals.push(option.value);
+        }
     }
     return vals;
 }
