@@ -1,10 +1,16 @@
 const searchResultsHeader = 'Найденные товары';
 const savedGoodsHeader = 'Добавленные к условию товары';
-const savedGoodsListClass = 'saved-goods-list';
 const toolbarLabel = 'toolbar-lbl';
 
+const savedGoodsListClass = 'saved-goods-list';
+const inclExclTypesClass = 'incl-excl-types';
+const minStockClass = 'min-stock';
+const conditionContentClass = 'condition-content';
+const fieldContentClass = 'field-content';
+const selectListClass = 'select-list';
 const multiselectListClass = 'multi-select-list';
-const goodsSearchResultsSelectAllCmdClass = 'goods-toolbar-cmd';
+
+const goodsSearchResultsToolbarCmdClass = 'goods-toolbar-cmd';
 const minGoodsSearchInputLength = 3;
 
 function validateNumberInputMinValue(numberInput, minValue) {
@@ -87,49 +93,136 @@ UI.getConditionsDiv = function () {
 
 UI.newContent = function () {
     const content = document.createElement('div');
-    content.className = 'condition-content';
+    content.className = conditionContentClass;
     return content;
 }
 
 UI.collectConditions = function () {
     const conditionsTextArea = document.getElementById('id_content');
-    
     const conditions = [];
     const conditionsDiv = this.getConditionsDiv();
-    const includeTypes = ["include", "exclude"]
-
+    const includeTypes = ["include", "exclude",];
+    const fldSelectTypes = ["warehouse", "cat", "brand",];
+    const fldSelectListClasses = ["warehouses", "cats", "brands",];
 
     for (let i = 0; i < conditionsDiv.children.length; i++) {
-        
-        // put current conditron content into this object
-        const conditionObject = {
+
+        //current condiion div
+        const conditionDiv = conditionsDiv.children[i];
+
+        // put current condition content into this object
+        const conditionData = {
             type: null,
             field: null,
-            values: null,
-            includeType: null,
-            minStock: null,
-        } 
-        
-        const condition = conditionsDiv.children[i];
-        let currentType = this.getConditionCurrentType(condition);
-        if (currentType === 'null') {
-            currentType = null;
+            values: [],
+            include_type: null,
+            min_stock: null,
         }
-        conditionObject.type = currentType;
 
-        const conditionContentDiv =  
+        let conditionType = this.getConditionCurrentType(conditionDiv);
+        if (conditionType === 'null') {
+            conditionType = null;
+        }
+        conditionData.type = conditionType;
 
-        
+        // condition type not selected
+        if (conditionType === null) {
+            conditions.push(conditionData);
+            continue;
+        }
 
-        
+        // get condition content
+        const content = this.getChildByClassName(conditionDiv, conditionContentClass);
+        if (content == null) {
+            conditions.push(conditionData);
+            continue;
+        }
 
-        if (currentType === null) {
-            conditions.push(conditionObject);
-            continue;        }
+        // check incl type
+        if (includeTypes.includes(conditionType)) {
 
-        conditions.push(conditionObject);
+            //get incl type div
+            const inclTypeDiv = this.getChildByClassName(content, inclExclTypesClass);
+            if (inclTypeDiv === null) {
+                conditions.push(conditionData);
+                continue;
+            }
+
+            const inclTypeSelectList = this.getChildByClassName(inclTypeDiv, selectListClass);
+            if (inclTypeSelectList === null) {
+                conditions.push(conditionData);
+                continue;
+            }
+            conditionData.include_type = inclTypeSelectList.value;
+
+        } else if (conditionType === 'stock') {
+
+            // get min stock div
+            const minStockDiv = this.getChildByClassName(content, minStockClass);
+            if (minStockDiv === null) {
+                conditions.push(conditionData);
+                continue;
+            }
+            const minStockInput = this.getChildByClassName(minStockDiv, 'numberinput');
+            conditionData.min_stock = minStockInput.value;
+        }
+
+        // check field
+        const fldDiv = this.getChildByClassName(content, 'fields');
+        if (fldDiv === null) {
+            conditions.push(conditionData);
+            continue;
+        }
+
+        const fldSelectList = this.getChildByClassName(fldDiv, selectListClass);
+        if (fldSelectList === null) {
+            conditions.push(conditionData);
+            continue;
+        }
+
+        const fld = fldSelectList.value;
+        conditionData.field = fld;
+
+        // get selected values' ids
+        const fldContentDiv = this.getChildByClassName(fldDiv, fieldContentClass);
+        if (fldContentDiv === null) {
+            conditions.push(conditionData);
+            continue;
+        }
+
+        // warehouse, cat or brand
+        if (fldSelectTypes.includes(fld)) {
+
+            // get select list div
+            let selectListDiv = null;
+            for (let i = 0; i < fldSelectListClasses.length; i++) {
+                const className = fldSelectListClasses[i];
+                selectListDiv = this.getChildByClassName(fldContentDiv, className);
+                if (selectListDiv !== null) {
+                    break;
+                }
+            }
+
+            // wanted div not found for some reason
+            if (selectListDiv === null) {
+                conditions.push(conditionData);
+                continue;
+            }
+
+            const fldSelectList = this.getChildByClassName(selectListDiv, multiselectListClass);
+            if (fldSelectList === null) {
+                conditions.push(conditionData);
+                continue;
+            }
+            console.log(fldSelectList);
+
+        } else if (fld === 'good') {
+            // TODO
+        }
+
+        conditions.push(conditionData);
     }
-    
+
     result = JSON.stringify(conditions);
     conditionsTextArea.value = result;
 }
@@ -175,13 +268,13 @@ UI.selectOptionsByCmd = function (cmd, selected) {
     const selectList = this.getChildByClassName(parent, multiselectListClass);
     this.selectOptions(selectList, selected);
 
-    if (selected && cmd.classList.contains(goodsSearchResultsSelectAllCmdClass)) {
+    if (selected && cmd.classList.contains(goodsSearchResultsToolbarCmdClass)) {
         this.onSelectSearchResult(selectList);
     }
 }
 
 UI.getContentDiv = function (conditionDiv) {
-    const wantedClass = 'condition-content';
+    const wantedClass = conditionContentClass;
     const children = conditionDiv.children;
     for (let i = 0; i <= children.length; i++) {
         const child = children[i];
@@ -223,10 +316,11 @@ UI.onTypeChange = function (list) {
     } else if (selectedType === 'stock') {
         const stockInput = this.newInput(
             'number',
-            'number-input',
+            `number-input ${minStockClass}`,
             'Остаток по полю условия больше или равен',
             'onkeyup',
             'validateNumberInputMinValue(this, 1);',
+            1,
         );
         conditionContentDiv.appendChild(stockInput);
     }
@@ -237,7 +331,7 @@ UI.onTypeChange = function (list) {
 
 UI.newInclExclTypesList = function () {
     const container = document.createElement('div');
-    container.className = 'form-group incl-excl-types';
+    container.className = `form-group ${inclExclTypesClass}`;
 
     label = document.createElement('label');
     label.appendChild(document.createTextNode('Остаток по полю условия'));
@@ -249,7 +343,7 @@ UI.newInclExclTypesList = function () {
     return container;
 }
 
-UI.newInput = function (type, className, labelStr, eventName, eventHandler) {
+UI.newInput = function (type, className, labelStr, eventName, eventHandler, minValue) {
     const types = {
         text: 'textinput',
         number: 'numberinput',
@@ -265,6 +359,9 @@ UI.newInput = function (type, className, labelStr, eventName, eventHandler) {
     const input = document.createElement('input');
     input.className = `${types[type]} form-control`;
     input.type = type;
+    if (minValue !== null) {
+        input.setAttribute('min', minValue);
+    }
 
     if (eventName !== null) {
         input.setAttribute(eventName, `${eventHandler}`);
@@ -302,7 +399,7 @@ UI.getConditionCurrentType = function (conditionDiv) {
             let innerChildren = child.children;
             for (let ii = 0; ii < innerChildren.length; ii++) {
                 let innerChild = innerChildren[ii];
-                if (innerChild.classList.contains('select-list')) {
+                if (innerChild.classList.contains(selectListClass)) {
                     return innerChild.value;
                 }
             }
@@ -313,7 +410,7 @@ UI.getConditionCurrentType = function (conditionDiv) {
 
 UI.newOptionList = function (src) {
     const selectList = document.createElement('select');
-    selectList.className = 'csvselect form-control select-list';
+    selectList.className = `csvselect form-control ${selectListClass}`;
     src.forEach(function (item) {
         const option = document.createElement('option');
         option.value = item.val;
@@ -470,7 +567,7 @@ UI.newFieldsList = function () {
     container.appendChild(fieldsSelectList);
 
     const fieldContent = document.createElement('div');
-    fieldContent.className = 'form-group field-content';
+    fieldContent.className = `form-group ${fieldContentClass}`;
     container.appendChild(fieldContent);
 
     return container;
@@ -501,7 +598,13 @@ UI.newMultiSelectList = function (className, labelStr, items, isWide) {
     toolBar.appendChild(label);
 
     selectAll = document.createElement('span');
-    selectAll.className = `toolbar-cmd text-muted ${goodsSearchResultsSelectAllCmdClass}`;
+    selectAll.className = 'toolbar-cmd text-muted';
+
+    // custom class for goods' search results select list  
+    if (className === 'goods') {
+        selectAll.classList.add(goodsSearchResultsToolbarCmdClass);
+    }
+    
     selectAll.setAttribute('onclick', 'UI.selectOptionsByCmd(this, true);');
     selectAll.appendChild(document.createTextNode('выделить все'));
     toolBar.appendChild(selectAll);
@@ -573,7 +676,7 @@ UI.clearUL = function (dltElement) {
     const toolbar = dltElement.parentElement;
     const list = toolbar.nextSibling;
     this.clearInnerHTML(list);
-    
+
     const toolbarLbl = this.getChildByClassName(toolbar, toolbarLabel);
     this.setSavedGoodsHeader(toolbarLbl, list.children.length);
 }
