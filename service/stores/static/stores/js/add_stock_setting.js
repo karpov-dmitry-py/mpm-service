@@ -69,7 +69,7 @@ UI.newHeader = function () {
 }
 
 UI.onDeleteConfirm = function (btn) {
-    
+
 }
 
 UI.onDeleteCancel = function (btn) {
@@ -86,7 +86,7 @@ UI.newDeleteQuestion = function (target) {
 
     const div = document.createElement('div');
     div.className = 'd-flex justify-content-center border mb-3';
-    
+
     const cancelBtn = document.createElement('a');
     cancelBtn.setAttribute('href', '#');
     cancelBtn.setAttribute('onclick', 'UI.onDeleteCancel(this);');
@@ -157,7 +157,7 @@ UI.buildConditions = function () {
     if (conditionsTextArea === null) {
         return;
     }
-    
+
     const json = conditionsTextArea.value;
     if (!isJSON(json)) {
         return;
@@ -199,8 +199,8 @@ UI.buildConditions = function () {
         if (fld === null || fld === 'null') {
             continue;
         }
-        
-        
+
+
         const fieldDiv = this.getChildByClassName(contentDiv, 'fields');
         const fieldSelectList = this.getChildByClassName(fieldDiv, selectListClass);
         fieldSelectList.value = fld;
@@ -208,14 +208,14 @@ UI.buildConditions = function () {
 
         // populate content by field
         const fldContent = this.getChildByClassName(fieldDiv, fieldContentClass);
-        
+
         // wh, cat, brand
         if (fldSelectTypes.includes(fld)) {
             const valuesSelectDiv = this.getChildByClassName(fldContent, fldSelectListClasses[fld]);
             const valuesSelectList = this.getChildByClassName(valuesSelectDiv, multiselectListClass);
             this.markSelectList(valuesSelectList, conditionData.values);
-        
-        // custom ui for the good
+
+            // custom ui for the good
         } else if (fld === 'good') {
             const savedGoodsDiv = this.getChildByClassName(fldContent, savedGoodsDivClass);
             const savedGoodsList = this.getChildByClassName(savedGoodsDiv, savedGoodsListClass);
@@ -660,7 +660,6 @@ UI.setSavedGoodsHeaderByGoodsList = function (list) {
     this.setSavedGoodsHeader(searchResultsLabel, list.children.length);
 }
 
-
 UI.setSearchResultsHeaderText = function (el, matchedCount) {
     let header = '';
     if (matchedCount === 0) {
@@ -680,7 +679,7 @@ UI.onSearchInput = function (el) {
     const toolbarDiv = resultsList.previousSibling;
     const label = this.getChildByClassName(toolbarDiv, toolbarLabel);
 
-    const input = el.value.toLowerCase();
+    let input = clearSpaces(el.value.toLowerCase());
     if (input.length < minGoodsSearchInputLength) {
         resultsList.size = 1;
         this.setSearchResultsHeaderText(label, 0);
@@ -689,8 +688,12 @@ UI.onSearchInput = function (el) {
 
     const items = Storage.get('goods');
     let matched = 0;
+
     items.forEach(function (item) {
-        if (item.sku.toLowerCase().includes(input) || item.name.toLowerCase().includes(input)) {
+        
+        if (clearSpaces(item.name.toLowerCase()).includes(input)
+            || clearSpaces(item.sku.toLowerCase()).includes(input)) {
+            
             matched++;
             const option = document.createElement('option');
             option.value = item.sku;
@@ -700,6 +703,11 @@ UI.onSearchInput = function (el) {
     });
     resultsList.size = this.getSelectListWantedSize(matched);
     this.setSearchResultsHeaderText(label, matched);
+}
+
+function clearSpaces(src) {
+    const result = src.replace(/\s+/g, '');
+    return result;
 }
 
 UI.newFieldsList = function () {
@@ -863,7 +871,7 @@ UI.markSelectList = function (list, vals) {
 UI.getGoodsBySku = function (skus) {
     items = [];
     goods = Storage.get('goods');
-    goods.forEach(function(good) {
+    goods.forEach(function (good) {
         if (skus.includes(good.sku)) {
             const item = {
                 val: good.sku,

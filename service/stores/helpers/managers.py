@@ -1,0 +1,104 @@
+# from .common import _exc
+# from .common import _err
+# from .common import _log
+
+import json
+from ..models import Stock
+
+
+class StockManager:
+
+    @staticmethod
+    def get_user_stock(user):
+        # noinspection PyUnresolvedReferences
+        rows = Stock.objects.filter(user=user).order_by('good')
+        goods = rows.values_list('good').distinct()
+        items = []
+        for good_id in goods:
+            good_rows = rows.filter(good_id=good_id)
+            stocks = dict()
+            total_amount = 0
+
+            # good's stock rows
+            for row in good_rows:
+                total_amount += row.amount
+                wh_stock = stocks.get(row.warehouse)
+                if not wh_stock:
+                    stocks[row.warehouse] = {
+                        'amount': row.amount,
+                        'date_updated': row.date_updated,
+                    }
+                    continue
+                stocks[row.warehouse]['amount'] += row.amount
+                if row.date_updated > stocks[row.warehouse]['date_updated']:
+                    stocks[row.warehouse]['date_updated'] = row.date_updated
+
+            # noinspection PyUnboundLocalVariable
+            good_result = {
+                'good': row.good,
+                'total_amount': total_amount,
+                'stocks': stocks
+            }
+            items.append(good_result)
+        return items
+
+    @staticmethod
+    def _condition_attrs(cnd):
+        return f'{cnd.get("type")}-{cnd.get("field")}'
+
+    @staticmethod
+    def validate_stock_setting_content(content):
+        content = content.strip()
+        if not content:
+            err = 'в настройке нет условий'
+            return err
+
+        try:
+            conditions = json.loads(content)
+        except (json.JSONDecodeError, Exception):
+            err = f'Не валидный json в условиях. Добавьте новые условия.'
+            return err
+
+        # type
+        errors = []
+        for i, cnd in enumerate(conditions, start=1):
+            _type = cnd['type']
+            if _type is None:
+                err = f'не указан тип в условии № {i}'
+                errors.append(err)
+        if errors:
+            err = ', '.join(errors)
+            return err
+
+        # duplicates by type and field
+        # noinspection PyUnresolvedReferences
+        errors = []
+        for item in conditions:
+            item_attrs = StockManager._condition_attrs(item)
+            matched = 0
+            for cnd in conditions:
+                if StockManager._condition_attrs(cnd) == item_attrs:
+                    matched += 1
+                    if matched > 1:
+                        err = f'есть дубли по типу и полю условия: {item_attrs}'
+                        errors.append(err)
+                        break
+        if errors:
+            err = ', '.join(errors)
+            return err
+
+        # incl type
+
+        # min stock
+
+        # field
+
+        # values
+
+        # intersection (incl - excl)
+
+        return None
+
+    @staticmethod
+    def calculate_stock_setting(setting):
+        pass

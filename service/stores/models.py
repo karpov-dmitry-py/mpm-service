@@ -8,7 +8,6 @@ from django.db.models import SET_NULL
 from django.utils import timezone
 
 from .helpers.common import new_uuid
-from .helpers.common import _err
 
 
 def _now():
@@ -132,7 +131,6 @@ class GoodsCategory(models.Model):
 
     def __str__(self):
         return self.name if not self.parent else f'{self.parent} \\ {self.name}'
-
 
     class Meta:
         db_table = 'goods_categories'

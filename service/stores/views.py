@@ -56,6 +56,7 @@ from .helpers.common import get_supplier_error
 
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
+from .helpers.managers import StockManager
 
 from .forms import CreateStoreForm
 from .forms import CreateGoodsCategoryForm
@@ -428,11 +429,6 @@ def is_stock_settings_priority_used(priority, store, skip_setting_id=None):
     else:
         is_used = any(row.priority == priority for row in rows)
     return is_used
-
-
-def is_valid_stock_setting_content(content):
-    # TODO - actual validation based on types of conditions
-    return bool(content)
 
 
 # STORE
@@ -1549,37 +1545,8 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def _get_queryset_by_user(self):
         if self._full_qs is None:
-            # noinspection PyUnresolvedReferences
-            rows = self.model.objects.filter(user=self.request.user).order_by('good')
-            goods = rows.values_list('good').distinct()
-            items = []
-            for good_id in goods:
-                good_rows = rows.filter(good_id=good_id)
-                stocks = dict()
-                total_amount = 0
-
-                # good's stock rows
-                for row in good_rows:
-                    total_amount += row.amount
-                    wh_stock = stocks.get(row.warehouse)
-                    if not wh_stock:
-                        stocks[row.warehouse] = {
-                            'amount': row.amount,
-                            'date_updated': row.date_updated,
-                        }
-                        continue
-                    stocks[row.warehouse]['amount'] += row.amount
-                    if row.date_updated > stocks[row.warehouse]['date_updated']:
-                        stocks[row.warehouse]['date_updated'] = row.date_updated
-
-                # noinspection PyUnboundLocalVariable
-                good_result = {
-                    'good': row.good,
-                    'total_amount': total_amount,
-                    'stocks': stocks
-                }
-                items.append(good_result)
-            self._full_qs = items
+            stock = StockManager.get_user_stock(self.request.user)
+            self._full_qs = stock
         return self._full_qs
 
     def get_queryset(self):
@@ -1824,9 +1791,9 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
         priority = form.cleaned_data['priority']
         content = form.cleaned_data['content']
 
-        if not is_valid_stock_setting_content(content):
-            # TODO - detailed error
-            form.errors['Неверно заполнены условия'] = f'Некорректные или пустые условия'
+        err = StockManager.validate_stock_setting_content(content)
+        if err:
+            form.errors['Неверно заполнены условия'] = err
             form_is_valid = False
 
         min_val = 1
@@ -1880,36 +1847,21 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
         obj = self.get_object()
         return obj.user == self.request.user
 
-    # def get(self, *args, **kwargs):
-    #     if not hasattr(self, 'request'):
-    #         return
-    #
-    #     redirect_to = redirect('stores-list')
-    #     store_id = kwargs.get('store_pk')
-    #     store, err = get_store_by_id(store_id, self.request.user)
-    #
-    #     if err:
-    #         messages.error(self.request, err)
-    #         return redirect_to
-    #
-    #     self._store = store
-    #     return super().get(*args, **kwargs)
-
     def get_success_url(self):
         messages.success(self.request, f'Изменения успешно сохранены')
         return reverse_lazy('stock-settings-list', kwargs={'store_pk': self.object.store.id})
 
     def form_valid(self, form):
-        user = self.request.user
         self._store = self.object.store
 
+        # validation
         form_is_valid = True
         priority = form.cleaned_data['priority']
         content = form.cleaned_data['content']
 
-        if not is_valid_stock_setting_content(content):
-            # TODO - detailed error
-            form.errors['Неверно заполнены условия'] = f'Некорректные или пустые условия'
+        err = StockManager.validate_stock_setting_content(content)
+        if err:
+            form.errors['Неверно заполнены условия'] = err
             form_is_valid = False
 
         min_val = 1

@@ -129,5 +129,9 @@ class CreateStockSettingForm(ModelForm):
             'priority': NumberInput(attrs={
                 'onkeyup': 'validateNumberInputMinValue(this, 1)',
             }),
-            'content': Textarea(attrs={'cols': 50, 'rows': 3}),
+            'content': Textarea(attrs={
+                'cols': 50,
+                'rows': 3,
+                'class': 'hidden',
+            }),
         }
