@@ -17,7 +17,6 @@
         <th>ID</th>
         <th>Наименование</th>
         <th>Порядок</th>
-        <th>Контент</th>
         <th>Количество товаров</th>
         <th style="text-align: center">Действия</th>
     </tr>
@@ -30,9 +29,8 @@
                     </td>
                     <td>{{ forloop.counter }}</td>
                     <td>{{ item.id }}</td>
-                    <td>{{ item.name }}</td>
+                    <td><a href="{% url 'stock-settings-update' item.id %}">{{ item.name }}</a></td>
                     <td>{{ item.priority }}</td>
-                    <td>{{ item.content }}</td>
                     <td> - </td>
                     <td style="text-align: center; padding-right: 0rem; width: 13rem;">
                         <a class="btn btn-primary" href="{% url 'stock-settings-update' item.id %}">Изменить</a>

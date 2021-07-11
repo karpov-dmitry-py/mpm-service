@@ -1880,12 +1880,28 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
         obj = self.get_object()
         return obj.user == self.request.user
 
+    # def get(self, *args, **kwargs):
+    #     if not hasattr(self, 'request'):
+    #         return
+    #
+    #     redirect_to = redirect('stores-list')
+    #     store_id = kwargs.get('store_pk')
+    #     store, err = get_store_by_id(store_id, self.request.user)
+    #
+    #     if err:
+    #         messages.error(self.request, err)
+    #         return redirect_to
+    #
+    #     self._store = store
+    #     return super().get(*args, **kwargs)
+
     def get_success_url(self):
         messages.success(self.request, f'Изменения успешно сохранены')
         return reverse_lazy('stock-settings-list', kwargs={'store_pk': self.object.store.id})
 
     def form_valid(self, form):
-        self._store = form.instance.store
+        user = self.request.user
+        self._store = self.object.store
 
         form_is_valid = True
         priority = form.cleaned_data['priority']
@@ -1917,13 +1933,21 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
         return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
+        self._store = self.object.store
         context = super().get_context_data(**kwargs)
         context['title'] = f'Редактирование настройки остатков'
 
-        store = self.object.store
-        context['title'] = f'{context["title"]} - {store.name}'
-        context['store_name'] = store.name
-        context['store_id'] = store.id
+        context['condition_types'] = get_stock_condition_types()
+        context['condition_fields'] = get_stock_condition_fields()
+        context['include_types'] = get_stock_include_types()
+        context['brands'] = get_brands_by_user(self.request.user)
+        context['cats'] = _get_cats_tree(self.request.user)
+        context['warehouses'] = get_warehouses_by_user(self.request.user)
+
+        if self._store:
+            context['title'] = f'{context["title"]} - {self._store.name}'
+            context['store_name'] = self._store.name
+            context['store_id'] = self._store.id
         return context
 
 

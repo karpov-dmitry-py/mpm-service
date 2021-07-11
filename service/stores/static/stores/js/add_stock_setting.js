@@ -106,13 +106,21 @@ UI.newContent = function () {
     return content;
 }
 
+UI.hideconditionsTextArea = function () {
+    const conditionsTextArea = document.getElementById('id_content');
+    if (conditionsTextArea === null) {
+        return;
+    }
+    conditionsTextArea.parentElement.parentElement.classList.add('hidden');
+}
+
 UI.buildConditions = function () {
     const conditionsTextArea = document.getElementById('id_content');
     if (conditionsTextArea === null) {
         return;
     }
+    
     const json = conditionsTextArea.value;
-
     if (!isJSON(json)) {
         return;
     }
@@ -1015,6 +1023,7 @@ function getGoodsViaApi(url) {
 }
 
 function init() {
+    UI.hideconditionsTextArea();
     getGoodsViaApi();
     UI.buildConditions();
 }
