@@ -61,17 +61,55 @@ UI.newHeader = function () {
     span.className = 'delete-condition-btn text-muted';
     span.appendChild(document.createTextNode('удалить условие'));
     span.setAttribute('title', 'удалить это условие');
-    span.setAttribute('onclick', 'UI.deleteCondition(this);');
+    span.setAttribute('onclick', 'UI.newDeleteQuestion(this);');
     deleteDiv.appendChild(span);
 
     header.appendChild(deleteDiv);
     return header;
 }
 
+UI.onDeleteConfirm = function (btn) {
+    
+}
+
+UI.onDeleteCancel = function (btn) {
+    const currenDeleteDiv = btn.parentElement;
+    const header = currenDeleteDiv.previousSibling;
+    const deleteDiv = this.getChildByClassName(header, 'delete-condition-bar');
+    const deleteSpan = this.getChildByClassName(deleteDiv, 'delete-condition-btn');
+    deleteSpan.style.display = 'inline';
+    currenDeleteDiv.parentElement.removeChild(currenDeleteDiv);
+}
+
+UI.newDeleteQuestion = function (target) {
+    target.style.display = 'none';
+
+    const div = document.createElement('div');
+    div.className = 'd-flex justify-content-center border mb-3';
+    
+    const cancelBtn = document.createElement('a');
+    cancelBtn.setAttribute('href', '#');
+    cancelBtn.setAttribute('onclick', 'UI.onDeleteCancel(this);');
+    cancelBtn.className = 'btn btn-outline-secondary setting-btn';
+    cancelBtn.appendChild(document.createTextNode('Отменить удаление'));
+    div.appendChild(cancelBtn);
+
+    const deleteBtn = document.createElement('a');
+    deleteBtn.setAttribute('href', '#');
+    deleteBtn.setAttribute('onclick', 'UI.deleteCondition(this);');
+    deleteBtn.className = 'btn btn-outline-danger setting-btn';
+    deleteBtn.appendChild(document.createTextNode('Удалить условие'));
+    div.appendChild(deleteBtn);
+
+    const header = target.parentElement.parentElement;
+    const condition = header.parentElement;
+    condition.insertBefore(div, header.nextSibling);
+}
+
 UI.deleteCondition = function (deleteBtn) {
     const condition = deleteBtn.parentElement.parentElement;
     const conditions = condition.parentElement;
-    conditions.remove(condition);
+    conditions.removeChild(condition);
     this.enumerateConditions();
 }
 
@@ -106,7 +144,7 @@ UI.newContent = function () {
     return content;
 }
 
-UI.hideconditionsTextArea = function () {
+UI.hideConditionsTextArea = function () {
     const conditionsTextArea = document.getElementById('id_content');
     if (conditionsTextArea === null) {
         return;
@@ -1023,9 +1061,10 @@ function getGoodsViaApi(url) {
 }
 
 function init() {
-    UI.hideconditionsTextArea();
+    UI.hideConditionsTextArea();
     getGoodsViaApi();
     UI.buildConditions();
+    scrollToTop();
 }
 
 document.addEventListener("DOMContentLoaded", init());

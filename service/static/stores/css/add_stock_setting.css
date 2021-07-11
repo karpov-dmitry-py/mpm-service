@@ -7,12 +7,20 @@
     padding-top: 5px;
 }
 
-.types, .brands, .fields, .incl-excl-types {
-    width: 35em;
+.border {
+    border-radius: 5px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #d5dbe0;
+    padding: 5px;
+}
+
+.types, .brands, .fields, .incl-excl-types, .min-stock {
+    width: 35rem;
 }
 
 .wide {
-    width: 63em;
+    width: 63rem;
 }
 
 .li-small {
@@ -45,6 +53,7 @@ select[multiple] option:checked {
 
 .setting-btn {
     min-width: 12rem;
+    margin-right: 20px;
 }
 
 .btn-scroll {
