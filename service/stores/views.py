@@ -57,6 +57,9 @@ from .helpers.common import get_supplier_error
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
 from .helpers.managers import StockManager
+from .helpers.managers import get_stock_condition_types
+from .helpers.managers import get_stock_condition_fields
+from .helpers.managers import get_stock_include_types
 
 from .forms import CreateStoreForm
 from .forms import CreateGoodsCategoryForm
@@ -1823,9 +1826,9 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Создание настройки остатков'
 
-        context['condition_types'] = get_stock_condition_types()
-        context['condition_fields'] = get_stock_condition_fields()
-        context['include_types'] = get_stock_include_types()
+        context['condition_types'] = _json(get_stock_condition_types())
+        context['condition_fields'] = _json(get_stock_condition_fields())
+        context['include_types'] = _json(get_stock_include_types())
         context['brands'] = get_brands_by_user(self.request.user)
         context['cats'] = _get_cats_tree(self.request.user)
         context['warehouses'] = get_warehouses_by_user(self.request.user)
@@ -1889,9 +1892,9 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
         context = super().get_context_data(**kwargs)
         context['title'] = f'Редактирование настройки остатков'
 
-        context['condition_types'] = get_stock_condition_types()
-        context['condition_fields'] = get_stock_condition_fields()
-        context['include_types'] = get_stock_include_types()
+        context['condition_types'] = _json(get_stock_condition_types())
+        context['condition_fields'] = _json(get_stock_condition_fields())
+        context['include_types'] = _json(get_stock_include_types())
         context['brands'] = get_brands_by_user(self.request.user)
         context['cats'] = _get_cats_tree(self.request.user)
         context['warehouses'] = get_warehouses_by_user(self.request.user)
@@ -1939,28 +1942,6 @@ def _json(obj):
     return json.dumps(obj, ensure_ascii=False)
 
 
-def get_stock_condition_types():
-    items = [
-        {
-            'val': None,
-            'text': 'Выберите тип условия',
-        },
-        {
-            'val': 'include',
-            'text': 'Включить',
-        },
-        {
-            'val': 'exclude',
-            'text': 'Исключить',
-        },
-        {
-            'val': 'stock',
-            'text': 'Остаток',
-        },
-    ]
-    return _json(items)
-
-
 # noinspection PyTypeChecker
 def get_brands_by_user(user):
     rows = _qs_filtered_by_user(model=GoodsBrand, user=user)
@@ -1985,46 +1966,6 @@ def get_warehouses_by_user(user):
             'text': row.name,
         }
         items.append(_row)
-    return _json(items)
-
-
-def get_stock_condition_fields():
-    items = [
-        {
-            'val': None,
-            'text': 'Выберите поле условия',
-        },
-        {
-            'val': 'warehouse',
-            'text': 'Склад',
-        },
-        {
-            'val': 'cat',
-            'text': 'Категория',
-        },
-        {
-            'val': 'brand',
-            'text': 'Бренд',
-        },
-        {
-            'val': 'good',
-            'text': 'Товар',
-        },
-    ]
-    return _json(items)
-
-
-def get_stock_include_types():
-    items = [
-        {
-            'val': 'in_list',
-            'text': 'В списке',
-        },
-        {
-            'val': 'not_in_list',
-            'text': 'Не в списке',
-        },
-    ]
     return _json(items)
 
 

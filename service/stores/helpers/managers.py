@@ -43,8 +43,10 @@ class StockManager:
         return items
 
     @staticmethod
-    def _condition_attrs(cnd):
-        return f'{cnd.get("type")}-{cnd.get("field")}'
+    def _condition_attrs(condition):
+        _type = _get_text_by_val(get_stock_condition_types, condition.get("type"))
+        _field = _get_text_by_val(get_stock_condition_fields, condition.get("field"))
+        return f'{_type} - {_field}'
 
     @staticmethod
     def validate_stock_setting_content(content):
@@ -72,7 +74,7 @@ class StockManager:
 
         # duplicates by type and field
         # noinspection PyUnresolvedReferences
-        errors = []
+        errors = dict()
         for item in conditions:
             item_attrs = StockManager._condition_attrs(item)
             matched = 0
@@ -81,15 +83,31 @@ class StockManager:
                     matched += 1
                     if matched > 1:
                         err = f'есть дубли по типу и полю условия: {item_attrs}'
-                        errors.append(err)
+                        if errors.get(err) is None:
+                            errors[err] = 0
+                        errors[err] += 1
                         break
+        if errors:
+            err = ', '.join(errors.keys())
+            return err
+
+        # incl type, min stock
+        errors = []
+        inc_types = ('include', 'exclude',)
+        for i, cnd in enumerate(conditions, start=1):
+            _type = cnd['type']
+            if type in inc_types:
+                if cnd['include_type'] is None:
+                    err = f'не указан вид включения-исключения в условии № {i}'
+                    errors.append(err)
+            elif type == 'stock':
+                min_stock = cnd['min_stock']
+                if not _is_uint(min_stock):
+                    err = f'не указан корректный минимальный остаток в условии № {i}'
+                    errors.append(err)
         if errors:
             err = ', '.join(errors)
             return err
-
-        # incl type
-
-        # min stock
 
         # field
 
@@ -102,3 +120,78 @@ class StockManager:
     @staticmethod
     def calculate_stock_setting(setting):
         pass
+
+def _is_uint(src):
+    try:
+        _int = int(src)
+        return _int > 0
+    except (TypeError, BaseException):
+        return False
+
+
+def _get_text_by_val(func, val):
+    for item in func():
+        if item['val'] and item['val'] == val:
+            return item['text']
+
+
+def get_stock_condition_types():
+    items = [
+        {
+            'val': None,
+            'text': 'Выберите тип условия',
+        },
+        {
+            'val': 'include',
+            'text': 'Включить',
+        },
+        {
+            'val': 'exclude',
+            'text': 'Исключить',
+        },
+        {
+            'val': 'stock',
+            'text': 'Остаток',
+        },
+    ]
+    return items
+
+
+def get_stock_condition_fields():
+    items = [
+        {
+            'val': None,
+            'text': 'Выберите поле условия',
+        },
+        {
+            'val': 'warehouse',
+            'text': 'Склад',
+        },
+        {
+            'val': 'cat',
+            'text': 'Категория',
+        },
+        {
+            'val': 'brand',
+            'text': 'Бренд',
+        },
+        {
+            'val': 'good',
+            'text': 'Товар',
+        },
+    ]
+    return items
+
+
+def get_stock_include_types():
+    items = [
+        {
+            'val': 'in_list',
+            'text': 'В списке',
+        },
+        {
+            'val': 'not_in_list',
+            'text': 'Не в списке',
+        },
+    ]
+    return items

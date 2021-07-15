@@ -8,16 +8,17 @@
             {% csrf_token %}
             <fieldset class="form-group">
                 <legend class="border-bottom mb-4 mt-2">
-                    Создание настройки - <a href="{% url 'stores-detail' store_id %}">{{ store_name }}</a>
+                    Создание настройки - <a href="{% url 'stock-settings-list' store_id %}">{{ store_name }}</a>
                 </legend>
                 {{ form|crispy }}
-            </fieldset>
+
             <div class="form-group mb-4" id="new-condition-div">
                 <button type="button" onclick="UI.newCondition();" class="btn btn-outline-info setting-btn">
                     <span><strong>&#65291;</strong></span>
                     Добавить условие</button>
                 <button type="button" class="btn btn-light setting-btn btn-scroll" onclick="scrollToBottom();">Вниз</button>
             </div>
+
             <div class="form-group mb-4" id="conditions"></div>
             <div class="form-group mb-4">
                 <button type="button" onclick="UI.newCondition();" class="btn btn-outline-info setting-btn">
@@ -28,6 +29,7 @@
             <div class="form-group mb-4">
                 <button onclick="UI.collectConditions();" class="btn btn-success setting-btn" type="submit">Создать настройку</button>
             </div>
+            </fieldset>
         </form>
         <div id="condition_types" class="hidden">{{ condition_types }}</div>
         <div id="condition_fields" class="hidden">{{ condition_fields }}</div>

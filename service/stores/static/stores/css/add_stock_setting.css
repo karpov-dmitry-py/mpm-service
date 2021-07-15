@@ -16,15 +16,19 @@
 }
 
 .types, .brands, .fields, .incl-excl-types, .min-stock {
-    width: 35rem;
+    /* width: 35rem; */
+    width: 50%;
 }
 
 .wide {
-    width: 63rem;
+    /* width: 63rem; */
+    width: 200%;
+    height: auto;
 }
 
 .li-small {
     padding: 5px 4px;
+    height: auto;
 }
 
 .li-delete {
