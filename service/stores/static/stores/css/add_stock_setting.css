@@ -24,11 +24,13 @@
     /* width: 63rem; */
     width: 200%;
     height: auto;
+    min-height: 100%;
+    overflow: auto;
 }
 
 .li-small {
     padding: 5px 4px;
-    height: auto;
+    line-height: auto;
 }
 
 .li-delete {

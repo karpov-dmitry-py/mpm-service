@@ -1069,7 +1069,7 @@ function getGoodsViaApi(url) {
 }
 
 function init() {
-    UI.hideConditionsTextArea();
+    // UI.hideConditionsTextArea();
     getGoodsViaApi();
     UI.buildConditions();
     scrollToTop();

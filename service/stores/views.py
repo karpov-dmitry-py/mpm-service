@@ -1794,7 +1794,7 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
         priority = form.cleaned_data['priority']
         content = form.cleaned_data['content']
 
-        err = StockManager.validate_stock_setting_content(content)
+        err = StockManager.validate_stock_setting_content(content, user)
         if err:
             form.errors['Неверно заполнены условия'] = err
             form_is_valid = False
@@ -1862,7 +1862,7 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
         priority = form.cleaned_data['priority']
         content = form.cleaned_data['content']
 
-        err = StockManager.validate_stock_setting_content(content)
+        err = StockManager.validate_stock_setting_content(content, self.request.user)
         if err:
             form.errors['Неверно заполнены условия'] = err
             form_is_valid = False
