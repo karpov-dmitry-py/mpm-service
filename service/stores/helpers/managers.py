@@ -1,10 +1,13 @@
 import json
-import time
 from collections import defaultdict
 
-from .common import _log
-# from .common import _exc
-# from .common import _err
+from django.db.models import Sum
+from django.db.models import Max
+
+# from .common import _log
+from .common import _exc
+from .common import _err
+from .common import time_tracker
 
 from ..models import GoodsCategory
 from ..models import GoodsBrand
@@ -16,37 +19,76 @@ from ..models import Stock
 class StockManager:
 
     @staticmethod
-    def get_user_stock(user):
-        # noinspection PyUnresolvedReferences
-        rows = Stock.objects.filter(user=user).order_by('good')
+    def _wh_repr(wh):
+        return wh.id, wh.name, wh.kind.name
+
+    @staticmethod
+    @time_tracker('get_user_stock')
+    def get_user_stock(user, add_wh_info=True):
+
+        # noinspection PyUnresolvedReferences,PyTypeChecker
+        whs = _get_user_qs(Warehouse, user)
+        whs_dict = _get_dict_by_attr_from_items(whs, 'id')
+
+        # noinspection PyTypeChecker
+        rows = _get_user_qs(Stock, user).order_by('good')
         goods = rows.values_list('good').distinct()
         items = []
         for good_id in goods:
-            good_rows = rows.filter(good_id=good_id)
-            stocks = dict()
-            total_amount = 0
+            good_rows = rows.filter(good=good_id[0])
+            stocks = good_rows.values('warehouse') \
+                .annotate(total_amount=Sum('amount')) \
+                .annotate(max_date_updated=Max('date_updated'))
 
-            # good's stock rows
-            for row in good_rows:
-                total_amount += row.amount
-                wh_stock = stocks.get(row.warehouse)
-                if not wh_stock:
-                    stocks[row.warehouse] = {
-                        'amount': row.amount,
-                        'date_updated': row.date_updated,
-                    }
-                    continue
-                stocks[row.warehouse]['amount'] += row.amount
-                if row.date_updated > stocks[row.warehouse]['date_updated']:
-                    stocks[row.warehouse]['date_updated'] = row.date_updated
+            stocks = list(stocks)
+
+            if add_wh_info:
+                for stock_dict in stocks:
+                    wh = whs_dict[stock_dict['warehouse']]
+                    stock_dict['wh_type'] = wh.kind.name
+                    stock_dict['wh_name'] = wh.name
 
             # noinspection PyUnboundLocalVariable
             good_result = {
-                'good': row.good,
-                'total_amount': total_amount,
-                'stocks': stocks
+                'good': good_rows[0].good,
+                'total_amount': _sum_list_of_dicts_by_key(stocks, 'total_amount'),
+                'stocks': stocks,
             }
             items.append(good_result)
+
+        return items
+
+    @staticmethod
+    @time_tracker('get_user_stock_dict')  # old
+    def get_user_stock_dict(user):
+
+        # noinspection PyUnresolvedReferences,PyTypeChecker
+        whs = _get_user_qs(Warehouse, user)
+        whs_dict = _get_dict_by_attr_from_items(whs, 'id')
+
+        # noinspection PyTypeChecker
+        rows = _get_user_qs(Stock, user).order_by('good')
+        goods = rows.values_list('good').distinct()
+        items = []
+        for good_id in goods:
+            good_rows = rows.filter(good=good_id[0])
+            stocks = good_rows.values('warehouse') \
+                .annotate(total_amount=Sum('amount')) \
+                .annotate(max_date_updated=Max('date_updated'))
+
+            _stocks = dict()
+            for stock_dict in stocks:
+                wh = whs_dict[stock_dict['warehouse']]
+                _stocks[wh] = stock_dict
+
+            # noinspection PyUnboundLocalVariable
+            good_result = {
+                'good': good_rows[0].good,
+                'total_amount': _sum_list_of_dicts_by_key(stocks, 'total_amount'),
+                'stocks': stocks,
+            }
+            items.append(good_result)
+
         return items
 
     @staticmethod
@@ -58,7 +100,6 @@ class StockManager:
     # noinspection PyTypeChecker
     @staticmethod
     def validate_stock_setting_content(content, user):
-        start = time.time()
         content = content.strip()
         if not content:
             err = 'в настройке нет условий'
@@ -140,38 +181,38 @@ class StockManager:
         # noinspection PyTypeChecker
         whs = _get_user_qs(Warehouse, user)
         wh_ids = _get_attr_list_from_items(whs, attr)
-        wh_dict = _get_dict_by_attr_from_items(whs, attr)
+        # wh_dict = _get_dict_by_attr_from_items(whs, attr)
 
         # noinspection PyTypeChecker
         brands = _get_user_qs(GoodsBrand, user)
         brand_ids = _get_attr_list_from_items(brands, attr)
-        brand_dict = _get_dict_by_attr_from_items(brands, attr)
+        # brand_dict = _get_dict_by_attr_from_items(brands, attr)
 
         cats = _get_user_qs(GoodsCategory, user)
         cat_ids = _get_attr_list_from_items(cats, attr)
-        cat_dict = _get_dict_by_attr_from_items(cats, attr)
-
+        # cat_dict = _get_dict_by_attr_from_items(cats, attr)
+        #
         attr = 'sku'
         goods = _get_user_qs(Good, user)
         good_ids = _get_attr_list_from_items(goods, attr)
-        good_dict = _get_dict_by_attr_from_items(goods, attr)
+        # good_dict = _get_dict_by_attr_from_items(goods, attr)
 
         db_data = {
             'warehouse': {
                 'ids': wh_ids,
-                'dict': wh_dict,
+                # 'dict': wh_dict,
             },
             'brand': {
                 'ids': brand_ids,
-                'dict': brand_dict,
+                # 'dict': brand_dict,
             },
             'cat': {
                 'ids': cat_ids,
-                'dict': cat_dict
+                # 'dict': cat_dict
             },
             'good': {
                 'ids': good_ids,
-                'dict': good_dict,
+                # 'dict': good_dict,
             },
         }
 
@@ -214,7 +255,6 @@ class StockManager:
                 }
                 _dict[_field].append(_fld_dict)
 
-
         # iterate over collected rows by field
         errors = []
         for field, rows in _dict.items():
@@ -222,7 +262,6 @@ class StockManager:
             if len(rows) < 2:
                 continue
 
-            fld_set = set()
             ids_set = set(db_data[field]['ids'])
             incl_set = None
             excl_set = None
@@ -257,14 +296,28 @@ class StockManager:
             err = ', '.join(errors)
             return err
 
-        # time track
-        # end = time.time()
-        # total_time = end - start
-        # _log(f'check total time: {total_time}')
+    @staticmethod
+    def calculate_stock(settings, user):
+        pass
 
     @staticmethod
-    def calculate_stock_setting(setting):
-        pass
+    def calculate_stock_setting_content(content, user, stocks):
+        if not len(stocks):
+            return stocks, None
+
+        try:
+            conditions = json.loads(content)
+        except (json.JSONDecodeError, Exception) as err:
+            err_msg = f'{_exc(err)}'
+            _err(err_msg)
+            return stocks, err_msg
+
+        if not len(conditions):
+            err_msg = f'в настройке нет условий'
+            return stocks, err_msg
+
+        for condition in conditions:
+            pass
 
 
 def _is_uint(src):
@@ -353,7 +406,14 @@ def _get_attr_list_from_items(items, attr_name):
     return _items
 
 
+@time_tracker('_get_dict_by_attr_from_items')
 def _get_dict_by_attr_from_items(items, attr_name):
-    name = 'name'
-    _dict = {str(getattr(item, attr_name)): getattr(item, name) for item in items}
+    _dict = {getattr(item, attr_name): item for item in items}
     return _dict
+
+
+def _sum_list_of_dicts_by_key(_list, key):
+    _sum = 0
+    for _dict in _list:
+        _sum += _dict[key]
+    return _sum

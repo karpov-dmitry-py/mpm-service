@@ -1,8 +1,9 @@
 import logging
 import sys
 import re
-
+import time
 import uuid
+from contextlib import contextmanager
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -94,6 +95,15 @@ def to_float(val):
         _err(err_msg)
         return None
 
+@contextmanager
+def time_tracker(action):
+    start = time.time()
+    try:
+        yield
+    finally:
+        end = time.time()
+        duration = end-start
+        _log(f'{action} took {duration}')
 
 if __name__ == '__main__':
     email = 'sales@company.com'

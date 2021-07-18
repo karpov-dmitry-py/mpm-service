@@ -80,7 +80,7 @@
                 <dl>
                     {% for wh, stock in item.stocks.items %}
                     <dd class="mb-0">
-                        {{ stock.date_updated|date:"d.m.Y H:i:s" }}
+                        {{ stock.max_date_updated|date:"d.m.Y H:i:s" }}
                     </dd>
                     {% endfor %}
                 </dl>
@@ -89,7 +89,7 @@
                 <dl>
                     {% for wh, stock in item.stocks.items %}
                     <dd class="mb-0">
-                        {{ stock.amount }}
+                        {{ stock.total_amount }}
                     </dd>
                     {% endfor %}
                 </dl>

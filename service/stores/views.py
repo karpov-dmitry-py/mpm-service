@@ -53,6 +53,7 @@ from .helpers.common import get_email_error
 from .helpers.common import get_supplier_warehouse_type
 from .helpers.common import is_valid_supplier_choice
 from .helpers.common import get_supplier_error
+from .helpers.common import time_tracker
 
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
@@ -1535,7 +1536,7 @@ class WarehouseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
 # STOCK
 class StockListView(LoginRequiredMixin, ListView):
-    template_name = 'stores/stock/list_stock.html'
+    template_name = 'stores/stock/list_stock_new.html'
     model = Stock
     context_object_name = 'items'
     paginate_by = 50
@@ -1748,6 +1749,8 @@ class StockSettingListView(LoginRequiredMixin, ListView):
         context['title'] = f'{_get_model_list_title(self.model)} - {self._store.name}'
         context['store_name'] = self._store.name
         context['store_id'] = self._store.id
+        context['calculated_stock'] = StockManager.calculate_stock(
+            context[self.context_object_name], self.request.user)
         return context
 
 

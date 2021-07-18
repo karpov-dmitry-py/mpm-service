@@ -60,36 +60,36 @@
 
             <td style="min-width: 50px;">
                 <dl>
-                    {% for wh, stock in item.stocks.items %}
+                    {% for wh in item.stocks %}
                     <dd class="mb-0">
-                        {{ wh.kind.name }}
+                        {{ wh.wh_type }}
                     </dd>
                     {% endfor %}
                 </dl>
             </td>
             <td>
                 <dl>
-                    {% for wh, stock in item.stocks.items %}
+                    {% for wh in item.stocks %}
                     <dd class="mb-0">
-                        <a href="{% url 'warehouses-detail' wh.id %}">{{ wh.name }}</a>
+                        <a href="{% url 'warehouses-detail' wh.warehouse %}">{{ wh.wh_name }}</a>
                     </dd>
                     {% endfor %}
                 </dl>
             </td>
             <td>
                 <dl>
-                    {% for wh, stock in item.stocks.items %}
+                    {% for stock in item.stocks %}
                     <dd class="mb-0">
-                        {{ stock.date_updated|date:"d.m.Y H:i:s" }}
+                        {{ stock.max_date_updated|date:"d.m.Y H:i:s" }}
                     </dd>
                     {% endfor %}
                 </dl>
             </td>
             <td>
                 <dl>
-                    {% for wh, stock in item.stocks.items %}
+                    {% for stock in item.stocks %}
                     <dd class="mb-0">
-                        {{ stock.amount }}
+                        {{ stock.total_amount }}
                     </dd>
                     {% endfor %}
                 </dl>
