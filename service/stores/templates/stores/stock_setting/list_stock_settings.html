@@ -1,5 +1,6 @@
 {% extends 'users/base.html' %}
 {% load static %}
+{% load stores.template_filters %}
 {% block content %}
 <div class="container-fluid" style="width: 100%;">
 <a class="btn btn btn-success mb-3" style="margin-top: 1rem;" href="{% url 'stock-settings-add' store_id %}">Создать настройку</a>
@@ -31,7 +32,7 @@
                     <td>{{ item.id }}</td>
                     <td><a href="{% url 'stock-settings-update' item.id %}">{{ item.name }}</a></td>
                     <td>{{ item.priority }}</td>
-                    <td> - </td>
+                    <td>{{ calculated_stock|get_item:item.id }}</td>
                     <td style="text-align: center; padding-right: 0rem; width: 13rem;">
                         <a class="btn btn-primary" href="{% url 'stock-settings-update' item.id %}">Изменить</a>
                         <a class="btn btn-secondary" href="{% url 'stock-settings-delete' item.id %}">Удалить</a>

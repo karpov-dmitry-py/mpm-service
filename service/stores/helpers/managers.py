@@ -298,10 +298,29 @@ class StockManager:
 
     @staticmethod
     def calculate_stock(settings, user):
-        pass
+        not_used = 'Не применяется'
+        result = dict()
+        stocks = StockManager.get_user_stock(user, add_wh_info=False)
+        goods_count = len(stocks)
+        for setting in settings:
+            stocks = StockManager.calculate_stock_setting_content(setting.content, user, stocks)
+            if len(stocks) == goods_count:
+                result[setting.id] = not_used
+                for st in settings:
+                    if st == setting:
+                        continue
+                    result[st.id] = not_used
+                return result
+            else:
+                result[setting.id] = len(stocks)
+                goods_count = len(stocks)
+        return result
 
     @staticmethod
     def calculate_stock_setting_content(content, user, stocks):
+        # test
+        # return stocks
+
         if not len(stocks):
             return stocks, None
 
@@ -317,8 +336,21 @@ class StockManager:
             return stocks, err_msg
 
         for condition in conditions:
-            pass
+            _type = condition['type']
+            if _type == '':
+                pass
 
+    @staticmethod
+    def _calculate_include(stocks, content):
+        pass
+
+    @staticmethod
+    def _calculate_exclude(stocks, content):
+        pass
+
+    @staticmethod
+    def _calculate_min_stock(stocks, content):
+        pass
 
 def _is_uint(src):
     try:
@@ -406,7 +438,6 @@ def _get_attr_list_from_items(items, attr_name):
     return _items
 
 
-@time_tracker('_get_dict_by_attr_from_items')
 def _get_dict_by_attr_from_items(items, attr_name):
     _dict = {getattr(item, attr_name): item for item in items}
     return _dict
