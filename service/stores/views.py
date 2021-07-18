@@ -1787,16 +1787,13 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
             return self.form_invalid(form)
         self._store = store
 
-        # form.errors['Тестовая ошибка'] = 'test'
-        # return self.form_invalid(form)
-
         form_is_valid = True
         priority = form.cleaned_data['priority']
         content = form.cleaned_data['content']
 
         err = StockManager.validate_stock_setting_content(content, user)
         if err:
-            form.errors['Неверно заполнены условия'] = err
+            form.errors['Проверка условий'] = err
             form_is_valid = False
 
         min_val = 1
@@ -1864,7 +1861,7 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
 
         err = StockManager.validate_stock_setting_content(content, self.request.user)
         if err:
-            form.errors['Неверно заполнены условия'] = err
+            form.errors['Проверка условий'] = err
             form_is_valid = False
 
         min_val = 1

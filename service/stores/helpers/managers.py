@@ -1,9 +1,10 @@
-# from .common import _exc
-# from .common import _err
-from .common import _log
-
 import json
 import time
+from collections import defaultdict
+
+from .common import _log
+# from .common import _exc
+# from .common import _err
 
 from ..models import GoodsCategory
 from ..models import GoodsBrand
@@ -67,6 +68,10 @@ class StockManager:
             conditions = json.loads(content)
         except (json.JSONDecodeError, Exception):
             err = f'Не валидное или пустое содержание настройки. Добавьте условия.'
+            return err
+
+        if not conditions:
+            err = 'в настройке нет условий'
             return err
 
         null = 'null'
@@ -186,7 +191,6 @@ class StockManager:
                     continue
 
                 _ids = db_data[field_name]['ids']
-                # if not all(val in field_ids for val in values):
                 for val in values:
                     if val not in _ids:
                         err = f'указаны товар не текущего пользователя в условии № {i}: {val}'
@@ -196,11 +200,62 @@ class StockManager:
             err = ', '.join(errors)
             return err
 
-        # intersection by values (incl - excl)
+        # check values intersection (incl - excl)
+        # collect rows of types and values by field
+        _dict = defaultdict(list)
+        for i, cnd in enumerate(conditions, start=1):
+            _field = cnd['field']
+            _type = cnd['type']
+            if _type in inc_types:
+                _fld_dict = {
+                    'type': _type,
+                    'include_type': cnd['include_type'],
+                    'values': cnd['values'],
+                }
+                _dict[_field].append(_fld_dict)
+
+
+        # iterate over collected rows by field
         errors = []
-        # todo
-        # for i, cnd in enumerate(conditions, start=1):
-        #     _type = cnd['type']
+        for field, rows in _dict.items():
+
+            if len(rows) < 2:
+                continue
+
+            fld_set = set()
+            ids_set = set(db_data[field]['ids'])
+            incl_set = None
+            excl_set = None
+
+            for row in rows:
+                values_set = set(row['values'])
+
+                # include
+                if row['type'] == 'include':
+                    if row['include_type'] == 'in_list':
+                        _set = values_set.intersection(ids_set)
+                    else:
+                        _set = values_set.symmetric_difference(ids_set)
+                    incl_set = _set
+
+                # exclude
+                else:
+                    set_to_compare_with = ids_set if incl_set is None else incl_set
+                    if row['include_type'] == 'in_list':
+                        _set = values_set.intersection(set_to_compare_with)
+                    else:
+                        _set = values_set.symmetric_difference(set_to_compare_with)
+                    excl_set = _set
+
+            # total match -> error
+            if incl_set == excl_set:
+                _field = _get_text_by_val(get_stock_condition_fields, field)
+                err = f'указаны взаимоисключающие списки значений (включить-исключить) по полю {_field}'
+                errors.append(err)
+
+        if errors:
+            err = ', '.join(errors)
+            return err
 
         # time track
         # end = time.time()
