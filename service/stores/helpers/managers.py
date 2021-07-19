@@ -4,7 +4,7 @@ from collections import defaultdict
 from django.db.models import Sum
 from django.db.models import Max
 
-# from .common import _log
+from .common import _log
 from .common import _exc
 from .common import _err
 from .common import time_tracker
@@ -38,20 +38,24 @@ class StockManager:
             good_rows = rows.filter(good=good_id[0])
             stocks = good_rows.values('warehouse') \
                 .annotate(total_amount=Sum('amount')) \
-                .annotate(max_date_updated=Max('date_updated'))
+                .annotate(max_date_updated=Max('date_updated')).filter(total_amount__gt=0)
+
+            total_amount = _sum_list_of_dicts_by_key(stocks, 'total_amount')
+            if total_amount == 0:
+                continue
 
             stocks = list(stocks)
-
             if add_wh_info:
                 for stock_dict in stocks:
                     wh = whs_dict[stock_dict['warehouse']]
                     stock_dict['wh_type'] = wh.kind.name
                     stock_dict['wh_name'] = wh.name
+                    stock_dict['wh_id'] = str(wh.id)
 
             # noinspection PyUnboundLocalVariable
             good_result = {
                 'good': good_rows[0].good,
-                'total_amount': _sum_list_of_dicts_by_key(stocks, 'total_amount'),
+                'total_amount': total_amount,
                 'stocks': stocks,
             }
             items.append(good_result)
@@ -300,57 +304,77 @@ class StockManager:
     def calculate_stock(settings, user):
         not_used = 'Не применяется'
         result = dict()
-        stocks = StockManager.get_user_stock(user, add_wh_info=False)
+
+        stocks = StockManager.get_user_stock(user)
+        stocks = {item['good'].sku: item for item in stocks} # from list to dict
+
         goods_count = len(stocks)
         for setting in settings:
-            stocks = StockManager.calculate_stock_setting_content(setting.content, user, stocks)
+            stocks = StockManager.calculate_stock_setting_content(setting.content, stocks)
             if len(stocks) == goods_count:
                 result[setting.id] = not_used
-                for st in settings:
-                    if st == setting:
-                        continue
-                    result[st.id] = not_used
-                return result
             else:
                 result[setting.id] = len(stocks)
                 goods_count = len(stocks)
         return result
 
     @staticmethod
-    def calculate_stock_setting_content(content, user, stocks):
+    def calculate_stock_setting_content(content, stocks):
         # test
         # return stocks
 
         if not len(stocks):
-            return stocks, None
+            return stocks
 
         try:
             conditions = json.loads(content)
         except (json.JSONDecodeError, Exception) as err:
             err_msg = f'{_exc(err)}'
             _err(err_msg)
-            return stocks, err_msg
+            return stocks
 
         if not len(conditions):
             err_msg = f'в настройке нет условий'
-            return stocks, err_msg
+            _log(err_msg)
+            return stocks
 
-        for condition in conditions:
+        incl_types = 'include', 'exclude',
+        for i, condition in enumerate(conditions, start=1):
             _type = condition['type']
-            if _type == '':
-                pass
+
+            if _type in incl_types:
+                StockManager._calculate_include_exclude(stocks, condition)
+            elif _type == 'stock':
+                StockManager._calculate_min_stock(stocks, condition)
+
+            _log(f'condition # {i} - stocks {len(stocks)}')
+
+        return stocks
 
     @staticmethod
-    def _calculate_include(stocks, content):
-        pass
+    def _calculate_include_exclude(stocks, condition):
+        field = condition['field']
+        incl_type = condition['include_type']
+        values = condition['values']
+
+        if field == 'warehouse':
+            for sku, _dict in stocks.items():
+                _stocks = _dict['stocks']
+                new_stocks = []
+                for row in _stocks:
+                    if incl_type == 'in list':
+                        if row['wh_id'] in values:
+                            new_stocks.append(row)
+                    else:
+                        if row['wh_id'] not in values:
+                            new_stocks.append(row)
+                if not new_stocks:
 
     @staticmethod
-    def _calculate_exclude(stocks, content):
-        pass
-
-    @staticmethod
-    def _calculate_min_stock(stocks, content):
-        pass
+    def _calculate_min_stock(stocks, condition):
+        field = condition['field']
+        min_stock = condition['min_stock']
+        values = condition['values']
 
 def _is_uint(src):
     try:
