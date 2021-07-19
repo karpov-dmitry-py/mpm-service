@@ -3,6 +3,10 @@ services:
   pg:
     image: postgres:latest
     container_name: mpm_service_pg_container
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=2000"
     environment:
       - POSTGRES_PASSWORD=srvc_pswd
       - POSTGRES_DB=srvc_db

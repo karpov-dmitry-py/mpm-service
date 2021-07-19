@@ -42,7 +42,7 @@ from .models import StockSetting
 
 # noinspection PyProtectedMember
 from .helpers.common import _exc
-# from .helpers.common import _log
+from .helpers.common import _log
 # from .helpers.common import _err
 from .helpers.common import is_valid_email
 from .helpers.common import is_valid_phone
@@ -230,7 +230,7 @@ def export_goods(request):
 # good
 @login_required()
 def gen_goods(request, count=100):
-    max_items = 1000
+    max_items = 5000
     count = max_items if count > max_items else count
     import uuid
     user = request.user
@@ -243,6 +243,7 @@ def gen_goods(request, count=100):
         }
         good = Good(**_good)
         good.save()
+        _log(f'created good # {i+1}')
     messages.success(request, f'Создано тестовых товаров: {count}')
     return redirect('goods-list')
 
@@ -326,6 +327,7 @@ def gen_stock(request):
             row = Stock(**_dict)
             row.save()
             count += 1
+            _log(f'created stock row # {count}')
     messages.success(request, f'Создано тестовых записей об остатках: {count}')
     return redirect(redirect_to)
 
@@ -1539,7 +1541,7 @@ class StockListView(LoginRequiredMixin, ListView):
     template_name = 'stores/stock/list_stock_new.html'
     model = Stock
     context_object_name = 'items'
-    paginate_by = 50
+    paginate_by = 200
     ordering = ['id']
 
     def __init__(self, **kwargs):
@@ -1549,7 +1551,7 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def _get_queryset_by_user(self):
         if self._full_qs is None:
-            stock = StockManager.get_user_stock(self.request.user)
+            stock = StockManager().get_user_stock(self.request.user)
             self._full_qs = stock
         return self._full_qs
 

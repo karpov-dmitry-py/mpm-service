@@ -1,6 +1,12 @@
 import json
 from collections import defaultdict
 
+from threading import Thread
+from threading import Lock
+
+# from multiprocessing import Process
+# from multiprocessing import RLock as PLock
+
 from django.db.models import Sum
 from django.db.models import Max
 
@@ -17,14 +23,88 @@ from ..models import Stock
 
 
 class StockManager:
+    max_db_conns = 25
+
+    def __init__(self):
+        self._lock = Lock()
+        # self._lock = PLock()
 
     @staticmethod
     def _wh_repr(wh):
         return wh.id, wh.name, wh.kind.name
 
-    @staticmethod
+    def _get_stock_by_good(self, rows, good_id, whs_dict, result_items):
+        # with self._lock:
+        good_rows = rows.filter(good=good_id)
+        good = good_rows[0].good
+        stocks = good_rows.values('warehouse') \
+            .annotate(total_amount=Sum('amount')) \
+            .annotate(max_date_updated=Max('date_updated')).filter(total_amount__gt=0)
+
+        total_amount = _sum_list_of_dicts_by_key(stocks, 'total_amount')
+        if total_amount == 0:
+            return
+
+        stocks = list(stocks)
+        for stock_dict in stocks:
+            wh = whs_dict[stock_dict['warehouse']]
+            # with self._lock:
+            stock_dict['wh_type'] = wh.kind.name
+            stock_dict['wh_name'] = wh.name
+            stock_dict['wh_id'] = str(wh.id)
+
+        # noinspection PyUnboundLocalVariable
+        good_result = {
+            # 'good': good_rows[0].good,
+            'good': good,
+            'total_amount': total_amount,
+            'stocks': stocks,
+        }
+        # with self._lock:
+        result_items.append(good_result)
+
+    @time_tracker('get_user_stock_threading')
+    def get_user_stock(self, user):
+
+        # noinspection PyUnresolvedReferences,PyTypeChecker
+        whs = _get_user_qs(Warehouse, user)
+        whs_dict = _get_dict_by_attr_from_items(whs, 'id')
+
+        # noinspection PyTypeChecker
+        rows = _get_user_qs(Stock, user).order_by('good')
+        goods = rows.values_list('good').distinct()
+        items = []
+
+        good_ids = [good_id[0] for good_id in goods]
+        iteration = 0
+
+        while len(good_ids):
+            iteration += 1
+            _log(f'iteration # {iteration} ...')
+
+            if not len(good_ids):
+                break
+
+            chunk = good_ids[:self.max_db_conns]
+            if not len(chunk):
+                break
+
+            good_ids = good_ids[self.max_db_conns:]
+            threads = []
+
+            for good_id in chunk:
+                thread = Thread(target=self._get_stock_by_good, args=(rows, good_id, whs_dict, items,))
+                # thread = Process(target=self._get_stock_by_good, args=(rows, good_id, whs_dict, items,))
+                thread.start()
+                threads.append(thread)
+
+            for thread in threads:
+                thread.join()
+
+        return items
+
     @time_tracker('get_user_stock')
-    def get_user_stock(user, add_wh_info=True):
+    def get_user_stock_sync(self, user):
 
         # noinspection PyUnresolvedReferences,PyTypeChecker
         whs = _get_user_qs(Warehouse, user)
@@ -45,12 +125,11 @@ class StockManager:
                 continue
 
             stocks = list(stocks)
-            if add_wh_info:
-                for stock_dict in stocks:
-                    wh = whs_dict[stock_dict['warehouse']]
-                    stock_dict['wh_type'] = wh.kind.name
-                    stock_dict['wh_name'] = wh.name
-                    stock_dict['wh_id'] = str(wh.id)
+            for stock_dict in stocks:
+                wh = whs_dict[stock_dict['warehouse']]
+                stock_dict['wh_type'] = wh.kind.name
+                stock_dict['wh_name'] = wh.name
+                stock_dict['wh_id'] = str(wh.id)
 
             # noinspection PyUnboundLocalVariable
             good_result = {
@@ -306,7 +385,7 @@ class StockManager:
         result = dict()
 
         stocks = StockManager.get_user_stock(user)
-        stocks = {item['good'].sku: item for item in stocks} # from list to dict
+        stocks = {item['good'].sku: item for item in stocks}  # from list to dict
 
         goods_count = len(stocks)
         for setting in settings:
@@ -369,12 +448,15 @@ class StockManager:
                         if row['wh_id'] not in values:
                             new_stocks.append(row)
                 if not new_stocks:
+                    # TODO
+                    pass
 
     @staticmethod
     def _calculate_min_stock(stocks, condition):
         field = condition['field']
         min_stock = condition['min_stock']
         values = condition['values']
+
 
 def _is_uint(src):
     try:
