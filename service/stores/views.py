@@ -388,7 +388,8 @@ def _special_attrs():
 
 
 def _get_pages_list(page_obj):
-    return [page_num for page_num in range(1, page_obj.paginator.num_pages + 1)]
+    return [page_num for page_num in range(1, page_obj.paginator.num_pages + 1)
+            if page_num == 1 or not page_num % 10 or page_num == page_obj.paginator.num_pages]
 
 
 def _get_model_list_title(model):
