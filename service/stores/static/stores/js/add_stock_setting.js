@@ -875,7 +875,7 @@ UI.getGoodsBySku = function (skus) {
         if (skus.includes(good.sku)) {
             const item = {
                 val: good.sku,
-                text: good.name,
+                text: `(${good.sku}) ${good.name}`,
             }
             items.push(item);
         }
@@ -895,7 +895,7 @@ UI.appendToUL = function (list, items) {
         const li = document.createElement('li');
         li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center li-small';
         li.setAttribute('val', item.val);
-        li.appendChild(document.createTextNode(item.text));
+        li.appendChild(document.createTextNode(`${item.text}`));
 
         const span = document.createElement('span');
         span.className = 'badge badge-light badge-pill text-muted li-delete';

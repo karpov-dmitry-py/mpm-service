@@ -19,6 +19,7 @@
         <th>Наименование</th>
         <th>Порядок</th>
         <th>Количество товаров</th>
+        <th>Детализация по условиям</th>
         <th style="text-align: center">Действия</th>
     </tr>
     </thead>
@@ -32,8 +33,9 @@
                     <td>{{ item.id }}</td>
                     <td><a href="{% url 'stock-settings-update' item.id %}">{{ item.name }}</a></td>
                     <td>{{ item.priority }}</td>
-                    <td>{{ calculated_stock|get_item:item.id }}</td>
-                    <td style="text-align: center; padding-right: 0rem; width: 13rem;">
+                    <td>{{ calculated_stock_by_settings|get_item:item.id }}</td>
+                    <td>{{ calculated_stock_by_conditions|get_item:item.id }}</td>
+                    <td style="text-align: center; padding-right: 0rem;">
                         <a class="btn btn-primary" href="{% url 'stock-settings-update' item.id %}">Изменить</a>
                         <a class="btn btn-secondary" href="{% url 'stock-settings-delete' item.id %}">Удалить</a>
                     </td>

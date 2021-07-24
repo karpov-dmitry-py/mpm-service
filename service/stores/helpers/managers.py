@@ -1,5 +1,4 @@
 import json
-import time
 from collections import defaultdict
 
 from threading import Thread
@@ -129,7 +128,6 @@ class StockManager:
             if row.good.id == id:
                 with self._lock:
                     _dict[_id].append(row)
-
 
     @time_tracker('get_user_stock_threading_memory')
     def get_user_stock(self, user):
@@ -499,21 +497,30 @@ class StockManager:
             return err
 
     @staticmethod
+    @time_tracker('calculate_stock')
     def calculate_stock(settings, user):
         not_used = 'Не применяется'
-        result = dict()
+        result = {
+            'settings': dict(),
+            'conditions': dict()
+        }
 
         stocks = StockManager().get_user_stock(user)
         stocks = {item['good'].sku: item for item in stocks}  # from list to dict
 
         goods_count = len(stocks)
-        for setting in settings:
-            stocks = StockManager.calculate_stock_setting_content(setting.content, stocks)
-            if len(stocks) == goods_count:
-                result[setting.id] = not_used
+        for i, setting in enumerate(settings, start=1):
+            _log(f'calculating setting # {i} ...')
+
+            stocks, stocks_by_conditions = StockManager.calculate_stock_setting_content(setting.content, stocks)
+            if i > 1 and len(stocks) == goods_count:
+                result['settings'][setting.id] = not_used
             else:
-                result[setting.id] = len(stocks)
+                result['settings'][setting.id] = len(stocks)
                 goods_count = len(stocks)
+
+            result['conditions'][setting.id] = stocks_by_conditions
+
         return result
 
     @staticmethod
@@ -523,40 +530,44 @@ class StockManager:
         # return stocks
 
         if not len(stocks):
-            return stocks
+            return stocks, '-'
 
         try:
             conditions = json.loads(content)
         except (json.JSONDecodeError, Exception) as err:
             err_msg = f'{_exc(err)}'
             _err(err_msg)
-            return stocks
+            return stocks, 'в настройке некорректный json'
 
         if not len(conditions):
-            err_msg = f'в настройке нет условий'
-            _log(err_msg)
-            return stocks
+            return stocks, 'в настройке нет условий'
 
         incl_types = 'include', 'exclude',
+        conditions_stats = dict()
+
         for i, condition in enumerate(conditions, start=1):
             _type = condition['type']
 
             if _type in incl_types:
                 stocks = StockManager._calculate_include_exclude(stocks, condition)
+
             elif _type == 'stock':
                 stocks = StockManager._calculate_min_stock(stocks, condition)
 
-            _log(f'condition # {i} - stocks {len(stocks)}')
+            _log(f' --- condition # {i} - stocks {len(stocks)}')
+            conditions_stats[i] = len(stocks)
 
-        return stocks
+        return stocks, conditions_stats
 
     @staticmethod
     def _calculate_include_exclude(stocks, condition):
+        _type = condition['type']
         field = condition['field']
         incl_type = condition['include_type']
         values = condition['values']
 
         if field == 'warehouse':
+            skus_to_remove = set()
             for sku, _dict in stocks.items():
 
                 _stocks = _dict['stocks']
@@ -564,29 +575,109 @@ class StockManager:
                 amount = 0
 
                 for row in _stocks:
-
-                    if incl_type == 'in list':
+                    # in list
+                    if (_type == 'include' and incl_type == 'in_list') \
+                            or (_type == 'exclude' and incl_type == 'not_in_list'):
                         if row['wh_id'] in values:
                             new_stocks.append(row)
-                            amount += row.amount
+                            amount += row['total_amount']
                     else:
                         if row['wh_id'] not in values:
-                            pass
-                        # TODO
+                            new_stocks.append(row)
+                            amount += row['total_amount']
+
                 if not new_stocks:
-                    _dict['amount'] = 0
+                    _dict['total_amount'] = 0
+                    skus_to_remove.add(sku)
                 else:
-                    _dict['amount'] = amount
-                    _dict['stocks'] = new_stocks,
+                    _dict['total_amount'] = amount
+                    _dict['stocks'] = new_stocks
                 stocks[sku] = _dict
+
+            for sku in skus_to_remove:
+                stocks.pop(sku, None)
+
+        elif field == 'good':
+            wanted_items = set()
+            stock_skus = list(stocks.keys())
+
+            for sku in stock_skus:
+                if (_type == 'include' and incl_type == 'in_list') \
+                        or (_type == 'exclude' and incl_type == 'not_in_list'):
+                    if sku in values:
+                        wanted_items.add(sku)
+                else:
+                    if sku not in values:
+                        wanted_items.add(sku)
+
+            for sku in stock_skus:
+                if sku not in wanted_items:
+                    stocks.pop(sku, None)
+
+        elif field == 'brand' or field == 'cat':
+            attr_names = {
+                'brand': 'brand_id',
+                'cat': 'category_id',
+            }
+            attr_name = attr_names[field]
+            wanted_items = set()
+
+            for sku, _dict in stocks.items():
+                _id = str(getattr(_dict['good'], attr_name))
+                if (_type == 'include' and incl_type == 'in_list') \
+                        or (_type == 'exclude' and incl_type == 'not_in_list'):
+                    if _id in values:
+                        wanted_items.add(sku)
+                else:
+                    if _id not in values:
+                        wanted_items.add(sku)
+
+            for sku in list(stocks.keys()):
+                if sku not in wanted_items:
+                    stocks.pop(sku, None)
 
         return stocks
 
     @staticmethod
     def _calculate_min_stock(stocks, condition):
         field = condition['field']
-        min_stock = condition['min_stock']
+        min_stock = int(condition['min_stock'])
         values = condition['values']
+
+        if field == 'good':
+            wanted_skus = set()
+            for sku, _dict in stocks.items():
+                if sku in values and _dict['total_amount'] >= min_stock:
+                    wanted_skus.add(sku)
+
+            for sku in list(stocks.keys()):
+                if sku not in wanted_skus:
+                    stocks.pop(sku, None)
+
+        elif field == 'warehouse':
+            skus_to_remove = set()
+            for sku, _dict in stocks.items():
+
+                _stocks = _dict['stocks']
+                new_stocks = []
+                amount = 0
+
+                for row in _stocks:
+                    if row['wh_id'] in values and row['total_amount'] >= min_stock:
+                        new_stocks.append(row)
+                        amount += row['total_amount']
+
+                if not new_stocks:
+                    # _dict['total_amount'] = 0
+                    skus_to_remove.add(sku)
+                else:
+                    _dict['total_amount'] = amount
+                    _dict['stocks'] = new_stocks
+
+                stocks[sku] = _dict
+
+            for sku in skus_to_remove:
+                stocks.pop(sku, None)
 
         return stocks
 

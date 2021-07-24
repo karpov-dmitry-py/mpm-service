@@ -1752,8 +1752,12 @@ class StockSettingListView(LoginRequiredMixin, ListView):
         context['title'] = f'{_get_model_list_title(self.model)} - {self._store.name}'
         context['store_name'] = self._store.name
         context['store_id'] = self._store.id
-        context['calculated_stock'] = StockManager.calculate_stock(
+
+        calculated_stock = StockManager.calculate_stock(
             context[self.context_object_name], self.request.user)
+
+        context['calculated_stock_by_settings'] = calculated_stock['settings']
+        context['calculated_stock_by_conditions'] = calculated_stock['conditions']
         return context
 
 
