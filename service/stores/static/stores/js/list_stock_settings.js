@@ -1,3 +1,26 @@
+document.addEventListener("DOMContentLoaded", init());
+
+function init() {
+    const settingNotUsedText = document.querySelector('.setting-not-used-text').innerText.trim();
+    const rows = document.querySelectorAll('.setting_row');
+    rows.forEach(function(row) {
+        const stockTd = getChildByClassName(row, 'setting_stock');
+        if (stockTd.innerText === settingNotUsedText) {
+            row.classList.add('inactive');
+        }
+    });
+}
+
+function getChildByClassName (parent, childClassName) {
+    const children = parent.children;
+    for (let i = 0; i < children.length; i++) {
+        let child = children[i];
+        if (child.classList.contains(childClassName)) {
+            return child;
+        }
+    }
+}
+
 const mainCheckbox = document.getElementById('main-checkbox');
 mainCheckbox.onchange = toggleCheckboxes;
 

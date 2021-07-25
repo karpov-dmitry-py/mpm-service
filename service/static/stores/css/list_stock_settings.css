@@ -1,0 +1,8 @@
+.hidden {
+    display: none;
+}
+
+.inactive {
+    text-decoration: line-through;
+    background: #F5F5F5;
+}

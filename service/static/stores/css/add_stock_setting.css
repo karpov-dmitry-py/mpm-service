@@ -15,13 +15,11 @@
     padding: 5px;
 }
 
-.types, .brands, .fields, .incl-excl-types, .min-stock {
-    /* width: 35rem; */
+.types, .fields, .incl-excl-types, .min-stock {
     width: 50%;
 }
 
 .wide {
-    /* width: 63rem; */
     width: 200%;
     height: auto;
     min-height: 100%;

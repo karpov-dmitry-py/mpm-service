@@ -257,6 +257,7 @@ def drop_goods(request):
         if item.name.startswith(pattern):
             item.delete()
             deleted_count += 1
+            _log(f'deleted good # {deleted_count}')
     messages.success(request, f'Удалено тестовых товаров: {deleted_count}')
     return redirect('goods-list')
 
@@ -341,6 +342,7 @@ def drop_stock(request):
         if row.good.name.startswith(pattern):
             row.delete()
             deleted_count += 1
+            _log(f'deleted stock row # {deleted_count}')
     messages.success(request, f'Удалено тестовых записей об остатках: {deleted_count}')
     return redirect('stock-list')
 
@@ -1542,7 +1544,7 @@ class StockListView(LoginRequiredMixin, ListView):
     template_name = 'stores/stock/list_stock_new.html'
     model = Stock
     context_object_name = 'items'
-    paginate_by = 200
+    paginate_by = 50
     ordering = ['id']
 
     def __init__(self, **kwargs):
@@ -1564,6 +1566,12 @@ class StockListView(LoginRequiredMixin, ListView):
         context['items_count'] = len(self.get_queryset())
         context['pages'] = _get_pages_list(context['page_obj'])
         context['title'] = 'Остатки товаров'
+
+        # warehouse
+        wh_rows = _qs_filtered_by_user(Warehouse, self.request.user)
+        whs = {row.id: {'type': row.kind.name, 'name': row.name} for row in wh_rows}
+        context['whs'] = whs
+
         return context
 
     @staticmethod
@@ -1753,11 +1761,13 @@ class StockSettingListView(LoginRequiredMixin, ListView):
         context['store_name'] = self._store.name
         context['store_id'] = self._store.id
 
+        # stocks
         calculated_stock = StockManager.calculate_stock(
             context[self.context_object_name], self.request.user)
-
         context['calculated_stock_by_settings'] = calculated_stock['settings']
         context['calculated_stock_by_conditions'] = calculated_stock['conditions']
+
+        context['setting_not_used_text'] = StockManager.get_setting_not_used_text()
         return context
 
 
