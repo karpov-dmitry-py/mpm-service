@@ -4,9 +4,6 @@ from collections import defaultdict
 from threading import Thread
 from threading import Lock
 
-# from multiprocessing import Process
-# from multiprocessing import RLock as PLock
-
 from django.db.models import Sum
 from django.db.models import Max
 
@@ -90,28 +87,18 @@ class StockManager:
         with self._lock:
             result_items.append(good_result)
 
-    def _get_stock_by_good_db(self, rows, good_id, whs_dict, result_items):
+    def _get_stock_by_good_db(self, rows, good_id, result_items):
         # with self._lock:
         good_rows = rows.filter(good_id=good_id)
+        good = good_rows[0].good
         stocks = good_rows.values('warehouse') \
             .annotate(total_amount=Sum('amount')) \
             .annotate(max_date_updated=Max('date_updated'))
         # .annotate(max_date_updated=Max('date_updated')).filter(total_amount__gt=0)
-
-        total_amount = _sum_list_of_dicts_by_key(stocks, 'total_amount')
-        # if total_amount == 0:
-        #     return
-
         stocks = list(stocks)
-        # for stock_dict in stocks:
-        #     wh = whs_dict[stock_dict['warehouse']]
-        #     stock_dict['wh_type'] = wh.kind.name
-        #     stock_dict['wh_name'] = wh.name
-        #     stock_dict['wh_id'] = str(wh.id)
-
-        # noinspection PyUnboundLocalVariable
+        total_amount = _sum_list_of_dicts_by_key(stocks, 'total_amount')
         good_result = {
-            'good': good_rows[0].good,
+            'good': good,
             'total_amount': total_amount,
             'stocks': stocks,
         }
@@ -130,7 +117,7 @@ class StockManager:
         ids_count = len(_ids)
         stocks = []
         for i, _id in enumerate(_ids, start=1):
-            _log(f'processing id {i} of {ids_count}')
+            _log(f'aggregating good {i} of {ids_count}')
             rows = qs.filter(good_id=_id)
             _stocks = rows.values('warehouse') \
                 .annotate(total_amount=Sum('amount')) \
@@ -149,21 +136,24 @@ class StockManager:
 
     @time_tracker('get_user_stock')
     def get_user_stock(self, user):
+        # noinspection PyTypeChecker
+        rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
+        _log(f'total stock rows count: {rows.count()}')
+        good_ids = rows.values_list('good', flat=True).distinct()
+
+        items = StockManager.get_stocks_loop_read_db(rows, good_ids)
+        return items
+
+        # threads
         # noinspection PyUnresolvedReferences,PyTypeChecker
         # whs = _get_user_qs(Warehouse, user)
         # whs_dict = _get_dict_by_attr_from_items(whs, 'id')
-
-        # noinspection PyTypeChecker
-        rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
-        good_ids = rows.values_list('good', flat=True).distinct()
-        items = StockManager.get_stocks_loop_read_db(rows, good_ids)
-        return items
 
         # items = []
         # iteration = 0
         # while len(good_ids):
         #     iteration += 1
-        #     _log(f'iteration # {iteration} ...')
+        #     _log(f'get stock iteration # {iteration} ...')
         #
         #     if not len(good_ids):
         #         break
@@ -176,7 +166,7 @@ class StockManager:
         #     threads = []
         #
         #     for good_id in chunk:
-        #         thread = Thread(target=self._get_stock_by_good_db, args=(rows, good_id, whs_dict, items,))
+        #         thread = Thread(target=self._get_stock_by_good_db, args=(rows, good_id, items,))
         #         thread.start()
         #         threads.append(thread)
         #
