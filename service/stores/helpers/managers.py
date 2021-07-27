@@ -141,57 +141,21 @@ class StockManager:
         _log(f'total stock rows count: {rows.count()}')
         good_ids = rows.values_list('good', flat=True).distinct()
 
+        # loop read db
         items = StockManager.get_stocks_loop_read_db(rows, good_ids)
+
+        # OR threading read db
+        # items = self.get_user_stock_threading_read_db(rows, good_ids)
+
         return items
 
-        # threads
-        # noinspection PyUnresolvedReferences,PyTypeChecker
-        # whs = _get_user_qs(Warehouse, user)
-        # whs_dict = _get_dict_by_attr_from_items(whs, 'id')
-
-        # items = []
-        # iteration = 0
-        # while len(good_ids):
-        #     iteration += 1
-        #     _log(f'get stock iteration # {iteration} ...')
-        #
-        #     if not len(good_ids):
-        #         break
-        #
-        #     chunk = good_ids[:self.max_threads]
-        #     if not len(chunk):
-        #         break
-        #
-        #     good_ids = good_ids[self.max_threads:]
-        #     threads = []
-        #
-        #     for good_id in chunk:
-        #         thread = Thread(target=self._get_stock_by_good_db, args=(rows, good_id, items,))
-        #         thread.start()
-        #         threads.append(thread)
-        #
-        #     for thread in threads:
-        #         thread.join()
-        #
-        # return items
-
-    @time_tracker('get_user_stock_threading')
-    def get_user_stock_threading_read_db(self, user):
-        # noinspection PyUnresolvedReferences,PyTypeChecker
-        whs = _get_user_qs(Warehouse, user)
-        whs_dict = _get_dict_by_attr_from_items(whs, 'id')
-
-        # noinspection PyTypeChecker
-        rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
-        goods = rows.values_list('good').distinct()
+    @time_tracker('get_user_stock_threading_read_db')
+    def get_user_stock_threading_read_db(self, rows, good_ids):
         items = []
-
-        good_ids = [good_id[0] for good_id in goods]
         iteration = 0
-
         while len(good_ids):
             iteration += 1
-            _log(f'iteration # {iteration} ...')
+            _log(f'get stock iteration # {iteration} ...')
 
             if not len(good_ids):
                 break
@@ -204,8 +168,7 @@ class StockManager:
             threads = []
 
             for good_id in chunk:
-                thread = Thread(target=self._get_stock_by_good, args=(rows, good_id, whs_dict, items,))
-                # thread = Process(target=self._get_stock_by_good, args=(rows, good_id, whs_dict, items,))
+                thread = Thread(target=self._get_stock_by_good_db, args=(rows, good_id, items,))
                 thread.start()
                 threads.append(thread)
 

@@ -1762,10 +1762,11 @@ class StockSettingListView(LoginRequiredMixin, ListView):
         context['store_id'] = self._store.id
 
         # stocks
-        calculated_stock = StockManager.calculate_stock(
-            context[self.context_object_name], self.request.user)
-        context['calculated_stock_by_settings'] = calculated_stock['settings']
-        context['calculated_stock_by_conditions'] = calculated_stock['conditions']
+        if context[self.context_object_name].count():
+            calculated_stock = StockManager.calculate_stock(
+                context[self.context_object_name], self.request.user)
+            context['calculated_stock_by_settings'] = calculated_stock['settings']
+            context['calculated_stock_by_conditions'] = calculated_stock['conditions']
 
         context['setting_not_used_text'] = StockManager.get_setting_not_used_text()
         return context
