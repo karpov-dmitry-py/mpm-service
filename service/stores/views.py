@@ -243,7 +243,7 @@ def gen_goods(request, count=100):
         }
         good = Good(**_good)
         good.save()
-        _log(f'created good # {i+1}')
+        _log(f'created good # {i + 1}')
     messages.success(request, f'Создано тестовых товаров: {count}')
     return redirect('goods-list')
 
@@ -1014,18 +1014,20 @@ class GoodListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
+
         context['items_count'] = self._get_queryset_by_user().count()
         qs = self.get_queryset()
         context['filtered_items_count'] = qs.count()
 
         context['title'] = 'Товары'
-        context['batch_update_brand_form'] = BatchUpdateGoodsBrandForm(self.request.user)
-        context['batch_update_category_form'] = BatchUpdateGoodsCategoryForm(self.request.user)
-        context['categories_list'] = _get_cats_tree(self.request.user)
+        context['batch_update_brand_form'] = BatchUpdateGoodsBrandForm(user)
+        context['batch_update_category_form'] = BatchUpdateGoodsCategoryForm(user)
+        context['categories_list'] = _get_cats_tree(user)
 
         # data for filters
         # noinspection PyTypeChecker
-        brands = _qs_filtered_by_user(GoodsBrand, self.request.user)
+        brands = _qs_filtered_by_user(GoodsBrand, user)
         brands = [{'id': item.pk, 'name': item.name, 'checked': False} for item in brands]
         brands.insert(0, {'id': None, 'name': 'Пустой бренд', 'checked': False})
 
@@ -1040,9 +1042,16 @@ class GoodListView(LoginRequiredMixin, ListView):
 
         if categories_filter := self.request.GET.get('cats'):
             context['page_filter'] += f'&cats={categories_filter}'
-        context['categories_filter_source'] = _get_cats_tree(self.request.user, add_empty_node=True)
-
+        context['categories_filter_source'] = _get_cats_tree(user, add_empty_node=True)
         context['pages'] = _get_pages_list(context['page_obj'])
+
+        # stock
+        _qs = context[self.context_object_name]
+        if _qs.count():
+            skus = [good.sku for good in _qs]
+            stocks = StockManager().calculate_stock_by_stores(user, skus)
+            context['stocks'] = stocks
+
         return context
 
 
@@ -1762,9 +1771,11 @@ class StockSettingListView(LoginRequiredMixin, ListView):
         context['store_id'] = self._store.id
 
         # stocks
-        if context[self.context_object_name].count():
-            calculated_stock = StockManager.calculate_stock(
-                context[self.context_object_name], self.request.user)
+        qs = context[self.context_object_name]
+        user = self.request.user
+        if qs.count():
+            stocks = StockManager().get_user_stock(user)
+            calculated_stock = StockManager.calculate_stock_by_store_settings(qs, stocks)
             context['calculated_stock_by_settings'] = calculated_stock['settings']
             context['calculated_stock_by_conditions'] = calculated_stock['conditions']
 

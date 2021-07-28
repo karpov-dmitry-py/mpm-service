@@ -12,11 +12,13 @@ from .common import _exc
 from .common import _err
 from .common import time_tracker
 
+from ..models import Store
 from ..models import GoodsCategory
 from ..models import GoodsBrand
 from ..models import Warehouse
 from ..models import Good
 from ..models import Stock
+from ..models import StockSetting
 
 
 class StockManager:
@@ -134,10 +136,14 @@ class StockManager:
             })
         return stocks
 
+    # noinspection PyTypeChecker
     @time_tracker('get_user_stock')
-    def get_user_stock(self, user):
-        # noinspection PyTypeChecker
-        rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
+    def get_user_stock(self, user, skus=None):
+        if skus:
+            rows = _get_user_qs(Stock, user).filter(good__sku__in=skus).filter(amount__gt=0).order_by('good')
+        else:
+            rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
+
         _log(f'total stock rows count: {rows.count()}')
         good_ids = rows.values_list('good', flat=True).distinct()
 
@@ -451,19 +457,49 @@ class StockManager:
             err = ', '.join(errors)
             return err
 
+    # noinspection PyUnusedLocal,PyTypeChecker
+    @time_tracker('calculate_stock_by_all_stores')
+    def calculate_stock_by_stores(self, user, skus):
+        stores = _get_user_qs(Store, user)
+        stocks = self.get_user_stock(user, skus)
+
+        result = defaultdict(list)
+        threads = []
+
+        for store in stores:
+            thread = Thread(target=self.calculate_stock_by_store, args=(store, user, stocks, result))
+            thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
+
+        result = dict(result)
+        return result
+
+    # noinspection PyTypeChecker
+    @time_tracker('calculate_stock_by_store')
+    def calculate_stock_by_store(self, store, user, stocks, result):
+        settings = _get_user_qs(StockSetting, user).filter(store=store)
+        if not settings.count():
+            return
+
+        stock = self.calculate_stock_by_store_settings(settings, stocks, get_detailed_stocks=True)
+        with self._lock:
+            result[store] = stock['details']
+
     @staticmethod
-    @time_tracker('calculate_stock')
-    def calculate_stock(settings, user):
+    @time_tracker('calculate_stock_by_store_settings')
+    def calculate_stock_by_store_settings(settings, stocks, get_detailed_stocks=False):
         not_used_text = StockManager.get_setting_not_used_text()
         result = {
             'settings': dict(),
-            'conditions': dict()
+            'conditions': dict(),
+            'details': dict(),
         }
-
-        stocks = StockManager().get_user_stock(user)
         stocks = {item['good'].sku: item for item in stocks}  # from list to dict
-
         goods_count = len(stocks)
+
         for i, setting in enumerate(settings, start=1):
             _log(f'calculating setting # {i} ...')
 
@@ -476,14 +512,13 @@ class StockManager:
 
             result['conditions'][setting.id] = stocks_by_conditions
 
+        if get_detailed_stocks:
+            result['details'] = stocks
+
         return result
 
     @staticmethod
     def calculate_stock_setting_content(content, stocks):
-
-        # test
-        # return stocks
-
         if not len(stocks):
             return stocks, '-'
 
@@ -596,8 +631,9 @@ class StockManager:
     @staticmethod
     def _calculate_min_stock(stocks, condition):
         field = condition['field']
-        min_stock = int(condition['min_stock'])
         values = condition['values']
+        condition['min_stock'] = 1 if not condition['min_stock'] else condition['min_stock']
+        min_stock = int(condition['min_stock'])
 
         if field == 'good':
             unwanted_skus = set()

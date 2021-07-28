@@ -870,13 +870,7 @@ UI.markSelectList = function (list, vals) {
 
 UI.getGoodsBySku = function (skus) {
     items = [];
-    
-    
     goods = storage.get('goods');
-
-    console.log(skus);
-    console.log(goods);
-    
     goods.forEach(function (good) {
         if (skus.includes(good.sku)) {
             const item = {
@@ -1036,6 +1030,7 @@ class Api {
 Api.getGoodsCallback = function (result) {
     const key = "goods";
     storage.set(key, result);
+    UI.buildConditions();
 }
 
 Api.getGoods = function (url) {
@@ -1081,7 +1076,6 @@ function getGoods(url) {
 function init() {
     storage = new LocalStorage();
     getGoods();
-    UI.buildConditions();
     scrollToTop();
 }
 
