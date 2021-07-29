@@ -1,0 +1,11 @@
+.stock {
+    min-width: 200px;
+}
+
+.narrow {
+    max-width: 150px;
+}
+
+.smaller {
+    font-size: 14px;
+}

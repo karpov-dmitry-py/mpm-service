@@ -152,6 +152,15 @@ UI.hideConditionsTextArea = function () {
     conditionsTextArea.parentElement.parentElement.classList.add('hidden');
 }
 
+UI.hideSpinner = function () {
+    const spinner = document.querySelector('.spinner');
+    console.log(spinner);
+    if (spinner === null || spinner === undefined) {
+        return;
+    }
+    spinner.parentElement.removeChild(spinner);
+}
+
 UI.buildConditions = function () {
     const conditionsTextArea = document.getElementById('id_content');
     if (conditionsTextArea === null) {
@@ -982,6 +991,7 @@ UI.buildTreeSelectList = function (items) {
     return initialData.str;
 }
 
+
 function buildTreeSelectList(items, initialData) {
     items.forEach(function (item) {
         const level = initialData.level;
@@ -1031,7 +1041,7 @@ Api.getGoodsCallback = function (result) {
     const key = "goods";
     storage.set(key, result);
     UI.buildConditions();
-    scrollToTop();
+    UI.hideSpinner();
 }
 
 Api.getGoods = function (url) {
@@ -1077,7 +1087,7 @@ function getGoods(url) {
 function init() {
     storage = new LocalStorage();
     getGoods();
-    
+    scrollToTop();
 }
 
 storage = null; // this object will hold goods

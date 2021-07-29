@@ -1550,7 +1550,7 @@ class WarehouseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
 # STOCK
 class StockListView(LoginRequiredMixin, ListView):
-    template_name = 'stores/stock/list_stock_new.html'
+    template_name = 'stores/stock/list_stock.html'
     model = Stock
     context_object_name = 'items'
     paginate_by = 50
