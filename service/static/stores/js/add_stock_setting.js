@@ -686,14 +686,14 @@ UI.onSearchInput = function (el) {
         return;
     }
 
-    const items = Storage.get('goods');
+    const items = storage.get('goods');
     let matched = 0;
 
     items.forEach(function (item) {
-        
+
         if (clearSpaces(item.name.toLowerCase()).includes(input)
             || clearSpaces(item.sku.toLowerCase()).includes(input)) {
-            
+
             matched++;
             const option = document.createElement('option');
             option.value = item.sku;
@@ -870,7 +870,7 @@ UI.markSelectList = function (list, vals) {
 
 UI.getGoodsBySku = function (skus) {
     items = [];
-    goods = Storage.get('goods');
+    goods = storage.get('goods');
     goods.forEach(function (good) {
         if (skus.includes(good.sku)) {
             const item = {
@@ -1003,32 +1003,38 @@ function buildTreeSelectList(items, initialData) {
     });
 }
 
-class Storage {
-    constructor() { }
-}
-
-Storage.set = function (key, val) {
-    sessionStorage.setItem(key, toJson(val))
-}
-
-Storage.get = function (key) {
-    const val = sessionStorage.getItem(key);
-    if (val !== null && val !== undefined) {
-        return fromJson(val);
+class LocalStorage {
+    constructor() {
+        this.data = {};
     }
-    console.log('no data found in storage!');
+
+    getValLength = function (key) {
+        const data = this.data[key];
+        console.log(data.length);
+    }
+
+    set = function (key, val) {
+        this.data[key] = val;
+    }
+
+    get = function (key) {
+        return this.data[key];
+    }
 }
 
 class Api {
-    constructor() { }
+    constructor() {
+    }
 }
 
-Api.callback = function (result) {
+Api.getGoodsCallback = function (result) {
     const key = "goods";
-    Storage.set(key, result);
+    storage.set(key, result);
+    UI.buildConditions();
+    scrollToTop();
 }
 
-Api.get = function (url) {
+Api.getGoods = function (url) {
     fetch(url)
         .then((response) => {
             if (response.ok) {
@@ -1038,11 +1044,11 @@ Api.get = function (url) {
             }
         })
         .then((data) => {
-            this.callback(data);
+            this.getGoodsCallback(data);
             return;
         })
         .catch((error) => {
-            console.log(`API call returned an error: ${error}`);
+            console.log(`API callback returned an error: ${error}`);
         });
 }
 
@@ -1064,16 +1070,19 @@ function isJSON(str) {
     }
 }
 
-function getGoodsViaApi(url) {
-    Api.get(getGoodsApiUrl);
+function getGoods(url) {
+    Api.getGoods(getGoodsApiUrl);
 }
 
 function init() {
-    // UI.hideConditionsTextArea();
-    getGoodsViaApi();
-    UI.buildConditions();
-    scrollToTop();
+    storage = new LocalStorage();
+    getGoods();
+    
 }
 
+storage = null; // this object will hold goods
 document.addEventListener("DOMContentLoaded", init());
+
+
+
 

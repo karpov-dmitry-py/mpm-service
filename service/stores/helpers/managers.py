@@ -1,4 +1,5 @@
 import json
+import copy
 from collections import defaultdict
 
 from threading import Thread
@@ -36,7 +37,7 @@ class StockManager:
     def _wh_repr(wh):
         return wh.id, wh.name, wh.kind.name
 
-    def _get_stock_by_good(self, rows, good_id, whs_dict, result_items):
+    def _get_stock_by_good(self, rows, good_id, result_items):
         # with self._lock:
         good_rows = []
         for row in rows:
@@ -460,14 +461,24 @@ class StockManager:
     # noinspection PyUnusedLocal,PyTypeChecker
     @time_tracker('calculate_stock_by_all_stores')
     def calculate_stock_by_stores(self, user, skus):
-        stores = _get_user_qs(Store, user)
+        result = dict()
+        stores = _get_user_qs(Store, user).order_by('id')
+        if not stores:
+            return result
+
         stocks = self.get_user_stock(user, skus)
+        if not stocks:
+            return result
 
         result = defaultdict(list)
         threads = []
 
+        # TEST
+        # stores = stores[:1]
+
         for store in stores:
-            thread = Thread(target=self.calculate_stock_by_store, args=(store, user, stocks, result))
+            _stocks = stocks if len(stores) == 1 else copy.deepcopy(stocks)
+            thread = Thread(target=self.calculate_stock_by_store, args=(store, user, _stocks, result))
             thread.start()
             threads.append(thread)
 
@@ -481,13 +492,22 @@ class StockManager:
     @time_tracker('calculate_stock_by_store')
     def calculate_stock_by_store(self, store, user, stocks, result):
         settings = _get_user_qs(StockSetting, user).filter(store=store)
+
+        # use all available if store has no settings
         if not settings.count():
+            for _dict in stocks:
+                with self._lock:
+                    result[_dict['good'].sku].append({'store': store, 'amount': _dict['total_amount']})
             return
 
         stock = self.calculate_stock_by_store_settings(settings, stocks, get_detailed_stocks=True)
-        with self._lock:
-            result[store] = stock['details']
+        stocks_by_goods = stock['details']
+        if stocks_by_goods:
+            with self._lock:
+                for k, v in stocks_by_goods.items():
+                    result[k].extend(v)
 
+    # noinspection PyTypeChecker
     @staticmethod
     @time_tracker('calculate_stock_by_store_settings')
     def calculate_stock_by_store_settings(settings, stocks, get_detailed_stocks=False):
@@ -511,10 +531,14 @@ class StockManager:
                 goods_count = len(stocks)
 
             result['conditions'][setting.id] = stocks_by_conditions
-
-        if get_detailed_stocks:
-            result['details'] = stocks
-
+            
+        if get_detailed_stocks and len(stocks):
+            store = settings[0].store
+            stocks_by_good = defaultdict(list)
+            for k, v in stocks.items():
+                stocks_by_good[k].append({'store': store, 'amount': v['total_amount']})
+            result['details'] = dict(stocks_by_good)
+            
         return result
 
     @staticmethod

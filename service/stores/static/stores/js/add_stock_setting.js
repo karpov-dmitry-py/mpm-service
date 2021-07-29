@@ -1031,6 +1031,7 @@ Api.getGoodsCallback = function (result) {
     const key = "goods";
     storage.set(key, result);
     UI.buildConditions();
+    scrollToTop();
 }
 
 Api.getGoods = function (url) {
@@ -1076,7 +1077,7 @@ function getGoods(url) {
 function init() {
     storage = new LocalStorage();
     getGoods();
-    scrollToTop();
+    
 }
 
 storage = null; // this object will hold goods
