@@ -1,15 +1,36 @@
 {% extends 'users/base.html' %}
 {% load static %}
+{% load crispy_forms_tags %}
 {% load stores.template_filters %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'stores/css/list_stock_settings.css' %}">
+<link rel="stylesheet" href="{% static 'stores/css/common.css' %}">
 <div class="container-fluid" style="width: 100%;">
 <a class="btn btn btn-success mb-3" style="margin-top: 1rem;" href="{% url 'stock-settings-add' store_id %}">Создать настройку</a>
 <legend class="border-bottom mb-4">
     Настройки остатков - <a href="{% url 'stores-detail' store_id %}">
                             {{ store_name }}</a> (всего {{ items_count }}):
 </legend>
-<table class="table table-hover">
+
+<!--delete selected settings form-->
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-10"></div>
+    <div class="col-2 cols">
+        <form id="delete-settings-form" method="post" action="{% url 'stock-settings-batch-delete' %}">
+            {% csrf_token %}
+            <fieldset class="form-group mb-1">
+                {{ batch_delete_form|crispy }}
+                <div class="form-group mb-0 mr-0">
+                    <button id="delete-settings-btn" onclick="getSelectedSettings();" class="btn btn-light delete-settings-btn" type="submit">Удалить выбранные настройки</button>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+  </div>
+</div>
+
+<table class="table table-hover smaller">
     <thead class="thead-dark">
     <tr>
         <th>
@@ -32,7 +53,7 @@
                     </td>
                     <td>{{ forloop.counter }}</td>
 
-                    <td>{{ item.id }}</td>
+                    <td class="setting_id">{{ item.id }}</td>
                     <td class="setting_td"><a href="{% url 'stock-settings-update' item.id %}">{{ item.name }}</a></td>
                     <td>{{ item.priority }}</td>
 

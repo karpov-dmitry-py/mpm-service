@@ -6,6 +6,9 @@ from django.forms import TextInput
 from django.forms import NumberInput
 from django.forms import CheckboxSelectMultiple
 from django.forms import Select
+from django.forms import CharField
+from django.forms import Form
+
 from .models import Store
 from .models import GoodsBrand
 from .models import GoodsCategory
@@ -135,3 +138,12 @@ class CreateStockSettingForm(ModelForm):
                 'class': 'hidden',
             }),
         }
+
+
+class DeleteSelectedStockSettingsForm(Form):
+    selected_settings = CharField(max_length=100, label=None, required=False)
+    widgets = {
+        'selected_settings': TextInput(attrs={
+            'class': 'selected-settings-input',
+        })
+    }

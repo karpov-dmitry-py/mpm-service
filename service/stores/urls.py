@@ -83,6 +83,7 @@ urlpatterns = [
     path('settings/stock/store/<int:store_pk>/add/', views.StockSettingCreateView.as_view(), name='stock-settings-add'),
     path('settings/stock/<int:pk>/update/', views.StockSettingUpdateView.as_view(), name='stock-settings-update'),
     path('settings/stock/<int:pk>/delete/', views.StockSettingDeleteView.as_view(), name='stock-settings-delete'),
+    path('settings/stock/batch-delete/', views.stock_settings_batch_delete, name='stock-settings-batch-delete'),
 
     # API
     # help page

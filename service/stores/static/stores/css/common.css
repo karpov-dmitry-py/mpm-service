@@ -9,3 +9,9 @@
 .smaller {
     font-size: 14px;
 }
+
+.cols {
+    margin-right: 0px;
+    padding-right: 0px;
+    text-align: end;
+}

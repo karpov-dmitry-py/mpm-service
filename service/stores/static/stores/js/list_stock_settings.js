@@ -1,6 +1,19 @@
 document.addEventListener("DOMContentLoaded", init());
 
 function init() {
+    styleSettings();
+    hideElById('div_id_selected_settings');
+}
+
+function hideElById(id) {
+    const el = document.getElementById(id);
+    if (el === null) {
+        return;
+    }
+    el.style.display = 'none';
+}
+
+function styleSettings () {
     const settingNotUsedText = document.querySelector('.setting-not-used-text').innerText.trim();
     const rows = document.querySelectorAll('.setting_row');
     rows.forEach(function(row) {
@@ -23,9 +36,6 @@ function getChildByClassName (parent, childClassName) {
 
 const mainCheckbox = document.getElementById('main-checkbox');
 mainCheckbox.onchange = toggleCheckboxes;
-
-// const btnUpdateBrand = document.querySelector('.batch-update-brand');
-// btnUpdateBrand.addEventListener('click', updateGoodProperty);
 
 function toggleCheckboxes(e) {
     const checkBoxes = document.querySelectorAll('.item-checkbox');
@@ -59,4 +69,22 @@ function checkPriority(numberInput) {
         numberInput.value = 1;
     }
     console.log(numberInput.value);
+}
+
+function getSelectedSettings () {
+    collectSelectedSettings ('item-checkbox', 'id_selected_settings');
+}
+
+function collectSelectedSettings (srcClass, dstID) {
+    srcClass = `.${srcClass}`;
+    const items = document.querySelectorAll(srcClass);
+    let selected = [];
+    items.forEach(function(item) {
+        if (item.checked === true) {
+            selected.push(item.value);
+        }
+    });
+    dstID = `#${dstID}`;
+    const formFld = document.querySelector(dstID);
+    formFld.value = selected.join(',');
 }

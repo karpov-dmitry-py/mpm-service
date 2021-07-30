@@ -42,6 +42,7 @@ from .models import StockSetting
 
 # noinspection PyProtectedMember
 from .helpers.common import _exc
+# noinspection PyProtectedMember
 from .helpers.common import _log
 # from .helpers.common import _err
 from .helpers.common import is_valid_email
@@ -53,7 +54,7 @@ from .helpers.common import get_email_error
 from .helpers.common import get_supplier_warehouse_type
 from .helpers.common import is_valid_supplier_choice
 from .helpers.common import get_supplier_error
-from .helpers.common import time_tracker
+# from .helpers.common import time_tracker
 
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
@@ -72,6 +73,7 @@ from .forms import CreateSupplierForm
 from .forms import CreateWarehouseForm
 from .forms import CreateSystemForm
 from .forms import CreateStockSettingForm
+from .forms import DeleteSelectedStockSettingsForm
 
 BASE_URL = 'https://stl-market.ru'
 ACTIVE_STORE_STATUS = 'подключен'
@@ -1769,6 +1771,7 @@ class StockSettingListView(LoginRequiredMixin, ListView):
         context['title'] = f'{_get_model_list_title(self.model)} - {self._store.name}'
         context['store_name'] = self._store.name
         context['store_id'] = self._store.id
+        context['batch_delete_form'] = DeleteSelectedStockSettingsForm()
 
         # stocks
         qs = context[self.context_object_name]
@@ -1806,7 +1809,8 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
 
     def get_success_url(self):
         messages.success(self.request, f'Настройка "{self.object.name}" успешно создана')
-        return reverse_lazy('stock-settings-list', kwargs={'store_pk': self._store.id})
+        # return reverse_lazy('stock-settings-list', kwargs={'store_pk': self._store.id})
+        return reverse_lazy('stores-list')
 
     def form_valid(self, form):
         user = self.request.user
@@ -1881,7 +1885,8 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
 
     def get_success_url(self):
         messages.success(self.request, f'Изменения успешно сохранены')
-        return reverse_lazy('stock-settings-list', kwargs={'store_pk': self.object.store.id})
+        # return reverse_lazy('stock-settings-list', kwargs={'store_pk': self.object.store.id})
+        return reverse_lazy('stores-list')
 
     def form_valid(self, form):
         self._store = self.object.store
@@ -1955,6 +1960,48 @@ class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
         context['store_name'] = store.name
         context['store_id'] = store.id
         return context
+
+
+@require_POST
+@login_required()
+def stock_settings_batch_delete(request):
+    user = request.user
+    form = DeleteSelectedStockSettingsForm(request.POST)
+    redirect_to = f'{reverse_lazy("stores-list")}'
+    if form.is_valid():
+        _ids = form.cleaned_data['selected_settings']
+        if not _ids:
+            messages.error(request, 'Не выделены настройки.')
+            return redirect(redirect_to)
+        _ids = _ids.split(',')
+        _ids = set(_ids)
+
+        try:
+            _ids = map(lambda item: int(item), _ids)
+        except (ValueError, Exception):
+            messages.error(request, 'Не удалось прочитать выделенные настройки.')
+            return redirect(redirect_to)
+
+        deleted = 0
+        # noinspection PyUnresolvedReferences
+        rows = StockSetting.objects.filter(pk__in=_ids)
+
+        for row in rows:
+            if row.user != user:
+                continue
+            try:
+                row.delete()
+                deleted += 1
+            except (ValueError, Exception) as err:
+                err_msg = f'Не удалось удалить настройку с id {row.id}: {_exc(err)}'
+                messages.error(request, err_msg)
+                return redirect(redirect_to)
+
+        messages.success(request, f'Удалено настроек: {deleted}')
+        return redirect(redirect_to)
+
+    messages.error(request, f'Форма заполнена неверно: {form.errors.as_data()}')
+    return redirect(redirect_to)
 
 
 @require_GET
