@@ -1565,7 +1565,8 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def _get_queryset_by_user(self):
         if self._full_qs is None:
-            stock = StockManager().get_user_stock(self.request.user)
+            # stock = StockManager().get_user_stock(self.request.user)
+            stock = StockManager().get_user_stock_goods(self.request.user)
             self._full_qs = stock
         return self._full_qs
 
@@ -1573,15 +1574,24 @@ class StockListView(LoginRequiredMixin, ListView):
         return self._get_queryset_by_user()
 
     def get_context_data(self, **kwargs):
+        user = self.request.user
         context = super().get_context_data(**kwargs)
         context['items_count'] = len(self.get_queryset())
         context['pages'] = _get_pages_list(context['page_obj'])
         context['title'] = 'Остатки товаров'
 
         # warehouse
-        wh_rows = _qs_filtered_by_user(Warehouse, self.request.user)
+        wh_rows = _qs_filtered_by_user(Warehouse, user)
         whs = {row.id: {'type': row.kind.name, 'name': row.name} for row in wh_rows}
         context['whs'] = whs
+
+        # stock
+        items = context[self.context_object_name]
+        if len(items):
+            skus = [item.sku for item in items]
+            stocks = StockManager().get_user_stock(user, skus)
+            stocks = {row['good'].id: row for row in stocks}
+            context['stocks'] = stocks
 
         return context
 

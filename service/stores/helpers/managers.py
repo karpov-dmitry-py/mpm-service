@@ -138,6 +138,13 @@ class StockManager:
         return stocks
 
     # noinspection PyTypeChecker
+    def get_user_stock_goods(self, user):
+        rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
+        good_ids = rows.values_list('good', flat=True).distinct()
+        good_rows = _get_user_qs(Good, user).filter(pk__in=good_ids)
+        return good_rows
+
+    # noinspection PyTypeChecker
     @time_tracker('get_user_stock')
     def get_user_stock(self, user, skus=None):
         if skus:
@@ -531,14 +538,14 @@ class StockManager:
                 goods_count = len(stocks)
 
             result['conditions'][setting.id] = stocks_by_conditions
-            
+
         if get_detailed_stocks and len(stocks):
             store = settings[0].store
             stocks_by_good = defaultdict(list)
             for k, v in stocks.items():
                 stocks_by_good[k].append({'store': store, 'amount': v['total_amount']})
             result['details'] = dict(stocks_by_good)
-            
+
         return result
 
     @staticmethod

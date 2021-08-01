@@ -54,51 +54,58 @@
             </tr>
         </thead>
         <tbody>
-        {% for item in items %}
-        <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>{{ item.good.sku }}</td>
-            <td><a href="{% url 'goods-detail' item.good.id %}">{{ item.good.name }}</a></td>
-            <td>{{ item.total_amount }}</td>
+            {% for item in items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.sku }}</td>
+                    <td><a href="{% url 'goods-detail' item.id %}">{{ item.name }}</a></td>
 
-            <td style="min-width: 50px;">
-                <dl>
-                    {% for row in item.stocks %}
-                    <dd class="mb-0">
-                        {{ whs|get_item:row.warehouse|get_item:'type' }}
-                    </dd>
-                    {% endfor %}
-                </dl>
-            </td>
-            <td>
-                <dl>
-                    {% for row in item.stocks %}
-                    <dd class="mb-0">
-                        <a href="{% url 'warehouses-detail' row.warehouse %}">{{ whs|get_item:row.warehouse|get_item:'name' }}</a>
-                    </dd>
-                    {% endfor %}
-                </dl>
-            </td>
-            <td>
-                <dl>
-                    {% for stock in item.stocks %}
-                    <dd class="mb-0">
-                        {{ stock.max_date_updated|date:"d.m.Y H:i:s" }}
-                    </dd>
-                    {% endfor %}
-                </dl>
-            </td>
-            <td>
-                <dl>
-                    {% for stock in item.stocks %}
-                    <dd class="mb-0">
-                        {{ stock.total_amount }}
-                    </dd>
-                    {% endfor %}
-                </dl>
-            </td>
-        </tr>
-        {% endfor %}
+                    <!-- detailed stock-->
+                    {% with stocks=stocks|get_item:item.id %}
+                        <td>{{ stocks.total_amount }}</td>
+
+                        <td style="min-width: 50px;">
+                            <dl>
+                                {% for row in stocks.stocks %}
+                                <dd class="mb-0">
+                                    {{ whs|get_item:row.warehouse|get_item:'type' }}
+                                </dd>
+                                {% endfor %}
+                            </dl>
+                        </td>
+
+                        <td>
+                            <dl>
+                                {% for row in stocks.stocks %}
+                                <dd class="mb-0">
+                                    <a href="{% url 'warehouses-detail' row.warehouse %}">{{ whs|get_item:row.warehouse|get_item:'name' }}</a>
+                                </dd>
+                                {% endfor %}
+                            </dl>
+                        </td>
+
+                        <td>
+                            <dl>
+                                {% for stock in stocks.stocks %}
+                                <dd class="mb-0">
+                                    {{ stock.max_date_updated|date:"d.m.Y H:i:s" }}
+                                </dd>
+                                {% endfor %}
+                            </dl>
+                        </td>
+
+                        <td>
+                            <dl>
+                                {% for stock in stocks.stocks %}
+                                <dd class="mb-0">
+                                    {{ stock.total_amount }}
+                                </dd>
+                                {% endfor %}
+                            </dl>
+                        </td>
+                    {% endwith %}
+                </tr>
+            {% endfor %}
         </tbody>
     </table>
 

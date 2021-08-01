@@ -1,5 +1,8 @@
 {% extends 'users/base.html' %}
+{% load static %}
+{% load stores.template_filters %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'stores/css/common.css' %}">
 <div class="container-fluid" style="max-width: 100%;">
     <legend class="border-bottom mb-4 mt-3">Мои остатки (всего товаров: {{ items_count }}):</legend>
 
@@ -37,7 +40,7 @@
     </nav>
     <!--pagination }    -->
 
-    <table class="table table-hover">
+    <table class="table table-hover smaller">
         <thead class="thead-dark">
             <tr>
                 <th>№</th>
@@ -60,25 +63,25 @@
 
             <td style="min-width: 50px;">
                 <dl>
-                    {% for wh, stock in item.stocks.items %}
+                    {% for row in item.stocks %}
                     <dd class="mb-0">
-                        {{ wh.kind.name }}
+                        {{ whs|get_item:row.warehouse|get_item:'type' }}
                     </dd>
                     {% endfor %}
                 </dl>
             </td>
             <td>
                 <dl>
-                    {% for wh, stock in item.stocks.items %}
+                    {% for row in item.stocks %}
                     <dd class="mb-0">
-                        <a href="{% url 'warehouses-detail' wh.id %}">{{ wh.name }}</a>
+                        <a href="{% url 'warehouses-detail' row.warehouse %}">{{ whs|get_item:row.warehouse|get_item:'name' }}</a>
                     </dd>
                     {% endfor %}
                 </dl>
             </td>
             <td>
                 <dl>
-                    {% for wh, stock in item.stocks.items %}
+                    {% for stock in item.stocks %}
                     <dd class="mb-0">
                         {{ stock.max_date_updated|date:"d.m.Y H:i:s" }}
                     </dd>
@@ -87,7 +90,7 @@
             </td>
             <td>
                 <dl>
-                    {% for wh, stock in item.stocks.items %}
+                    {% for stock in item.stocks %}
                     <dd class="mb-0">
                         {{ stock.total_amount }}
                     </dd>
