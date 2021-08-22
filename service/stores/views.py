@@ -39,6 +39,7 @@ from .models import WarehouseType
 from .models import Stock
 from .models import System
 from .models import StockSetting
+from .models import StoreWarehouse
 
 # noinspection PyProtectedMember
 from .helpers.common import _exc
@@ -1969,6 +1970,53 @@ class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
         context['title'] = f'{context["title"]} - {store.name}'
         context['store_name'] = store.name
         context['store_id'] = store.id
+        return context
+
+
+# STORE WAREHOUSE
+class StoreWarehouseListView(LoginRequiredMixin, ListView):
+    template_name = 'stores/store_warehouse/list.html'
+    model = StoreWarehouse
+    context_object_name = 'items'
+    ordering = ['id']
+    _store = None
+
+    def get(self, *args, **kwargs):
+        redirect_to = redirect('stores-list')
+        store_id = kwargs.get('store_pk')
+        store, err = get_store_by_id(store_id, self.request.user)
+
+        if err:
+            messages.error(self.request, err)
+            return redirect_to
+
+        self._store = store
+        return super().get(*args, **kwargs)
+
+    def get_queryset(self):
+        # noinspection PyUnresolvedReferences
+        qs = self.model.objects.filter(user=self.request.user).filter(store=self._store).order_by('priority')
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['items_count'] = len(context['items'])
+        # noinspection PyTypeChecker,PyTypeChecker
+        context['title'] = f'{_get_model_list_title(self.model)} - {self._store.name}'
+        context['store_name'] = self._store.name
+        context['store_id'] = self._store.id
+        context['batch_delete_form'] = DeleteSelectedStockSettingsForm()
+
+        # stocks
+        qs = context[self.context_object_name]
+        user = self.request.user
+        if qs.count():
+            stocks = StockManager().get_user_stock(user)
+            calculated_stock = StockManager.calculate_stock_by_store_settings(qs, stocks)
+            context['calculated_stock_by_settings'] = calculated_stock['settings']
+            context['calculated_stock_by_conditions'] = calculated_stock['conditions']
+
+        context['setting_not_used_text'] = StockManager.get_setting_not_used_text()
         return context
 
 

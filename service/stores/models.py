@@ -317,3 +317,21 @@ class StockSetting(models.Model):
         verbose_name = 'Настройка остатков товаров'
         verbose_name_plural = 'Настройки остатков товаров'
         ordering = ['priority']
+
+
+class StoreWarehouse(models.Model):
+    name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
+    code = models.CharField(verbose_name='Код в маркетплейсе', max_length=100, blank=False, null=False)
+    description = models.TextField(verbose_name='Описание', blank=True, null=True)
+    store = models.ForeignKey(Store, verbose_name='Магазин', on_delete=CASCADE, related_name='store_warehouses',
+                              related_query_name='warehouse', blank=True, null=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт')
+
+    def __str__(self):
+        return f'({self.store.name}) {self.name}'
+
+    class Meta:
+        db_table = 'store_warehouses'
+        verbose_name = 'Склад магазина'
+        verbose_name_plural = 'Склады магазинов'
+        ordering = ['id']
