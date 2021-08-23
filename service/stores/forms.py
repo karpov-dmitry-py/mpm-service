@@ -17,6 +17,7 @@ from .models import Supplier
 from .models import Warehouse
 from .models import System
 from .models import StockSetting
+from .models import StoreWarehouse
 
 
 class CreateStoreForm(ModelForm):
@@ -147,3 +148,15 @@ class DeleteSelectedStockSettingsForm(Form):
             'class': 'selected-settings-input',
         })
     }
+
+
+class CreateStoreWarehouseForm(ModelForm):
+    class Meta:
+        model = StoreWarehouse
+        fields = ['name', 'code', 'description']
+        widgets = {
+            'description': Textarea(attrs={
+                'cols': 50,
+                'rows': 3,
+            })
+        }

@@ -85,6 +85,10 @@ urlpatterns = [
     path('settings/stock/<int:pk>/delete/', views.StockSettingDeleteView.as_view(), name='stock-settings-delete'),
     path('settings/stock/batch-delete/', views.stock_settings_batch_delete, name='stock-settings-batch-delete'),
 
+    # warehouse stores
+    path('stores/<int:store_pk>/warehouses/', views.StoreWarehouseListView.as_view(), name='store-warehouses-list'),
+    path('stores/<int:store_pk>/warehouses/add', views.StoreWarehouseCreateView.as_view(), name='store-warehouses-add'),
+
     # API
     # help page
     path(f'{api_full_path}/help/', views.api_help, name='api-help'),

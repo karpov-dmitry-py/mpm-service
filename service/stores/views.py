@@ -75,6 +75,7 @@ from .forms import CreateWarehouseForm
 from .forms import CreateSystemForm
 from .forms import CreateStockSettingForm
 from .forms import DeleteSelectedStockSettingsForm
+from .forms import CreateStoreWarehouseForm
 
 BASE_URL = 'https://stl-market.ru'
 ACTIVE_STORE_STATUS = 'подключен'
@@ -1995,7 +1996,7 @@ class StoreWarehouseListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         # noinspection PyUnresolvedReferences
-        qs = self.model.objects.filter(user=self.request.user).filter(store=self._store).order_by('priority')
+        qs = self.model.objects.filter(user=self.request.user).filter(store=self._store).order_by('id')
         return qs
 
     def get_context_data(self, **kwargs):
@@ -2005,18 +2006,68 @@ class StoreWarehouseListView(LoginRequiredMixin, ListView):
         context['title'] = f'{_get_model_list_title(self.model)} - {self._store.name}'
         context['store_name'] = self._store.name
         context['store_id'] = self._store.id
-        context['batch_delete_form'] = DeleteSelectedStockSettingsForm()
+        return context
 
-        # stocks
-        qs = context[self.context_object_name]
+
+class StoreWarehouseCreateView(LoginRequiredMixin, CreateView):
+    model = StoreWarehouse
+    form_class = CreateStoreWarehouseForm
+    template_name = 'stores/store_warehouse/add.html'
+    _store = None
+
+    def get(self, *args, **kwargs):
+        if not hasattr(self, 'request'):
+            return
+
+        redirect_to = redirect('stores-list')
+        store_id = kwargs.get('store_pk')
+        store, err = get_store_by_id(store_id, self.request.user)
+
+        if err:
+            messages.error(self.request, err)
+            return redirect_to
+
+        self._store = store
+        return super().get(*args, **kwargs)
+
+    def get_success_url(self):
+        messages.success(self.request, f'Склад "{self.object.name}" успешно создан')
+        return reverse_lazy('stores-list')
+
+    def form_valid(self, form):
         user = self.request.user
-        if qs.count():
-            stocks = StockManager().get_user_stock(user)
-            calculated_stock = StockManager.calculate_stock_by_store_settings(qs, stocks)
-            context['calculated_stock_by_settings'] = calculated_stock['settings']
-            context['calculated_stock_by_conditions'] = calculated_stock['conditions']
+        store_id = self.kwargs.get('store_pk')
 
-        context['setting_not_used_text'] = StockManager.get_setting_not_used_text()
+        # validation
+        store, err = get_store_by_id(store_id, user)
+        if err:
+            form.errors['Указан неверный id магазина'] = err
+            return self.form_invalid(form)
+        self._store = store
+
+        # validation
+        form_is_valid = True
+        if not form_is_valid:
+            return self.form_invalid(form)
+
+        form.instance.store = self._store
+        form.instance.user = user
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        errors = '. '.join(f'{k}: {v}' for k, v in form.errors.items())
+        messages.error(self.request, f'Неверно заполнена форма. {errors}')
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Создание склада магазина'
+
+        if self._store:
+            context['title'] = f'{context["title"]} - {self._store.name}'
+            context['store_name'] = self._store.name
+            context['store_id'] = self._store.id
         return context
 
 
