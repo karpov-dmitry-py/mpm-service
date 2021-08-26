@@ -89,6 +89,7 @@ urlpatterns = [
     path('stores/<int:store_pk>/warehouses/add', views.StoreWarehouseCreateView.as_view(), name='store-warehouses-add'),
     path('stores/warehouses/<int:pk>/detail/', views.StoreWarehouseDetailView.as_view(), name='store-warehouses-detail'),
     path('stores/warehouses/<int:pk>/update/', views.StoreWarehouseUpdateView.as_view(), name='store-warehouses-update'),
+    path('stores/warehouses/<int:pk>/delete/', views.StoreWarehouseDeleteView.as_view(), name='store-warehouses-delete'),
 
     # API
     # help page

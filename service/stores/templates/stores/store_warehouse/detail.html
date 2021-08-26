@@ -19,7 +19,7 @@
         <dd class="col-sm-9 mb-3">{% if item.description %} {{ item.description }} {% else %} - {% endif %}
         </dd>
     </dl>
-    <a href="{% url 'systems-update' item.id %}" class="btn btn-primary">Изменить</a>
-    <a href="{% url 'systems-delete' item.id %}" class="btn btn-secondary">Удалить</a>
+    <a href="{% url 'store-warehouses-update' item.id %}" class="btn btn-primary">Изменить</a>
+    <a href="{% url 'store-warehouses-delete' item.id %}" class="btn btn-secondary">Удалить</a>
 </div>
 {% endblock content %}

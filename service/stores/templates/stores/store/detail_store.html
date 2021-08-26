@@ -26,7 +26,7 @@
     </dl>
 
     <!-- store warehouses-->
-    <h5 class="border-bottom mb-2">Склады магазина</h5>
+    <h5 class="border-bottom mb-2">Склады магазина в маркетплейсе (всего: {{ item.store_warehouses.all | length }})</h5>
         {% if item.store_warehouses.all %}
             <dl>
                 {% for wh in item.store_warehouses.all %}
@@ -38,18 +38,16 @@
         {% else %}
         -
         {% endif %}
-
+        <dl><a href="{% url 'store-warehouses-list' item.id %}">Все склады магазина</a></dl>
 
     <!-- settings -->
     {% if is_active %}
         <h5 class="border-bottom mb-3">Настройки остатков и цен для выгрузки в маркетплейс</h5>
-        <dl class="row">
-            <dt class="col-sm-3">Настройки</dt>
-            <dd class="col-sm-9 mb-3">
+        <dl>
+            <dd class="mb-1">
                 <a href="{% url 'stock-settings-list' item.id %}">Остатки</a>
             </dd>
-            <dt class="col-sm-3"></dt>
-            <dd class="col-sm-9 mb-3"><span class="text-muted">Цены</span></dd>
+            <dd class="mb-4"><span class="text-muted">Цены</span></dd>
         </dl>
     {% endif %}
 

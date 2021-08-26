@@ -2032,7 +2032,7 @@ class StoreWarehouseCreateView(LoginRequiredMixin, CreateView):
 
     def get_success_url(self):
         messages.success(self.request, f'Склад "{self.object.name}" успешно создан')
-        return reverse_lazy('stores-list')
+        return reverse_lazy('store-warehouses-detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
         user = self.request.user
@@ -2047,6 +2047,18 @@ class StoreWarehouseCreateView(LoginRequiredMixin, CreateView):
 
         # validation
         form_is_valid = True
+
+        qs = self._store.store_warehouses.all()
+        if qs:
+            code = form.cleaned_data.get('code')
+            if code:
+                existing_rows = qs.filter(code__iexact=code)
+                if len(existing_rows):
+                    form_is_valid = False
+                    existing_row = existing_rows[0]
+                    form.errors['Код склада в маркетплейсе не уникален'] = \
+                        f'Найден склад текущего магазина с id {existing_row.id} и кодом {existing_row.code}'
+
         if not form_is_valid:
             return self.form_invalid(form)
 
@@ -2092,6 +2104,10 @@ class StoreWarehouseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVi
     form_class = CreateStoreWarehouseForm
     template_name = 'stores/store_warehouse/update.html'
 
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
     def get_success_url(self):
         messages.success(self.request, f'Изменения успешно сохранены')
         return reverse_lazy('store-warehouses-detail', kwargs={'pk': self.object.pk})
@@ -2099,6 +2115,18 @@ class StoreWarehouseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVi
     def form_valid(self, form):
         # validation
         form_is_valid = True
+
+        qs = form.instance.store.store_warehouses.all().exclude(id=form.instance.id)
+        if qs:
+            code = form.cleaned_data.get('code')
+            if code:
+                existing_rows = qs.filter(code__iexact=code)
+                if len(existing_rows):
+                    form_is_valid = False
+                    existing_row = existing_rows[0]
+                    form.errors['Код склада в маркетплейсе не уникален'] = \
+                        f'Найден склад текущего магазина с id {existing_row.id} и кодом {existing_row.code}'
+
         if not form_is_valid:
             return self.form_invalid(form)
 
@@ -2112,6 +2140,21 @@ class StoreWarehouseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVi
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Редактирование склада магазина'
+        return context
+
+
+class StoreWarehouseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = StoreWarehouse
+    success_url = reverse_lazy('stores-list')
+    template_name = 'stores/store_warehouse/delete.html'
+
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Удаление склада магазина'
         return context
 
 

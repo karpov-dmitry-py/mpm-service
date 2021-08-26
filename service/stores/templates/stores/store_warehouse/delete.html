@@ -1,0 +1,25 @@
+{% extends 'users/base.html' %}
+{% block content %}
+    <div class="container" style="width: 70%;">
+        <form method="post">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Удаление склада магазина -
+                    <a href="{% url 'stores-detail' object.store.pk %}">{{ object.store.name }}</a>
+                </legend>
+                <div>Вы действительно хотите УДАЛИТЬ склад магазина
+                    <strong>"{{ object.name }}"</strong><br>
+                     <span style="text-decoration: underline;">
+                         и УДАЛИТЬ все связанные данные (логи обменов с системой и др.)
+                     </span>?
+                </div>
+            </fieldset>
+            <div class="form-group">
+                <a class="btn btn-success" href="{% url 'store-warehouses-list' object.store.id %}">Отмена</a>
+                <button class="btn btn-danger" type="submit">
+                    Да, УДАЛИТЬ склад магазина "{{ object.name }}" и УДАЛИТЬ все связанные данные!
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock content %}
