@@ -16,7 +16,7 @@
         <th>№</th>
         <th>ID</th>
         <th>Наименование</th>
-        <th>Код в маркетплейсе</th>
+        <th>Код склада в маркетплейсе</th>
         <th>Описание</th>
         <th style="text-align: right; padding-right: 4rem;">Действия</th>
     </tr>
@@ -26,7 +26,7 @@
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td>{{ item.id }}</td>
-                    <td><a href="{% url 'stock-settings-update' item.id %}">{{ item.name }}</a></td>
+                    <td><a href="{% url 'store-warehouses-detail' item.id %}">{{ item.name }}</a></td>
                     <td>{{ item.code }}</td>
                     <td>{{ item.description | truncatechars:40 }}</td>
 
