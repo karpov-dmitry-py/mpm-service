@@ -1,0 +1,25 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid mb-5" style="width: 70%;">
+    <legend class="border-bottom mb-4 mt-2">Просмотр склада магазина -
+        <a href="{% url 'stores-detail' item.store.id %}">{{ item.store.name }}</a>
+    </legend>
+    <dl class="row">
+        <dt class="col-sm-3">ID</dt>
+        <dd class="col-sm-9 mb-3">{{ item.id }}</dd>
+
+        <dt class="col-sm-3">Наименование</dt>
+        <dd class="col-sm-9 mb-3">{{ item.name }}</dd>
+
+        <dt class="col-sm-3">Код</dt>
+        <dd class="col-sm-9 mb-3">{{ item.code }}</dd>
+
+        <dt class="col-sm-3">Описание</dt>
+        <dd class="col-sm-9 mb-3">{% if item.description %} {{ item.description }} {% else %} - {% endif %}
+        </dd>
+    </dl>
+    <a href="{% url 'systems-update' item.id %}" class="btn btn-primary">Изменить</a>
+    <a href="{% url 'systems-delete' item.id %}" class="btn btn-secondary">Удалить</a>
+</div>
+{% endblock content %}

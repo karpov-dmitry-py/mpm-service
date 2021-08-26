@@ -25,6 +25,21 @@
         </dd>
     </dl>
 
+    <!-- store warehouses-->
+    <h5 class="border-bottom mb-2">Склады магазина</h5>
+        {% if item.store_warehouses.all %}
+            <dl>
+                {% for wh in item.store_warehouses.all %}
+                    <dd class="mb-1">
+                        {{ forloop.counter}}. <a href="{% url 'store-warehouses-detail' wh.id %}">{{ wh.name }}</a>
+                    </dd>
+                {% endfor%}
+            </dl>
+        {% else %}
+        -
+        {% endif %}
+
+
     <!-- settings -->
     {% if is_active %}
         <h5 class="border-bottom mb-3">Настройки остатков и цен для выгрузки в маркетплейс</h5>
@@ -38,7 +53,7 @@
         </dl>
     {% endif %}
 
-    <h5 class="border-bottom mb-3">Настройки интеграции c маркетплейсом {{ marketplace }}</h5>
+    <h5 class="border-bottom mb-3 mt-3">Настройки интеграции c маркетплейсом {{ marketplace }}</h5>
     {% if props %}
     <dl class="row">
         {% for prop in props %}

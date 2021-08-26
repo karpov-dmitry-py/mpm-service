@@ -2071,6 +2071,50 @@ class StoreWarehouseCreateView(LoginRequiredMixin, CreateView):
         return context
 
 
+class StoreWarehouseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = StoreWarehouse
+    fields = ['id', 'name', 'code', 'description', ]
+    context_object_name = 'item'
+    template_name = 'stores/store_warehouse/detail.html'
+
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Просмотр склада магазина'
+        return context
+
+
+class StoreWarehouseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = StoreWarehouse
+    form_class = CreateStoreWarehouseForm
+    template_name = 'stores/store_warehouse/update.html'
+
+    def get_success_url(self):
+        messages.success(self.request, f'Изменения успешно сохранены')
+        return reverse_lazy('store-warehouses-detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        # validation
+        form_is_valid = True
+        if not form_is_valid:
+            return self.form_invalid(form)
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        errors = '. '.join(f'{k}: {v}' for k, v in form.errors.items())
+        messages.error(self.request, f'Неверно заполнена форма. {errors}')
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Редактирование склада магазина'
+        return context
+
+
 @require_POST
 @login_required()
 def stock_settings_batch_delete(request):

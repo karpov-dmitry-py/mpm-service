@@ -4,7 +4,6 @@ from . import views
 from .helpers.api import API
 
 api_full_path = API.get_api_full_path()
-
 urlpatterns = [
 
     # store
@@ -88,6 +87,8 @@ urlpatterns = [
     # warehouse stores
     path('stores/<int:store_pk>/warehouses/', views.StoreWarehouseListView.as_view(), name='store-warehouses-list'),
     path('stores/<int:store_pk>/warehouses/add', views.StoreWarehouseCreateView.as_view(), name='store-warehouses-add'),
+    path('stores/warehouses/<int:pk>/detail/', views.StoreWarehouseDetailView.as_view(), name='store-warehouses-detail'),
+    path('stores/warehouses/<int:pk>/update/', views.StoreWarehouseUpdateView.as_view(), name='store-warehouses-update'),
 
     # API
     # help page
@@ -104,3 +105,4 @@ urlpatterns = [
     # stock
     path(f'{api_full_path}/stock/', views.api_update_stock, name='api-update-stock'),
 ]
+
