@@ -1568,7 +1568,7 @@ class StockListView(LoginRequiredMixin, ListView):
     def _get_queryset_by_user(self):
         if self._full_qs is None:
             # stock = StockManager().get_user_stock(self.request.user)
-            stock = StockManager().get_user_stock_goods(self.request.user)
+            stock = StockManager.get_user_stock_goods(self.request.user)
             self._full_qs = stock
         return self._full_qs
 

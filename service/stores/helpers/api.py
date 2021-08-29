@@ -431,6 +431,7 @@ class API:
         }
         return JsonResponse(result)
 
+    # noinspection PyTypeChecker
     def get_category_list_help(self):
         result = {
             'description': 'get user categories list',

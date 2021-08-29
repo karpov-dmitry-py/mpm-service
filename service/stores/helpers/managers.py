@@ -1,6 +1,7 @@
 import json
 import copy
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
 from threading import Thread
 from threading import Lock
@@ -23,7 +24,8 @@ from ..models import StockSetting
 
 
 class StockManager:
-    max_threads = 100
+    goods_slice_size = 1000
+    goods_slice_handlers = 20
     setting_not_used_text = 'не применяется'
 
     def __init__(self):
@@ -38,7 +40,6 @@ class StockManager:
         return wh.id, wh.name, wh.kind.name
 
     def _get_stock_by_good(self, rows, good_id, result_items):
-        # with self._lock:
         good_rows = []
         for row in rows:
             if row.good_id == good_id:
@@ -57,10 +58,6 @@ class StockManager:
                         or stocks[row.warehouse]['date_updated'] < row.date_updated:
                     stocks[row.warehouse]['date_updated'] = row.date_updated
 
-        # stocks = good_rows.values('warehouse') \
-        #     .annotate(total_amount=Sum('amount')) \
-        #     .annotate(max_date_updated=Max('date_updated')).filter(total_amount__gt=0)
-
         _stocks = []
         total_amount = 0
         for wh, stock_data in stocks.items():
@@ -77,12 +74,10 @@ class StockManager:
             }
             _stocks.append(_dict)
 
-        # total_amount = _sum_list_of_dicts_by_key(_stocks, 'total_amount')
         if total_amount == 0:
             return
         # noinspection PyUnboundLocalVariable
         good_result = {
-            # 'good': good_rows[0].good,
             'good': good,
             'total_amount': total_amount,
             'stocks': _stocks,
@@ -90,23 +85,21 @@ class StockManager:
         with self._lock:
             result_items.append(good_result)
 
-    def _get_stock_by_good_db(self, rows, good_id, result_items):
-        # with self._lock:
-        good_rows = rows.filter(good_id=good_id)
+    def _get_stock_by_good_db(self, qs, good_id, stocks):
+        good_rows = qs.filter(good_id=good_id)
         good = good_rows[0].good
-        stocks = good_rows.values('warehouse') \
+        _stocks = good_rows.values('warehouse') \
             .annotate(total_amount=Sum('amount')) \
             .annotate(max_date_updated=Max('date_updated'))
-        # .annotate(max_date_updated=Max('date_updated')).filter(total_amount__gt=0)
-        stocks = list(stocks)
-        total_amount = _sum_list_of_dicts_by_key(stocks, 'total_amount')
+        _stocks = list(_stocks)
+        total_amount = _sum_list_of_dicts_by_key(_stocks, 'total_amount')
         good_result = {
             'good': good,
             'total_amount': total_amount,
-            'stocks': stocks,
+            'stocks': _stocks,
         }
         with self._lock:
-            result_items.append(good_result)
+            stocks.append(good_result)
 
     def _collect_stocks_by_good_id(self, _id, rows, _dict):
         for row in rows:
@@ -125,7 +118,6 @@ class StockManager:
             _stocks = rows.values('warehouse') \
                 .annotate(total_amount=Sum('amount')) \
                 .annotate(max_date_updated=Max('date_updated'))
-            # .annotate(max_date_updated=Max('date_updated')).filter(total_amount__gt=0)
 
             _stocks = list(_stocks)
             good = rows[0].good
@@ -133,12 +125,31 @@ class StockManager:
                 'good': good,
                 'stocks': _stocks,
                 'total_amount': _sum_list_of_dicts_by_key(_stocks, 'total_amount')
-                # 'total_amount': sum([_dict['total_amount'] for _dict in _stocks]),
             })
         return stocks
 
+    @time_tracker('get_stocks_loop_read_db_skus')
+    def get_stocks_loop_read_db_skus(self, qs, _ids, stocks, index):
+        ids_count = len(_ids)
+        for i, _id in enumerate(_ids, start=1):
+            _log(f'[worker {index}] computing stock for good {i} of {ids_count} ...')
+            rows = qs.filter(good_id=_id)
+            _stocks = rows.values('warehouse') \
+                .annotate(total_amount=Sum('amount')) \
+                .annotate(max_date_updated=Max('date_updated'))
+
+            _stocks = list(_stocks)
+            good = rows[0].good
+            with self._lock:
+                stocks.append({
+                    'good': good,
+                    'stocks': _stocks,
+                    'total_amount': _sum_list_of_dicts_by_key(_stocks, 'total_amount')
+                })
+
     # noinspection PyTypeChecker
-    def get_user_stock_goods(self, user):
+    @staticmethod
+    def get_user_stock_goods(user):
         rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
         good_ids = rows.values_list('good', flat=True).distinct()
         good_rows = _get_user_qs(Good, user).filter(pk__in=good_ids)
@@ -155,11 +166,12 @@ class StockManager:
         _log(f'total stock rows count: {rows.count()}')
         good_ids = rows.values_list('good', flat=True).distinct()
 
-        # loop read db
-        items = StockManager.get_stocks_loop_read_db(rows, good_ids)
+        # read db sequentially
+        # items = StockManager.get_stocks_loop_read_db(rows, good_ids)
 
-        # OR threading read db
+        # OR read db in threads
         # items = self.get_user_stock_threading_read_db(rows, good_ids)
+        items = self.get_user_stock_double_threading_read_db(rows, good_ids)
 
         return items
 
@@ -174,11 +186,11 @@ class StockManager:
             if not len(good_ids):
                 break
 
-            chunk = good_ids[:self.max_threads]
+            chunk = good_ids[:self.goods_slice_size]
             if not len(chunk):
                 break
 
-            good_ids = good_ids[self.max_threads:]
+            good_ids = good_ids[self.goods_slice_size:]
             threads = []
 
             for good_id in chunk:
@@ -190,6 +202,34 @@ class StockManager:
                 thread.join()
 
         return items
+
+    @time_tracker('_get_stock_by_sku_slice')
+    def _get_stock_by_sku_slice(self, qs, _ids, stocks, index):
+        ids_count = len(_ids)
+        with ThreadPoolExecutor(max_workers=min(self.goods_slice_size, self.goods_slice_handlers)) as executor:
+            for i, good_id in enumerate(_ids, start=1):
+                _log(f'worker {index} computing stock for good {i} of {ids_count} ...')
+                executor.submit(self._get_stock_by_good_db, qs=qs, good_id=good_id, stocks=stocks)
+
+    @time_tracker('get_user_stock_double_threading_read_db')
+    def get_user_stock_double_threading_read_db(self, rows, good_ids):
+        stocks = []
+        slices = []
+        while len(good_ids):
+            _slice = good_ids[:self.goods_slice_size]
+            if not len(_slice):
+                break
+            slices.append(_slice)
+            good_ids = good_ids[self.goods_slice_size:]
+
+        slices_count = len(slices)
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            for i, _ids in enumerate(slices, start=1):
+                _log(f'processing sku slice {i} of {slices_count} ...')
+                executor.submit(self._get_stock_by_sku_slice, qs=rows, _ids=_ids, stocks=stocks, index=i)
+                # executor.submit(self.get_stocks_loop_read_db_skus, qs=rows, _ids=_ids, stocks=stocks, index=i)
+
+        return stocks
 
     @time_tracker('get_user_stock')
     def get_user_stock_sync(self, user):
@@ -800,7 +840,6 @@ def get_stock_include_types():
     return items
 
 
-@time_tracker('get_user_qs')
 def _get_user_qs(model, user):
     qs = model.objects.filter(user=user)
     return qs
