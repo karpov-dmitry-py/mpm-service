@@ -299,26 +299,6 @@ class System(models.Model):
         ordering = ['id']
 
 
-class StockSetting(models.Model):
-    name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
-    priority = models.PositiveIntegerField(verbose_name='Порядок', blank=False, null=False,
-                                           validators=[MinValueValidator(1), ])
-    content = models.TextField(verbose_name='Условия', blank=True, null=False)
-    description = models.TextField(verbose_name='Описание', max_length=1000, null=True, blank=True)
-    store = models.ForeignKey(Store, verbose_name='Магазин', on_delete=CASCADE, related_name='store',
-                              blank=True, null=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт')
-
-    def __str__(self):
-        return f'({self.store.name}) {self.name}'
-
-    class Meta:
-        db_table = 'stock_settings'
-        verbose_name = 'Настройка остатков товаров'
-        verbose_name_plural = 'Настройки остатков товаров'
-        ordering = ['priority']
-
-
 class StoreWarehouse(models.Model):
     name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
     code = models.CharField(verbose_name='Код в маркетплейсе', max_length=100, blank=False, null=False)
@@ -335,3 +315,26 @@ class StoreWarehouse(models.Model):
         verbose_name = 'Склад магазина'
         verbose_name_plural = 'Склады магазинов'
         ordering = ['id']
+
+
+class StockSetting(models.Model):
+    name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
+    priority = models.PositiveIntegerField(verbose_name='Порядок', blank=False, null=False,
+                                           validators=[MinValueValidator(1), ])
+    content = models.TextField(verbose_name='Условия', blank=True, null=False)
+    description = models.TextField(verbose_name='Описание', max_length=1000, null=True, blank=True)
+    warehouse = models.ForeignKey(StoreWarehouse, verbose_name='Склад магазина', on_delete=CASCADE,
+                                  related_name='stock_settings', blank=True, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт')
+
+    def __str__(self):
+        if self.warehouse:
+            return f'({self.warehouse.name}) {self.name}'
+        else:
+            return self.name
+
+    class Meta:
+        db_table = 'stock_settings'
+        verbose_name = 'Настройка остатков товаров'
+        verbose_name_plural = 'Настройки остатков товаров'
+        ordering = ['priority']

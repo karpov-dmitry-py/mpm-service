@@ -78,8 +78,8 @@ urlpatterns = [
     path('systems/<int:pk>/delete/', views.SystemDeleteView.as_view(), name='systems-delete'),
 
     # stock settings
-    path('settings/stock/store/<int:store_pk>/', views.StockSettingListView.as_view(), name='stock-settings-list'),
-    path('settings/stock/store/<int:store_pk>/add/', views.StockSettingCreateView.as_view(), name='stock-settings-add'),
+    path('settings/stock/warehouse/<int:wh_pk>/list/', views.StockSettingListView.as_view(), name='stock-settings-list'),
+    path('settings/stock/warehouse/<int:wh_pk>/add/', views.StockSettingCreateView.as_view(), name='stock-settings-add'),
     path('settings/stock/<int:pk>/update/', views.StockSettingUpdateView.as_view(), name='stock-settings-update'),
     path('settings/stock/<int:pk>/delete/', views.StockSettingDeleteView.as_view(), name='stock-settings-delete'),
     path('settings/stock/batch-delete/', views.stock_settings_batch_delete, name='stock-settings-batch-delete'),

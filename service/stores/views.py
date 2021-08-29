@@ -427,6 +427,19 @@ def get_store_by_id(store_id, user):
     return store, None
 
 
+def get_store_warehouse_by_id(wh_id, user):
+    err_msg = f'неверный id склада магазина: {wh_id}'
+    if not isinstance(wh_id, int):
+        return None, err_msg
+    # noinspection PyUnresolvedReferences
+    rows = StoreWarehouse.objects.filter(user=user).filter(id=wh_id)
+    if not len(rows):
+        return None, err_msg
+
+    wh = rows[0]
+    return wh, None
+
+
 # noinspection PyUnresolvedReferences
 def get_store_stock_settings(store):
     if store is None:
@@ -1757,42 +1770,41 @@ class StockSettingListView(LoginRequiredMixin, ListView):
     model = StockSetting
     context_object_name = 'items'
     ordering = ['id']
-    _store = None
+    _wh = None
 
     def get(self, *args, **kwargs):
         redirect_to = redirect('stores-list')
-        store_id = kwargs.get('store_pk')
-        store, err = get_store_by_id(store_id, self.request.user)
+        wh_id = kwargs.get('wh_pk')
+        wh, err = get_store_warehouse_by_id(wh_id, self.request.user)
 
         if err:
             messages.error(self.request, err)
             return redirect_to
 
-        self._store = store
+        self._wh = wh
         return super().get(*args, **kwargs)
 
     def get_queryset(self):
         # noinspection PyUnresolvedReferences
-        qs = self.model.objects.filter(user=self.request.user).filter(store=self._store).order_by('priority')
+        qs = self.model.objects.filter(user=self.request.user).filter(warehouse=self._wh).order_by('priority')
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['items_count'] = len(context['items'])
         # noinspection PyTypeChecker,PyTypeChecker
-        context['title'] = f'{_get_model_list_title(self.model)} - {self._store.name}'
-        context['store_name'] = self._store.name
-        context['store_id'] = self._store.id
+        context['title'] = f'{_get_model_list_title(self.model)} - {self._wh.name}'
+        context['wh'] = self._wh
         context['batch_delete_form'] = DeleteSelectedStockSettingsForm()
 
         # stocks
         qs = context[self.context_object_name]
         user = self.request.user
-        if qs.count():
-            stocks = StockManager().get_user_stock(user)
-            calculated_stock = StockManager.calculate_stock_by_store_settings(qs, stocks)
-            context['calculated_stock_by_settings'] = calculated_stock['settings']
-            context['calculated_stock_by_conditions'] = calculated_stock['conditions']
+        # if qs.count():
+        #     stocks = StockManager().get_user_stock(user)
+        #     calculated_stock = StockManager.calculate_stock_by_store_settings(qs, stocks)
+        #     context['calculated_stock_by_settings'] = calculated_stock['settings']
+        #     context['calculated_stock_by_conditions'] = calculated_stock['conditions']
 
         context['setting_not_used_text'] = StockManager.get_setting_not_used_text()
         return context

@@ -25,7 +25,7 @@ from ..models import StockSetting
 
 class StockManager:
     goods_slice_size = 1000
-    goods_slice_handlers = 20
+    goods_slice_handlers = 30
     setting_not_used_text = 'не применяется'
 
     def __init__(self):
