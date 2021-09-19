@@ -13,7 +13,6 @@
             <th>Маркетплейс</th>
             <th>Схема работы</th>
             <th>Статус</th>
-            <th>Настройки</th>
             <th>Склады магазина</th>
             <th style="text-align: center">Действия</th>
         </tr>
@@ -28,20 +27,6 @@
             <td>{{ item.marketplace }}</td>
             <td>{{ item.store_type }}</td>
             <td>{{ item.status }}</td>
-
-            <!-- settings -->
-            <td>
-                {% if item.is_active %}
-                    <dl>
-                        <dd class="mb-2">
-                            <a href="{% url 'stock-settings-list' item.id %}">Остатки</a>
-                        </dd>
-                        <dd>
-                            <span class="text-muted">Цены</span>
-                        </dd>
-                    </dl>
-                {% endif %}
-            </td>
 
             <td>
                 {% if item.store_warehouses.all %}

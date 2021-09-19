@@ -15,7 +15,7 @@
             {% csrf_token %}
             <fieldset class="form-group">
                 <legend class="border-bottom mb-4 mt-2">
-                    Создание настройки - <a href="{% url 'stock-settings-list' store_id %}">{{ store_name }}</a>
+                    Создание настройки остатков - <a href="{% url 'store-warehouses-detail' wh.id %}">{{ wh.name }}</a>
                 </legend>
                 {{ form|crispy }}
 

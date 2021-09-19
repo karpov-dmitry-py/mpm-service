@@ -6,10 +6,10 @@
 <link rel="stylesheet" href="{% static 'stores/css/list_stock_settings.css' %}">
 <link rel="stylesheet" href="{% static 'stores/css/common.css' %}">
 <div class="container-fluid" style="width: 100%;">
-<a class="btn btn btn-success mb-3" style="margin-top: 1rem;" href="{% url 'stock-settings-add' store_id %}">Создать настройку</a>
+<a class="btn btn btn-success mb-3" style="margin-top: 1rem;" href="{% url 'stock-settings-add' wh.id %}">Создать настройку</a>
 <legend class="border-bottom mb-4">
-    Настройки остатков - <a href="{% url 'stores-detail' store_id %}">
-                            {{ store_name }}</a> (всего {{ items_count }}):
+    Настройки остатков склада магазина - <a href="{% url 'store-warehouses-detail' wh.id %}">
+                            {{ wh.name }}</a> (всего {{ items_count }}):
 </legend>
 
 <!--delete selected settings form-->

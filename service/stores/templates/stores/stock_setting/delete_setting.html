@@ -6,11 +6,14 @@
             <fieldset class="form-group">
                 <legend class="border-bottom mb-4">Удаление настройки остатков</legend>
                 <div>Вы действительно хотите УДАЛИТЬ настройку остатков
-                    <strong>"{{ object.name }}"</strong> магазина <a href="{% url 'stores-detail' object.store.id %}">{{ object.store.name }}</a>?
+                    <strong>"{{ object.name }}"</strong> склада магазина
+                    <a href="{% url 'store-warehouses-detail' object.warehouse.id %}">
+                        {{ object.warehouse.name }}
+                    </a>?
                 </div>
             </fieldset>
             <div class="form-group">
-                <a class="btn btn-success" href="{% url 'stock-settings-list' object.store.id %}">Отмена</a>
+                <a class="btn btn-success" href="{% url 'store-warehouses-detail' object.warehouse.id %}">Отмена</a>
                 <button class="btn btn-danger" type="submit">
                     Да, УДАЛИТЬ настройку остатков "{{ object.name }}"!
                 </button>

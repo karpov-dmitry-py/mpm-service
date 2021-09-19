@@ -1,6 +1,7 @@
 {% extends 'users/base.html' %}
 {% load static %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'stores/css/common.css' %}">
 <div class="container-fluid" style="width: 70%;">
     <legend class="border-bottom mb-4">Просмотр магазина</legend>
     <h5 class="border-bottom mb-3">Основные данные</h5>
@@ -38,18 +39,9 @@
         {% else %}
         -
         {% endif %}
-        <dl><a href="{% url 'store-warehouses-list' item.id %}">Все склады магазина</a></dl>
-
-    <!-- settings -->
-    {% if is_active %}
-        <h5 class="border-bottom mb-3">Настройки остатков и цен для выгрузки в маркетплейс</h5>
-        <dl>
-            <dd class="mb-1">
-                <a href="{% url 'stock-settings-list' item.id %}">Остатки</a>
-            </dd>
-            <dd class="mb-4"><span class="text-muted">Цены</span></dd>
-        </dl>
-    {% endif %}
+        <h5 class="smaller-header mb-4">
+            <a href="{% url 'store-warehouses-list' item.id %}">Все склады магазина</a>
+        </h5>
 
     <h5 class="border-bottom mb-3 mt-3">Настройки интеграции c маркетплейсом {{ marketplace }}</h5>
     {% if props %}

@@ -97,13 +97,16 @@ urlpatterns = [
 
     # warehouse
     path(f'{api_full_path}/warehouses/', views.api_warehouse_list, name='api-warehouses-list'),
-    path(f'{api_full_path}/warehouses/help/', views.api_warehouse_list_help, name='api-warehouses-list-help'),
+    # path(f'{api_full_path}/warehouses/help/', views.api_warehouse_list_help, name='api-warehouses-list-help'),
 
     # category
     path(f'{api_full_path}/categories/', views.api_category_list, name='api-categories-list'),
-    path(f'{api_full_path}/categories/help/', views.api_category_list_help, name='api-categories-list-help'),
+    # path(f'{api_full_path}/categories/help/', views.api_category_list_help, name='api-categories-list-help'),
 
     # stock
     path(f'{api_full_path}/stock/', views.api_update_stock, name='api-update-stock'),
+
+    # yandex
+    path(f'{views.get_stocks_by_store_api_url()}', views.api_yandex_update_stock, name='api-yandex-update-stock'),
 ]
 

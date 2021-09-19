@@ -17,6 +17,7 @@
         <th>ID</th>
         <th>Наименование</th>
         <th>Код склада в маркетплейсе</th>
+        <th>Настройки</th>
         <th>Описание</th>
         <th style="text-align: right; padding-right: 4rem;">Действия</th>
     </tr>
@@ -28,7 +29,12 @@
                     <td>{{ item.id }}</td>
                     <td><a href="{% url 'store-warehouses-detail' item.id %}">{{ item.name }}</a></td>
                     <td>{{ item.code }}</td>
-                    <td>{{ item.description | truncatechars:40 }}</td>
+                    <td>
+                        <dd class="mb-0 mt-0"><a href="{% url 'stock-settings-list' item.id %}">Остатки</a></dd>
+                        <dd class="text-muted mb-0 mt-0">Цены</dd>
+                    </td>
+
+                    <td>{{ item.description | truncatechars:60 }}</td>
 
                     <td style="text-align: right; padding-right: 0.1rem;">
                         <a class="btn btn-primary" href="{% url 'store-warehouses-update' item.id %}">Изменить</a>

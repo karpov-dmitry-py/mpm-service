@@ -21,6 +21,7 @@ from ..models import Warehouse
 from ..models import Good
 from ..models import Stock
 from ..models import StockSetting
+from ..models import StoreWarehouse
 
 
 class StockManager:
@@ -506,48 +507,54 @@ class StockManager:
             return err
 
     # noinspection PyUnusedLocal,PyTypeChecker
-    @time_tracker('calculate_stock_by_all_stores')
-    def calculate_stock_by_stores(self, user, skus):
+    @time_tracker('calculate_stock_for_skus')
+    def calculate_stock_for_skus(self, user, skus, store_wh_id=None):
         result = dict()
-        stores = _get_user_qs(Store, user).order_by('id')
-        if not stores:
+        whs = _get_user_qs(StoreWarehouse, user).order_by('id')
+        if store_wh_id:
+            whs.filter(id=store_wh_id)
+
+        if not whs:
             return result
+        whs_count = whs.count()
 
         stocks = self.get_user_stock(user, skus)
         if not stocks:
             return result
 
         result = defaultdict(list)
-        threads = []
-
-        # TEST
-        # stores = stores[:1]
-
-        for store in stores:
-            _stocks = stocks if len(stores) == 1 else copy.deepcopy(stocks)
-            thread = Thread(target=self.calculate_stock_by_store, args=(store, user, _stocks, result))
-            thread.start()
-            threads.append(thread)
-
-        for thread in threads:
-            thread.join()
+        with ThreadPoolExecutor(max_workers=whs_count) as executor:
+            for i, wh in enumerate(whs, start=1):
+                _log(f'applying stock settings for store warehouse {i} of {whs_count} ...')
+                _stocks = stocks if whs_count == 1 else copy.deepcopy(stocks)
+                executor.submit(self.calculate_stock_by_store_warehouse,
+                                wh=wh, stocks=_stocks, result=result)
 
         result = dict(result)
+
+        # aggregate result by store
+        for sku, stock in result.items():
+            store_stock = defaultdict(list)
+            for row in stock:
+                store_stock[row['wh'].store].append(row)
+            store_stock = dict(store_stock)
+            result[sku] = store_stock
+
         return result
 
     # noinspection PyTypeChecker
-    @time_tracker('calculate_stock_by_store')
-    def calculate_stock_by_store(self, store, user, stocks, result):
-        settings = _get_user_qs(StockSetting, user).filter(store=store)
+    @time_tracker('calculate_stock_by_store_warehouse')
+    def calculate_stock_by_store_warehouse(self, wh, stocks, result):
+        settings = wh.stock_settings.all()
 
-        # use all available if store has no settings
-        if not settings.count():
+        # use full current stock if store warehouse has no stock settings
+        if not settings:
             for _dict in stocks:
                 with self._lock:
-                    result[_dict['good'].sku].append({'store': store, 'amount': _dict['total_amount']})
+                    result[_dict['good'].sku].append({'wh': wh, 'amount': _dict['total_amount']})
             return
 
-        stock = self.calculate_stock_by_store_settings(settings, stocks, get_detailed_stocks=True)
+        stock = self.calculate_stock_settings(settings, stocks, get_detailed_stocks=True)
         stocks_by_goods = stock['details']
         if stocks_by_goods:
             with self._lock:
@@ -556,8 +563,8 @@ class StockManager:
 
     # noinspection PyTypeChecker
     @staticmethod
-    @time_tracker('calculate_stock_by_store_settings')
-    def calculate_stock_by_store_settings(settings, stocks, get_detailed_stocks=False):
+    @time_tracker('calculate_stock_settings')
+    def calculate_stock_settings(settings, stocks, get_detailed_stocks=False):
         not_used_text = StockManager.get_setting_not_used_text()
         result = {
             'settings': dict(),
@@ -580,10 +587,10 @@ class StockManager:
             result['conditions'][setting.id] = stocks_by_conditions
 
         if get_detailed_stocks and len(stocks):
-            store = settings[0].store
+            wh = settings[0].warehouse
             stocks_by_good = defaultdict(list)
             for k, v in stocks.items():
-                stocks_by_good[k].append({'store': store, 'amount': v['total_amount']})
+                stocks_by_good[k].append({'wh': wh, 'amount': v['total_amount']})
             result['details'] = dict(stocks_by_good)
 
         return result

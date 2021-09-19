@@ -11,12 +11,32 @@ from ..models import GoodsBrand
 from ..models import Good
 from ..models import System
 from ..models import Stock
+from ..models import StoreWarehouse
+from ..models import Store
 
 from .common import new_uuid
 from .common import to_float
 from .common import _exc
 from .common import _err
 from .common import _log
+
+
+# utils
+def _parse_json(src):
+    try:
+        return json.loads(src), None
+    except (json.JSONDecodeError, Exception) as err:
+        err_msg = f'failed to parse payload as json. {_exc(err)}'
+        _err(err_msg)
+        return None, err_msg
+
+
+def _handle_invalid_request(reason):
+    data = {
+        'invalid_request': True,
+        'reason': reason,
+    }
+    return JsonResponse(data=data, status=400)
 
 
 # class for api handling
@@ -351,15 +371,6 @@ class API:
         uid = new_uuid()
         return uid[:self._get_random_int(25, len(uid))]
 
-    @staticmethod
-    def _parse_json(src):
-        try:
-            return json.loads(src), None
-        except (json.JSONDecodeError, Exception) as err:
-            err_msg = f'failed to parse payload as json. {_exc(err)}'
-            _err(err_msg)
-            return None, err_msg
-
     # warehouse
     def get_warehouse_list(self, request):
         user, err = self._get_system_request_user(request)
@@ -479,7 +490,7 @@ class API:
             return err
 
         # validate payload
-        payload, err = self._parse_json(request.body)
+        payload, err = _parse_json(request.body)
         if err:
             return self._system_request_err(err)['response']
 
@@ -821,3 +832,75 @@ class API:
             'success': True,
         }
         return stats
+
+
+class YandexApi:
+
+    def update_stock(self, request, store_pk):
+        payload, err = _parse_json(request.body)
+        if err:
+            return _handle_invalid_request(err)
+
+        # todo - check 'Authorization' header  against store's 'store_api_auth_token' attr
+
+        wh, err = self._get_wh_from_stock_update_request(payload, store_pk)
+        if err:
+            return _handle_invalid_request(err)
+
+        data = {
+            'status': 'ok',
+            'status_code': 200,
+            'store_pk': store_pk,
+            'wh': wh.name,
+            'user': wh.user.email,
+        }
+        response = JsonResponse(data=data)
+        return response
+
+    # noinspection PyUnresolvedReferences
+    @staticmethod
+    def _get_wh_from_stock_update_request(payload, store_pk):
+        """
+        store id and payload validation
+        """
+        qs = Store.objects.filter(id=store_pk)
+        if not qs:
+            return None, f'no store with id "{store_pk}" found in database'
+        store = qs[0]
+
+        # check wh id
+        wh_id_attrs = ('warehouseId', 'partnerWarehouseId',)
+        if not any(attr in payload for attr in wh_id_attrs):
+            return None, 'no warehouse id found in payload'
+
+        if all(not payload[attr] for attr in wh_id_attrs):
+            return None, 'no valid warehouse id found in payload'
+
+        # get wh id
+        wh_id = payload[wh_id_attrs[0]] or payload[wh_id_attrs[1]]
+
+        # check whether wh id is in db
+        qs = StoreWarehouse.objects.filter(code=str(wh_id))
+        if not qs:
+            return None, f'no warehouse with id "{wh_id}" found in database'
+
+        wh = qs[0]
+        if wh.store != store:
+            return None, f'no warehouse with id "{wh_id}" found for store with id "{store_pk}" in database'
+
+        # check skus list
+        skus = 'skus'
+        if skus not in payload:
+            return None, f'no "{skus}" list found in payload'
+
+        skus_vals = payload.get(skus)
+        if type(skus_vals) not in (list, tuple):
+            return None, f'invalid type of "{skus}" found in payload, must be iterable'
+
+        if not skus_vals:
+            return None, f'empty "{skus}" list found in payload'
+
+        if all(not item for item in skus_vals):
+            return None, f'all of skus are empty in "{skus}" in payload'
+
+        return wh, None

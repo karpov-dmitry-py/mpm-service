@@ -59,6 +59,7 @@ from .helpers.common import get_supplier_error
 
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
+from .helpers.api import YandexApi
 from .helpers.managers import StockManager
 from .helpers.managers import get_stock_condition_types
 from .helpers.managers import get_stock_condition_fields
@@ -407,6 +408,10 @@ def _get_store_api_url(store_id):
     return f'{BASE_URL}/{API.get_api_full_path()}/stores/{store_id}'
 
 
+def get_stocks_by_store_api_url():
+    return f'{API.get_api_full_path()}/stores/<int:store_pk>/stocks'
+
+
 def is_active_store(store):
     return store.status.name.lower() == ACTIVE_STORE_STATUS
 
@@ -441,15 +446,15 @@ def get_store_warehouse_by_id(wh_id, user):
 
 
 # noinspection PyUnresolvedReferences
-def get_store_stock_settings(store):
-    if store is None:
+def get_store_warehouse_stock_settings(warehouse):
+    if warehouse is None:
         return
-    rows = StockSetting.objects.filter(user=store.user).filter(store=store)
+    rows = StockSetting.objects.filter(user=warehouse.user).filter(warehouse=warehouse)
     return rows
 
 
-def is_stock_settings_priority_used(priority, store, skip_setting_id=None):
-    rows = get_store_stock_settings(store=store)
+def is_stock_settings_priority_used(priority, wh, skip_setting_id=None):
+    rows = get_store_warehouse_stock_settings(warehouse=wh)
     if skip_setting_id:
         is_used = any(row.priority == priority for row in rows if row.id != skip_setting_id)
     else:
@@ -499,12 +504,13 @@ def add_store(request):
                 store_api_url = _get_store_api_url(store_id)
                 form_data[attr_name] = store_api_url
 
+            # save store props
+            store = form.instance
             for attr_name, value in form_data.items():
                 if attr_name in unwanted_fields:
                     continue
                 # noinspection PyUnresolvedReferences
                 _property = MarketplaceProperty.objects.filter(name=attr_name).filter(marketplace=marketplace)[0]
-                store = form.instance
                 store_prop_instance = StoreProperty(
                     store=store,
                     property=_property,
@@ -535,7 +541,7 @@ def add_store(request):
         context = {
             'form': form,
             'props': dict(props),
-            'title': 'Добавление магазина'
+            'title': 'Создание магазина'
         }
         return render(request, 'stores/store/add_store.html', context=context)
 
@@ -1066,7 +1072,7 @@ class GoodListView(LoginRequiredMixin, ListView):
         _qs = context[self.context_object_name]
         if _qs.count():
             skus = [good.sku for good in _qs]
-            stocks = StockManager().calculate_stock_by_stores(user, skus)
+            stocks = StockManager().calculate_stock_for_skus(user, skus)
             context['stocks'] = stocks
 
         return context
@@ -1800,11 +1806,11 @@ class StockSettingListView(LoginRequiredMixin, ListView):
         # stocks
         qs = context[self.context_object_name]
         user = self.request.user
-        # if qs.count():
-        #     stocks = StockManager().get_user_stock(user)
-        #     calculated_stock = StockManager.calculate_stock_by_store_settings(qs, stocks)
-        #     context['calculated_stock_by_settings'] = calculated_stock['settings']
-        #     context['calculated_stock_by_conditions'] = calculated_stock['conditions']
+        if qs.count():
+            stocks = StockManager().get_user_stock(user)
+            calculated_stock = StockManager.calculate_stock_settings(qs, stocks)
+            context['calculated_stock_by_settings'] = calculated_stock['settings']
+            context['calculated_stock_by_conditions'] = calculated_stock['conditions']
 
         context['setting_not_used_text'] = StockManager.get_setting_not_used_text()
         return context
@@ -1814,38 +1820,37 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
     model = StockSetting
     form_class = CreateStockSettingForm
     template_name = 'stores/stock_setting/add_setting.html'
-    _store = None
+    _wh = None
 
     def get(self, *args, **kwargs):
         if not hasattr(self, 'request'):
             return
 
         redirect_to = redirect('stores-list')
-        store_id = kwargs.get('store_pk')
-        store, err = get_store_by_id(store_id, self.request.user)
+        wh_id = kwargs.get('wh_pk')
+        wh, err = get_store_warehouse_by_id(wh_id, self.request.user)
 
         if err:
             messages.error(self.request, err)
             return redirect_to
 
-        self._store = store
+        self._wh = wh
         return super().get(*args, **kwargs)
 
     def get_success_url(self):
         messages.success(self.request, f'Настройка "{self.object.name}" успешно создана')
-        # return reverse_lazy('stock-settings-list', kwargs={'store_pk': self._store.id})
-        return reverse_lazy('stores-list')
+        return reverse_lazy('store-warehouses-detail', kwargs={'pk': self.object.warehouse.id})
 
     def form_valid(self, form):
         user = self.request.user
-        store_id = self.kwargs.get('store_pk')
+        wh_id = self.kwargs.get('wh_pk')
 
         # validation
-        store, err = get_store_by_id(store_id, user)
+        wh, err = get_store_warehouse_by_id(wh_id, user)
         if err:
-            form.errors['Указан неверный id магазина'] = err
+            form.errors['Указан неверный id склада магазина'] = err
             return self.form_invalid(form)
-        self._store = store
+        self._wh = wh
 
         form_is_valid = True
         priority = form.cleaned_data['priority']
@@ -1861,15 +1866,15 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
             form.errors['Неверный порядок'] = f'Разрешены значения не меньше {min_val}'
             form_is_valid = False
 
-        if is_stock_settings_priority_used(priority, store):
+        if is_stock_settings_priority_used(priority, wh):
             form.errors['Не уникальный порядок'] = f'Найдена другая настройка с порядком {priority} ' \
-                                                   f'для магазина {self._store.name}'
+                                                   f'для склада магазина {self._wh.name}'
             form_is_valid = False
 
         if not form_is_valid:
             return self.form_invalid(form)
 
-        form.instance.store = self._store
+        form.instance.warehouse = self._wh
         form.instance.user = user
 
         return super().form_valid(form)
@@ -1890,10 +1895,9 @@ class StockSettingCreateView(LoginRequiredMixin, CreateView):
         context['cats'] = _get_cats_tree(self.request.user)
         context['warehouses'] = get_warehouses_by_user(self.request.user)
 
-        if self._store:
-            context['title'] = f'{context["title"]} - {self._store.name}'
-            context['store_name'] = self._store.name
-            context['store_id'] = self._store.id
+        if self._wh:
+            context['title'] = f'{context["title"]} - {self._wh.name}'
+            context['wh'] = self._wh
         return context
 
 
@@ -1901,7 +1905,6 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
     model = StockSetting
     form_class = CreateStockSettingForm
     template_name = 'stores/stock_setting/update_setting.html'
-    _store = None
 
     def test_func(self):
         obj = self.get_object()
@@ -1909,11 +1912,10 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
 
     def get_success_url(self):
         messages.success(self.request, f'Изменения успешно сохранены')
-        # return reverse_lazy('stock-settings-list', kwargs={'store_pk': self.object.store.id})
-        return reverse_lazy('stores-list')
+        return reverse_lazy('store-warehouses-detail', kwargs={'pk': self.object.warehouse.id})
 
     def form_valid(self, form):
-        self._store = self.object.store
+        wh = self.object.warehouse
 
         # validation
         form_is_valid = True
@@ -1930,9 +1932,9 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
             form.errors['Неверный порядок'] = f'Разрешены значения не меньше {min_val}'
             form_is_valid = False
 
-        if is_stock_settings_priority_used(priority, self._store, form.instance.id):
+        if is_stock_settings_priority_used(priority, wh, form.instance.id):
             form.errors['Не уникальный порядок'] = f'Найдена другая настройка с порядком {priority} ' \
-                                                   f'для магазина {self._store.name}'
+                                                   f'для склада магазина {wh.name}'
             form_is_valid = False
 
         if not form_is_valid:
@@ -1946,7 +1948,7 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
         return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
-        self._store = self.object.store
+
         context = super().get_context_data(**kwargs)
         context['title'] = f'Редактирование настройки остатков'
 
@@ -1957,10 +1959,10 @@ class StockSettingUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
         context['cats'] = _get_cats_tree(self.request.user)
         context['warehouses'] = get_warehouses_by_user(self.request.user)
 
-        if self._store:
-            context['title'] = f'{context["title"]} - {self._store.name}'
-            context['store_name'] = self._store.name
-            context['store_id'] = self._store.id
+        wh = self.object.warehouse
+        if wh:
+            context['wh'] = wh
+            context['title'] = f'{context["title"]} - {wh.name}'
         return context
 
 
@@ -1969,7 +1971,7 @@ class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
     template_name = 'stores/stock_setting/delete_setting.html'
 
     def get_success_url(self):
-        return reverse_lazy('stock-settings-list', kwargs={'store_pk': self.object.store.id})
+        return reverse_lazy('store-warehouses-detail', kwargs={'pk': self.object.warehouse.id})
 
     def test_func(self):
         obj = self.get_object()
@@ -1979,10 +1981,10 @@ class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
         context = super().get_context_data(**kwargs)
         context['title'] = f'Удаление настройки остатков'
 
-        store = self.object.store
-        context['title'] = f'{context["title"]} - {store.name}'
-        context['store_name'] = store.name
-        context['store_id'] = store.id
+        wh = self.object.warehouse
+        if wh:
+            context['wh'] = wh
+            context['title'] = f'{context["title"]} - {wh.name}'
         return context
 
 
@@ -2291,3 +2293,9 @@ def api_category_list_help(request):
 @require_POST
 def api_update_stock(request):
     return API().update_stock(request)
+
+
+@csrf_exempt
+@require_POST
+def api_yandex_update_stock(request, store_pk):
+    return YandexApi().update_stock(request, store_pk)
