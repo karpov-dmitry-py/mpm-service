@@ -1,3 +1,4 @@
+import datetime
 import logging
 import sys
 import re
@@ -95,6 +96,7 @@ def to_float(val):
         _err(err_msg)
         return None
 
+
 @contextmanager
 def time_tracker(action):
     start = time.time()
@@ -102,8 +104,8 @@ def time_tracker(action):
         yield
     finally:
         end = time.time()
-        duration = end-start
-        _log(f'{action} took {duration}')
+        duration = end - start
+        _log(f'{action} took {duration} seconds.')
 
 if __name__ == '__main__':
     email = 'sales@company.com'

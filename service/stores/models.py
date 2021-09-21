@@ -10,11 +10,11 @@ from django.utils import timezone
 from .helpers.common import new_uuid
 
 
-def _now():
+def now():
     if settings.USE_TZ:
         tz = timezone.get_default_timezone()
-        now = datetime.now(tz=tz)
-        return now
+        _now = datetime.now(tz=tz)
+        return _now
     else:
         return datetime.now()
 
@@ -162,10 +162,10 @@ class Good(models.Model):
         return result
 
     def save(self, *args, **kwargs):
-        now = _now()
+        _now = now()
         if not self.pk:
-            self.date_created = now
-        self.date_updated = now
+            self.date_created = _now
+        self.date_updated = _now
         return super().save(*args, **kwargs)
 
     class Meta:
@@ -267,7 +267,7 @@ class Stock(models.Model):
         return f'({self.warehouse.name})/{self.good.name}: {self.amount}'
 
     def save(self, *args, **kwargs):
-        self.date_updated = _now()
+        self.date_updated = now()
         return super().save(*args, **kwargs)
 
     class Meta:
@@ -338,3 +338,33 @@ class StockSetting(models.Model):
         verbose_name = 'Настройка остатков товаров'
         verbose_name_plural = 'Настройки остатков товаров'
         ordering = ['priority']
+
+
+class Log(models.Model):
+    end_date = models.DateTimeField(verbose_name='Дата выполнения', blank=True)
+    warehouse = models.ForeignKey(StoreWarehouse, verbose_name='Склад магазина', on_delete=CASCADE,
+                                  related_name='logs', blank=True, null=True)
+    success = models.BooleanField(default=True, verbose_name='Успех', blank=True)
+    duration = models.FloatField(verbose_name='Длительность, сек.', null=True, blank=True)
+    error = models.CharField(verbose_name='Описание ошибки', max_length=5000, null=True, blank=True)
+    request = models.TextField(verbose_name='Запрос', null=True, blank=True)
+    response = models.TextField(verbose_name='Ответ', null=True, blank=True)
+    response_status = models.IntegerField(default=200, verbose_name='HTTP-код ответа', blank=True)
+    comment = models.TextField(verbose_name='Комментарий', null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт')
+
+    def __str__(self):
+        return f'({self.end_date}) склад магазина: {self.warehouse.name if self.warehouse else ""}, ' \
+               f'{"успех" if self.success else "ошибка"}, код ответа: {self.response_status}'
+
+    def save(self, *args, **kwargs):
+        _now = now()
+        if not self.pk:
+            self.end_date = _now
+        return super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'logs'
+        verbose_name = 'Лог обмена'
+        verbose_name_plural = 'Логи обмена'
+        ordering = ['-end_date']

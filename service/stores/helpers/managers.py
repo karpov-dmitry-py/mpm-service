@@ -12,15 +12,13 @@ from django.db.models import Max
 from .common import _log
 from .common import _exc
 from .common import _err
-from .common import time_tracker
+# from .common import time_tracker
 
-from ..models import Store
 from ..models import GoodsCategory
 from ..models import GoodsBrand
 from ..models import Warehouse
 from ..models import Good
 from ..models import Stock
-from ..models import StockSetting
 from ..models import StoreWarehouse
 
 
@@ -109,7 +107,6 @@ class StockManager:
                     _dict[_id].append(row)
 
     @staticmethod
-    @time_tracker('get_stocks_loop_read_db')
     def get_stocks_loop_read_db(qs, _ids):
         ids_count = len(_ids)
         stocks = []
@@ -129,7 +126,7 @@ class StockManager:
             })
         return stocks
 
-    @time_tracker('get_stocks_loop_read_db_skus')
+
     def get_stocks_loop_read_db_skus(self, qs, _ids, stocks, index):
         ids_count = len(_ids)
         for i, _id in enumerate(_ids, start=1):
@@ -157,7 +154,6 @@ class StockManager:
         return good_rows
 
     # noinspection PyTypeChecker
-    @time_tracker('get_user_stock')
     def get_user_stock(self, user, skus=None):
         if skus:
             rows = _get_user_qs(Stock, user).filter(good__sku__in=skus).filter(amount__gt=0).order_by('good')
@@ -176,7 +172,6 @@ class StockManager:
 
         return items
 
-    @time_tracker('get_user_stock_threading_read_db')
     def get_user_stock_threading_read_db(self, rows, good_ids):
         items = []
         iteration = 0
@@ -204,7 +199,6 @@ class StockManager:
 
         return items
 
-    @time_tracker('_get_stock_by_sku_slice')
     def _get_stock_by_sku_slice(self, qs, _ids, stocks, index):
         ids_count = len(_ids)
         with ThreadPoolExecutor(max_workers=min(self.goods_slice_size, self.goods_slice_handlers)) as executor:
@@ -212,7 +206,6 @@ class StockManager:
                 _log(f'worker {index} computing stock for good {i} of {ids_count} ...')
                 executor.submit(self._get_stock_by_good_db, qs=qs, good_id=good_id, stocks=stocks)
 
-    @time_tracker('get_user_stock_double_threading_read_db')
     def get_user_stock_double_threading_read_db(self, rows, good_ids):
         stocks = []
         slices = []
@@ -232,7 +225,6 @@ class StockManager:
 
         return stocks
 
-    @time_tracker('get_user_stock')
     def get_user_stock_sync(self, user):
         # noinspection PyUnresolvedReferences,PyTypeChecker
         whs = _get_user_qs(Warehouse, user)
@@ -270,7 +262,6 @@ class StockManager:
         return items
 
     @staticmethod
-    @time_tracker('get_user_stock_dict')  # old
     def get_user_stock_dict(user):
         # noinspection PyUnresolvedReferences,PyTypeChecker
         whs = _get_user_qs(Warehouse, user)
@@ -507,12 +498,11 @@ class StockManager:
             return err
 
     # noinspection PyUnusedLocal,PyTypeChecker
-    @time_tracker('calculate_stock_for_skus')
-    def calculate_stock_for_skus(self, user, skus, store_wh_id=None):
+    def calculate_stock_for_skus(self, user, skus, store_wh_id=None, aggregate_by_store=True):
         result = dict()
         whs = _get_user_qs(StoreWarehouse, user).order_by('id')
         if store_wh_id:
-            whs.filter(id=store_wh_id)
+            whs = whs.filter(id=store_wh_id)
 
         if not whs:
             return result
@@ -533,17 +523,17 @@ class StockManager:
         result = dict(result)
 
         # aggregate result by store
-        for sku, stock in result.items():
-            store_stock = defaultdict(list)
-            for row in stock:
-                store_stock[row['wh'].store].append(row)
-            store_stock = dict(store_stock)
-            result[sku] = store_stock
+        if aggregate_by_store:
+            for sku, stock in result.items():
+                store_stock = defaultdict(list)
+                for row in stock:
+                    store_stock[row['wh'].store].append(row)
+                store_stock = dict(store_stock)
+                result[sku] = store_stock
 
         return result
 
     # noinspection PyTypeChecker
-    @time_tracker('calculate_stock_by_store_warehouse')
     def calculate_stock_by_store_warehouse(self, wh, stocks, result):
         settings = wh.stock_settings.all()
 
@@ -563,7 +553,6 @@ class StockManager:
 
     # noinspection PyTypeChecker
     @staticmethod
-    @time_tracker('calculate_stock_settings')
     def calculate_stock_settings(settings, stocks, get_detailed_stocks=False):
         not_used_text = StockManager.get_setting_not_used_text()
         result = {

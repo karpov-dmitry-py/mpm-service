@@ -1,24 +1,28 @@
-import random
 import json
+import random
+import time
 from collections import defaultdict
 from typing import Dict, Any
 
 from django.http import JsonResponse
 
-from ..models import Warehouse
-from ..models import GoodsCategory
-from ..models import GoodsBrand
-from ..models import Good
-from ..models import System
-from ..models import Stock
-from ..models import StoreWarehouse
-from ..models import Store
-
-from .common import new_uuid
-from .common import to_float
-from .common import _exc
 from .common import _err
+from .common import _exc
 from .common import _log
+from .common import new_uuid
+from .common import time_tracker
+from .common import to_float
+from .managers import StockManager
+from ..models import Good
+from ..models import GoodsBrand
+from ..models import GoodsCategory
+from ..models import Log
+from ..models import Stock
+from ..models import Store
+from ..models import StoreWarehouse
+from ..models import System
+from ..models import Warehouse
+from ..models import now
 
 
 # utils
@@ -835,8 +839,15 @@ class API:
 
 
 class YandexApi:
+    stock_type = 'FIT'
 
+    def __init__(self):
+        pass
+
+    @time_tracker('yandex_update_stock')
     def update_stock(self, request, store_pk):
+        start_time = time.time()
+
         payload, err = _parse_json(request.body)
         if err:
             return _handle_invalid_request(err)
@@ -847,14 +858,44 @@ class YandexApi:
         if err:
             return _handle_invalid_request(err)
 
-        data = {
-            'status': 'ok',
-            'status_code': 200,
-            'store_pk': store_pk,
-            'wh': wh.name,
-            'user': wh.user.email,
+        wh_code = wh.code
+        skus = payload.get('skus')
+        stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
+        stock = {sku: stocks[sku][0]['amount'] if sku in stocks else 0 for sku in skus}
+
+        skus_stock = []
+        _now = now()
+        for sku in skus:
+            row = {
+                'sku': sku,
+                'warehouseId': wh_code,
+                'items': [
+                    {
+                        'type': self.stock_type,
+                        'count': stock.get(sku, 0),
+                        'updatedAt': _now,
+                    },
+                ],
+            }
+            skus_stock.append(row)
+
+        result = {
+            'skus': skus_stock,
         }
-        response = JsonResponse(data=data)
+        response = JsonResponse(
+            data=result,
+            safe=False,
+            json_dumps_params={
+                'indent': 4,
+                'ensure_ascii': False,
+            })
+
+        add_log(
+            warehouse=wh,
+            duration=(time.time() - start_time),
+            request=request.body.decode(),
+            response=response.content.decode(encoding='utf-8')
+        )
         return response
 
     # noinspection PyUnresolvedReferences
@@ -873,11 +914,11 @@ class YandexApi:
         if not any(attr in payload for attr in wh_id_attrs):
             return None, 'no warehouse id found in payload'
 
-        if all(not payload[attr] for attr in wh_id_attrs):
+        if all(not payload.get(attr) for attr in wh_id_attrs):
             return None, 'no valid warehouse id found in payload'
 
         # get wh id
-        wh_id = payload[wh_id_attrs[0]] or payload[wh_id_attrs[1]]
+        wh_id = payload.get(wh_id_attrs[0]) or payload.get(wh_id_attrs[1])
 
         # check whether wh id is in db
         qs = StoreWarehouse.objects.filter(code=str(wh_id))
@@ -904,3 +945,30 @@ class YandexApi:
             return None, f'all of skus are empty in "{skus}" in payload'
 
         return wh, None
+
+
+def add_log(
+        warehouse,
+        duration,
+        request,
+        response,
+        success=True,
+        response_status=200,
+        error=None,
+        comment=None
+):
+    try:
+        log = Log(
+            warehouse=warehouse,
+            duration=duration,
+            request=request,
+            response=response,
+            response_status=response_status,
+            success=success,
+            error=error,
+            comment=comment,
+            user=warehouse.user,
+        )
+        log.save()
+    except (OSError, Exception) as err:
+        _err(f'failed to save log to db {_exc(err)}')
