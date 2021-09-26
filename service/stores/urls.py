@@ -93,6 +93,8 @@ urlpatterns = [
 
     # logs
     path('logs/', views.LogListView.as_view(), name='logs-list'),
+    path('logs/<int:pk>/detail/', views.LogDetailView.as_view(), name='logs-detail'),
+
 
     # API
     # help page

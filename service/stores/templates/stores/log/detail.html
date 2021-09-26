@@ -1,0 +1,72 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid mb-5" style="width: 70%;">
+    <legend class="border-bottom mb-4">Просмотр лога обмена с маркетплейсами </legend>
+    <dl class="row">
+        <dt class="col-sm-3">ID</dt>
+        <dd class="col-sm-9 mb-3">{{ item.id }}</dd>
+
+        <dt class="col-sm-3">Дата и время завершения</dt>
+        <dd class="col-sm-9 mb-3">{{ item.end_date|date:"d.m.Y H:i:s (e)" }}</dd>
+
+        <dt class="col-sm-3">Успешно</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.success %}
+                <span style="font-size: 0.9rem;">&#9989;</span>
+            {% else %} - {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">Маркетплейс</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.marketplace %}
+                {{ item.marketplace.name }}
+            {% else %} - {% endif%}
+        </dd>
+
+        <dt class="col-sm-3">Магазин</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.store %}
+                <a href="{% url 'stores-detail' item.store.id %}">
+                    {{ item.store.name }}
+                </a>
+            {% else %} - {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">Склад магазина</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.warehouse %}
+                <a href="{% url 'store-warehouses-detail' item.warehouse.id %}">
+                    {{ item.warehouse.name }}
+                </a>
+            {% else %} - {% endif%}
+        </dd>
+
+        <dt class="col-sm-3">Запрос</dt>
+        <dd class="col-sm-9 mb-3"><pre class="pre-scrollable text-secondary">{{ item.request}}</pre></dd>
+
+        <dt class="col-sm-3">HTTP-код ответа</dt>
+        <dd class="col-sm-9 mb-3">{{ item.response_status }}</dd>
+
+        <dt class="col-sm-3">Ответ</dt>
+        <dd class="col-sm-9 mb-3"><pre class="pre-scrollable text-secondary">{{ item.response}}</pre></dd>
+
+        <dt class="col-sm-3">Описание ошибки</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.error %}
+                <span class="text-info">{{ item.error }}</span>
+            {% else %} - {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">Комментарий</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.comment %}
+                <span>{{ item.comment }}</span>
+            {% else %} - {% endif %}
+        </dd>
+
+    </dl>
+    <a href="#" class="disabled btn btn-secondary">Выгрузить в файл</a>
+</div>
+{% endblock content %}
+

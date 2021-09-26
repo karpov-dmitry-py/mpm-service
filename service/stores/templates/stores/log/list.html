@@ -59,7 +59,11 @@
             {% for item in items %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
-                    <td>{{ item.id }}</td>
+                    <td>
+                        <a href="{% url 'logs-detail' item.id %}">
+                            {{ item.id }}
+                        </a>
+                    </td>
                     <td>
                         {% if item.marketplace %}
                             {{ item.marketplace.name }}
@@ -70,7 +74,7 @@
                             <a href="{% url 'stores-detail' item.store.id %}">
                                 {{ item.store.name }}
                             </a>
-                        {% else %} - {% endif%}
+                        {% else %} - {% endif %}
                     </td>
                     <td>
                         {% if item.warehouse %}
@@ -100,7 +104,16 @@
                             </span>
                         {% else %} - {% endif %}
                     </td>
-                    <td><span class="text-muted">Выгрузить в файл</span></td>
+                    <td>
+                        <div>
+                            <a href="{% url 'logs-detail' item.id %}">
+                                Детальнее
+                            </a>
+                        </div>
+                        <div>
+                            <span class="text-muted">Выгрузить в файл</span>
+                        </div>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>

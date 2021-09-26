@@ -2196,6 +2196,23 @@ class LogListView(LoginRequiredMixin, ListView):
         return context
 
 
+class LogDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = Log
+    # fields = ['id', 'name', 'code', 'token', 'description', ]
+    fields = ['__all__']
+    context_object_name = 'item'
+    template_name = 'stores/log/detail.html'
+
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Просмотр лога обмена'
+        return context
+
+
 @require_POST
 @login_required()
 def stock_settings_batch_delete(request):

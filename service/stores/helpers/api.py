@@ -95,6 +95,7 @@ def _get_marketplace_by_name(name):
         return
     return rows[0]
 
+
 # class for api handling
 class API:
     api_ver = '1'
@@ -890,6 +891,7 @@ class API:
         return stats
 
 
+# class for communication with yandex market via api
 class YandexApi:
     stock_type = 'FIT'
     auth_header = 'Authorization'
@@ -947,7 +949,7 @@ class YandexApi:
             return response
 
         # parse warehouse
-        wh, err = self._get_wh_from_stock_update_request(payload, store)
+        wh, yandex_wh_id, err = self._get_wh_from_stock_update_request(payload, store)
         if err:
             resp_payload, response = _handle_invalid_request(err)
             log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
@@ -955,21 +957,21 @@ class YandexApi:
             return response
 
         log['warehouse'] = wh
-        wh_code = wh.code
         skus = payload.get('skus')
         stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
-        stock = {sku: stocks[sku][0]['amount'] if sku in stocks else 0 for sku in skus}
+        # stock = {sku: stocks[sku][0]['amount'] if sku in stocks else 0 for sku in skus}
 
         skus_stock = []
         _now = now()
         for sku in skus:
             row = {
                 'sku': sku,
-                'warehouseId': wh_code,
+                'warehouseId': yandex_wh_id,
                 'items': [
                     {
                         'type': self.stock_type,
-                        'count': stock.get(sku, 0),
+                        # 'count': stock.get(sku, 0),
+                        'count': stocks[sku][0]['amount'] if sku in stocks else 0,
                         'updatedAt': _now,
                     },
                 ],
@@ -1010,38 +1012,42 @@ class YandexApi:
         payload validation
         """
         # check wh id
-        wh_id_attrs = ('partnerWarehouseId',)
+        wh_id_attrs = ('partnerWarehouseId', 'warehouseId',)
         if not any(attr in payload for attr in wh_id_attrs):
-            return None, 'no warehouse id found in payload'
+            return None, None, 'no warehouse id found in payload'
 
         if all(not payload.get(attr) for attr in wh_id_attrs):
-            return None, 'no valid warehouse id found in payload'
+            return None, None, 'no valid warehouse id found in payload'
 
         # get wh id
         wh_id = payload.get(wh_id_attrs[0])
+        yandex_wh_id = payload.get(wh_id_attrs[1])
+
+        if yandex_wh_id is None:
+            return None, None, 'no valid yandex native warehouse id found in payload'
 
         # check whether wh id is in db
         qs = StoreWarehouse.objects.filter(code=str(wh_id))
         if not qs:
-            return None, f'no warehouse with id "{wh_id}" found in database'
+            return None, None, f'no warehouse with id "{wh_id}" found in database'
 
         wh = qs[0]
         if wh.store != store:
-            return None, f'no warehouse with id "{wh_id}" found for store with id "{store_pk}" in database'
+            return None, None, f'no warehouse with id "{wh_id}" found for store with id "{store_pk}" in database'
 
         # check skus list
         skus = 'skus'
         if skus not in payload:
-            return None, f'no "{skus}" list found in payload'
+            return None, None, f'no "{skus}" list found in payload'
 
         skus_vals = payload.get(skus)
         if type(skus_vals) not in (list, tuple):
-            return None, f'invalid type of "{skus}" found in payload, must be iterable'
+            return None, None, f'invalid type of "{skus}" found in payload, must be iterable'
 
         if not skus_vals:
-            return None, f'empty "{skus}" list found in payload'
+            return None, None, f'empty "{skus}" list found in payload'
 
         if all(not item for item in skus_vals):
-            return None, f'all of skus are empty in "{skus}" in payload'
+            return None, None, f'all of skus are empty in "{skus}" in payload'
 
-        return wh, None
+        return wh, yandex_wh_id, None
