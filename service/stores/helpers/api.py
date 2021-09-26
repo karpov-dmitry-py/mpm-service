@@ -13,6 +13,7 @@ from .common import new_uuid
 from .common import time_tracker
 from .common import to_float
 from .managers import StockManager
+from ..models import Marketplace
 from ..models import Good
 from ..models import GoodsBrand
 from ..models import GoodsCategory
@@ -48,8 +49,51 @@ def _handle_invalid_request(reason, status=400):
         'invalid_request': True,
         'reason': reason,
     }
-    return JsonResponse(data=data, status=status)
+    response = JsonResponse(
+        data=data,
+        status=status,
+        json_dumps_params={
+            'ensure_ascii': False,
+        })
+    return \
+        _get_response_decoded_body(response), \
+        response
 
+
+def _get_response_decoded_body(response):
+    return response.content.decode(encoding='utf-8')
+
+
+def _add_log(_dict):
+    ok_statuses = (200, 201, 204, 301, 302,)
+    try:
+        marketplace = _dict.get('marketplace')
+        status = _dict.get('response_status', 200)
+        log = Log(
+            marketplace=marketplace,
+            store=_dict.get('store'),
+            warehouse=_dict.get('warehouse'),
+            duration=time.time() - _dict.get('start_time', time.time()),
+            request=_dict.get('request'),
+            response=_dict.get('response'),
+            response_status=status,
+            success=_dict.get('success', status in ok_statuses),
+            error=_dict.get('error'),
+            comment=_dict.get('comment'),
+            user=_dict.get('user')
+        )
+        log.save()
+        _log(f'saved a log row to db for marketplace {marketplace}.')
+    except (OSError, Exception) as err:
+        _err(f'failed to save a log to db: {_exc(err)}')
+
+
+# noinspection PyUnresolvedReferences
+def _get_marketplace_by_name(name):
+    rows = Marketplace.objects.filter(name__icontains=name).order_by('id')
+    if not rows:
+        return
+    return rows[0]
 
 # class for api handling
 class API:
@@ -848,30 +892,69 @@ class API:
 
 class YandexApi:
     stock_type = 'FIT'
+    auth_header = 'Authorization'
+    marketplace_name = 'yandex'
 
     def __init__(self):
         pass
 
+    # noinspection PyUnresolvedReferences
     @time_tracker('yandex_update_stock')
     def update_stock(self, request, store_pk):
-        start_time = time.time()
+        status_code = 400
+        log = {
+            'start_time': time.time(),
+            'request': request.body.decode(),
+            'marketplace': _get_marketplace_by_name(self.marketplace_name),
+        }
+        qs = Store.objects.filter(id=store_pk)
+        if not qs:
+            err = f'no store with id "{store_pk}" found in database'
+            resp_payload, response = _handle_invalid_request(err)
+            log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
+            _add_log(log)
+            return response
 
-        auth_header_val, err = _parse_header(request, 'Authorization')
+        store = qs[0]
+        log['store'] = store
+
+        user = store.user
+        log['user'] = user
+
+        # parse auth header
+        auth_header_val, err = _parse_header(request, self.auth_header)
         if err:
-            return _handle_invalid_request(err, 403)
+            status_code = 403
+            resp_payload, response = _handle_invalid_request(err, status_code)
+            log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
+            _add_log(log)
+            return response
+
+        # validate auth header
+        err = self._validate_auth_header_val(store, auth_header_val)
+        if err:
+            status_code = 403
+            resp_payload, response = _handle_invalid_request(err, status_code)
+            log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
+            _add_log(log)
+            return response
 
         payload, err = _parse_json(request.body)
         if err:
-            return _handle_invalid_request(err)
+            resp_payload, response = _handle_invalid_request(err)
+            log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
+            _add_log(log)
+            return response
 
-        wh, err = self._get_wh_from_stock_update_request(payload, store_pk)
+        # parse warehouse
+        wh, err = self._get_wh_from_stock_update_request(payload, store)
         if err:
-            return _handle_invalid_request(err)
+            resp_payload, response = _handle_invalid_request(err)
+            log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
+            _add_log(log)
+            return response
 
-        err = self._validate_auth_header_val(wh.store, auth_header_val)
-        if err:
-            return _handle_invalid_request(err, 403)
-
+        log['warehouse'] = wh
         wh_code = wh.code
         skus = payload.get('skus')
         stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
@@ -903,17 +986,12 @@ class YandexApi:
                 'indent': 4,
                 'ensure_ascii': False,
             })
+        log['response'] = _get_response_decoded_body(response)
+        _add_log(log)
 
-        add_log(
-            warehouse=wh,
-            duration=(time.time() - start_time),
-            request=request.body.decode(),
-            response=response.content.decode(encoding='utf-8')
-        )
         return response
 
-    @staticmethod
-    def _validate_auth_header_val(store, header_val):
+    def _validate_auth_header_val(self, store, header_val):
         prop_name = 'store_api_auth_token'
         prop_val = store.get_prop(prop_name=prop_name)
 
@@ -922,19 +1000,15 @@ class YandexApi:
             return None
 
         if prop_val.lower().strip() != header_val.lower().strip():
-            return f'Authorization header value "{header_val}" does not match store with id "{store.id}"'
+            return f'"{self.auth_header}" header has value "{header_val}" that does not match store ' \
+                   f'with id "{store.id}"'
 
     # noinspection PyUnresolvedReferences
     @staticmethod
-    def _get_wh_from_stock_update_request(payload, store_pk):
+    def _get_wh_from_stock_update_request(payload, store):
         """
-        store id and payload validation
+        payload validation
         """
-        qs = Store.objects.filter(id=store_pk)
-        if not qs:
-            return None, f'no store with id "{store_pk}" found in database'
-        store = qs[0]
-
         # check wh id
         wh_id_attrs = ('partnerWarehouseId',)
         if not any(attr in payload for attr in wh_id_attrs):
@@ -971,30 +1045,3 @@ class YandexApi:
             return None, f'all of skus are empty in "{skus}" in payload'
 
         return wh, None
-
-
-def add_log(
-        warehouse,
-        duration,
-        request,
-        response,
-        success=True,
-        response_status=200,
-        error=None,
-        comment=None
-):
-    try:
-        log = Log(
-            warehouse=warehouse,
-            duration=duration,
-            request=request,
-            response=response,
-            response_status=response_status,
-            success=success,
-            error=error,
-            comment=comment,
-            user=warehouse.user,
-        )
-        log.save()
-    except (OSError, Exception) as err:
-        _err(f'failed to save log to db {_exc(err)}')

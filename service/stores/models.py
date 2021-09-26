@@ -349,20 +349,25 @@ class StockSetting(models.Model):
 
 class Log(models.Model):
     end_date = models.DateTimeField(verbose_name='Дата выполнения', blank=True)
+    marketplace = models.ForeignKey(Marketplace, verbose_name='Маркетплейс', on_delete=CASCADE,
+                                    related_name='logs', blank=True, null=True)
+    store = models.ForeignKey(Store, verbose_name='Магазин', on_delete=CASCADE,
+                              related_name='logs', blank=True, null=True)
     warehouse = models.ForeignKey(StoreWarehouse, verbose_name='Склад магазина', on_delete=CASCADE,
                                   related_name='logs', blank=True, null=True)
     success = models.BooleanField(default=True, verbose_name='Успех', blank=True)
     duration = models.FloatField(verbose_name='Длительность, сек.', null=True, blank=True)
-    error = models.CharField(verbose_name='Описание ошибки', max_length=5000, null=True, blank=True)
     request = models.TextField(verbose_name='Запрос', null=True, blank=True)
     response = models.TextField(verbose_name='Ответ', null=True, blank=True)
     response_status = models.IntegerField(default=200, verbose_name='HTTP-код ответа', blank=True)
+    error = models.CharField(verbose_name='Описание ошибки', max_length=5000, null=True, blank=True)
     comment = models.TextField(verbose_name='Комментарий', null=True, blank=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт', blank=True, null=True)
 
     def __str__(self):
         date_format = '%Y-%m-%dT%H:%M:%S %Z'
-        return f'({self.end_date.strftime(date_format)}) склад магазина: {self.warehouse.name if self.warehouse else ""}, ' \
+        return f'({self.end_date.strftime(date_format)}) склад магазина: ' \
+               f'{self.warehouse.name if self.warehouse else ""}, ' \
                f'{"успех" if self.success else "ошибка"}, код ответа: {self.response_status}'
 
     def save(self, *args, **kwargs):

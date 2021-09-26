@@ -40,6 +40,7 @@ from .models import Stock
 from .models import System
 from .models import StockSetting
 from .models import StoreWarehouse
+from .models import Log
 
 # noinspection PyProtectedMember
 from .helpers.common import _exc
@@ -394,9 +395,9 @@ def _special_attrs():
     return _dict
 
 
-def _get_pages_list(page_obj):
+def _get_pages_list(page_obj, frequency=10):
     return [page_num for page_num in range(1, page_obj.paginator.num_pages + 1)
-            if page_num == 1 or not page_num % 10 or page_num == page_obj.paginator.num_pages]
+            if page_num == 1 or not page_num % frequency or page_num == page_obj.paginator.num_pages]
 
 
 def _get_model_list_title(model):
@@ -2169,6 +2170,29 @@ class StoreWarehouseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteVi
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Удаление склада магазина'
+        return context
+
+
+# LOG
+class LogListView(LoginRequiredMixin, ListView):
+    template_name = 'stores/log/list.html'
+    model = Log
+    context_object_name = 'items'
+    _qs = None
+    paginate_by = 10
+
+    # noinspection PyUnresolvedReferences
+    def get_queryset(self):
+        if self._qs is None:
+            self._qs = self.model.objects.filter(user=self.request.user)
+        return self._qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['items_count'] = self._qs.count()
+        context['pages'] = _get_pages_list(context['page_obj'], frequency=1)
+        # noinspection PyTypeChecker,PyTypeChecker
+        context['title'] = _get_model_list_title(self.model)
         return context
 
 

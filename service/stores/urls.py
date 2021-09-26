@@ -91,6 +91,9 @@ urlpatterns = [
     path('stores/warehouses/<int:pk>/update/', views.StoreWarehouseUpdateView.as_view(), name='store-warehouses-update'),
     path('stores/warehouses/<int:pk>/delete/', views.StoreWarehouseDeleteView.as_view(), name='store-warehouses-delete'),
 
+    # logs
+    path('logs/', views.LogListView.as_view(), name='logs-list'),
+
     # API
     # help page
     path(f'{api_full_path}/help/', views.api_help, name='api-help'),

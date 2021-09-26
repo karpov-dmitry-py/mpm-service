@@ -1,0 +1,144 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'stores/css/common.css' %}">
+<div class="container-fluid" style="width: 100%;">
+<legend class="border-bottom mb-4 mt-2" >Логи обмена с маркетплейсами (остатки/цены) (всего {{ items_count }}):</legend>
+
+<!--pagination {    -->
+<nav aria-label="detailed pagination">
+    <ul class="pagination pagination-sm justify-content-center flex-wrap mb-4">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Предыдущая</a>
+        </li>
+        {% endif %}
+        {% for page_num in pages %}
+        <li class="page-item">
+            {% if page_num == page_obj.number %}
+            <a style="background-color: #87CEEB;" class="page-link" href="?page={{ page_num }}">
+                <span style="color: white"><strong>{{ page_num }}</strong></span>
+                {% else %}
+                <a class="page-link" href="?page={{ page_num }}">
+                    {{ page_num }}
+                    {% endif %}
+                </a>
+        </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a></li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Следующая</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+<!--pagination }    -->
+
+<table class="table table-hover smaller">
+    <thead class="thead-dark">
+    <tr>
+        <th>№</th>
+        <th>ID</th>
+        <th>Маркетплейс</th>
+        <th>Магазин</th>
+        <th>Склад магазина</th>
+        <th>Дата и время завершения</th>
+        <th>Успешно</th>
+        <th>HTTP-код ответа</th>
+        <th>Описание ошибки</th>
+        <th>Комментарий</th>
+        <th>Действия</th>
+    </tr>
+    </thead>
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.id }}</td>
+                    <td>
+                        {% if item.marketplace %}
+                            {{ item.marketplace.name }}
+                        {% else %} - {% endif%}
+                    </td>
+                    <td>
+                        {% if item.store %}
+                            <a href="{% url 'stores-detail' item.store.id %}">
+                                {{ item.store.name }}
+                            </a>
+                        {% else %} - {% endif%}
+                    </td>
+                    <td>
+                        {% if item.warehouse %}
+                            <a href="{% url 'store-warehouses-detail' item.warehouse.id %}">
+                                {{ item.warehouse.name }}
+                            </a>
+                        {% else %} - {% endif%}
+                    </td>
+                    <td>{{ item.end_date|date:"d.m.Y H:i:s (e)" }}</td>
+                    <td>
+                        {% if item.success %}
+                            <span style="font-size: 0.9rem;">&#9989;</span>
+                        {% else %} - {% endif %}
+                    </td>
+                    <td>{{ item.response_status }}</td>
+                    <td>
+                        {% if item.error %}
+                            <span title="{{ item.error }}">
+                                {{ item.error|truncatechars:50 }}
+                            </span>
+                        {% else %} - {% endif %}
+                    </td>
+                    <td>
+                        {% if item.comment %}
+                            <span title="{{ item.comment }}">
+                                {{ item.comment|truncatechars:50 }}
+                            </span>
+                        {% else %} - {% endif %}
+                    </td>
+                    <td><span class="text-muted">Выгрузить в файл</span></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+</table>
+
+<!--pagination {    -->
+<nav aria-label="detailed pagination">
+    <ul class="pagination pagination-sm justify-content-center flex-wrap mb-4">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Предыдущая</a>
+        </li>
+        {% endif %}
+        {% for page_num in pages %}
+        <li class="page-item">
+            {% if page_num == page_obj.number %}
+            <a style="background-color: #87CEEB;" class="page-link" href="?page={{ page_num }}">
+                <span style="color: white"><strong>{{ page_num }}</strong></span>
+                {% else %}
+                <a class="page-link" href="?page={{ page_num }}">
+                    {{ page_num }}
+                    {% endif %}
+                </a>
+        </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a></li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Следующая</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+<!--pagination }    -->
+
+</div>
+{% endblock content %}
