@@ -71,6 +71,13 @@ class Store(models.Model):
         # noinspection PyUnresolvedReferences
         return f'{self.marketplace} -> {self.name}'
 
+    # noinspection PyUnresolvedReferences
+    def get_prop(self, prop_name):
+        rows = StoreProperty.objects.filter(store=self).filter(property__name=prop_name)
+        if not rows:
+            return
+        return rows[0].value
+
     class Meta:
         db_table = 'stores'
         verbose_name = 'Магазин'
@@ -354,7 +361,8 @@ class Log(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт')
 
     def __str__(self):
-        return f'({self.end_date}) склад магазина: {self.warehouse.name if self.warehouse else ""}, ' \
+        date_format = '%Y-%m-%dT%H:%M:%S %Z'
+        return f'({self.end_date.strftime(date_format)}) склад магазина: {self.warehouse.name if self.warehouse else ""}, ' \
                f'{"успех" if self.success else "ошибка"}, код ответа: {self.response_status}'
 
     def save(self, *args, **kwargs):

@@ -35,12 +35,20 @@ def _parse_json(src):
         return None, err_msg
 
 
-def _handle_invalid_request(reason):
+def _parse_header(request, header):
+    full_header = f'HTTP_{header.upper()}'
+    val = request.META.get(full_header)
+    if val is None or val == '':
+        return None, f'"{header}" header not found or is empty in request'
+    return val, None
+
+
+def _handle_invalid_request(reason, status=400):
     data = {
         'invalid_request': True,
         'reason': reason,
     }
-    return JsonResponse(data=data, status=400)
+    return JsonResponse(data=data, status=status)
 
 
 # class for api handling
@@ -848,15 +856,21 @@ class YandexApi:
     def update_stock(self, request, store_pk):
         start_time = time.time()
 
+        auth_header_val, err = _parse_header(request, 'Authorization')
+        if err:
+            return _handle_invalid_request(err, 403)
+
         payload, err = _parse_json(request.body)
         if err:
             return _handle_invalid_request(err)
 
-        # todo - check 'Authorization' header  against store's 'store_api_auth_token' attr
-
         wh, err = self._get_wh_from_stock_update_request(payload, store_pk)
         if err:
             return _handle_invalid_request(err)
+
+        err = self._validate_auth_header_val(wh.store, auth_header_val)
+        if err:
+            return _handle_invalid_request(err, 403)
 
         wh_code = wh.code
         skus = payload.get('skus')
@@ -898,6 +912,18 @@ class YandexApi:
         )
         return response
 
+    @staticmethod
+    def _validate_auth_header_val(store, header_val):
+        prop_name = 'store_api_auth_token'
+        prop_val = store.get_prop(prop_name=prop_name)
+
+        if not prop_val:
+            _log(f'WARNING! store prop "{prop_name}" for store with id "{store.id}" not found in database!')
+            return None
+
+        if prop_val.lower().strip() != header_val.lower().strip():
+            return f'Authorization header value "{header_val}" does not match store with id "{store.id}"'
+
     # noinspection PyUnresolvedReferences
     @staticmethod
     def _get_wh_from_stock_update_request(payload, store_pk):
@@ -910,7 +936,7 @@ class YandexApi:
         store = qs[0]
 
         # check wh id
-        wh_id_attrs = ('warehouseId', 'partnerWarehouseId',)
+        wh_id_attrs = ('partnerWarehouseId',)
         if not any(attr in payload for attr in wh_id_attrs):
             return None, 'no warehouse id found in payload'
 
@@ -918,7 +944,7 @@ class YandexApi:
             return None, 'no valid warehouse id found in payload'
 
         # get wh id
-        wh_id = payload.get(wh_id_attrs[0]) or payload.get(wh_id_attrs[1])
+        wh_id = payload.get(wh_id_attrs[0])
 
         # check whether wh id is in db
         qs = StoreWarehouse.objects.filter(code=str(wh_id))
