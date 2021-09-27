@@ -41,7 +41,8 @@ urlpatterns = [
     path('goods/export/', views.export_goods, name='goods-export'),
     # tmp utils for goods
     path('goods/generate/<int:count>', views.gen_goods, name='goods-generate'),
-    path('goods/drop/', views.drop_goods, name='goods-drop'),
+    path('goods/drop_test_goods/', views.drop_test_goods, name='drop-test-goods'),
+    path('goods/drop_all_goods/', views.drop_all_goods, name='drop-all-goods'),
 
     # internal api
     path('goods/user', views.get_user_goods, name='user-goods'),

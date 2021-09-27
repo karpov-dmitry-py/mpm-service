@@ -10,6 +10,9 @@
         <dt class="col-sm-3">Дата и время завершения</dt>
         <dd class="col-sm-9 mb-3">{{ item.end_date|date:"d.m.Y H:i:s (e)" }}</dd>
 
+        <dt class="col-sm-3">Длительность, сек</dt>
+        <dd class="col-sm-9 mb-3">{{ item.duration|floatformat:4 }}</dd>
+
         <dt class="col-sm-3">Успешно</dt>
         <dd class="col-sm-9 mb-3">
             {% if item.success %}

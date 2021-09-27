@@ -255,7 +255,7 @@ def gen_goods(request, count=100):
 
 
 @login_required()
-def drop_goods(request):
+def drop_test_goods(request):
     deleted_count = 0
     pattern = 'Товар #'
     # noinspection PyUnresolvedReferences
@@ -265,6 +265,41 @@ def drop_goods(request):
             deleted_count += 1
             _log(f'deleted good # {deleted_count}')
     messages.success(request, f'Удалено тестовых товаров: {deleted_count}')
+    return redirect('goods-list')
+
+
+@login_required()
+def drop_all_goods(request):
+
+    stl_email = 'stl@company.com'
+    user = request.user
+    if user.email.strip().lower() == stl_email:
+        messages.error(
+            request,
+            f'Нельзя (да и не нужно) просто так взять и удалить все товары пользователя {stl_email}! ))'
+        )
+        return redirect('goods-list')
+
+    # noinspection PyUnresolvedReferences
+    rows = Good.objects.filter(user=user)
+    rows_count = rows.count()
+
+    if not rows_count:
+        messages.error(request, 'Не найдены товары текущего пользователя')
+        return redirect('goods-list')
+
+    _max = 10000
+    if rows_count > _max:
+        messages.error(request, f'Найдено более {_max} товаров текущего пользователя. Рекомендуется подумать.')
+        return redirect('goods-list')
+
+    deleted_count = 0
+    for row in rows:
+        row.delete()
+        deleted_count += 1
+        _log(f'deleted good # {deleted_count} of {rows_count}')
+
+    messages.success(request, f'Удалено товаров текущего пользователя: {deleted_count} из {rows_count}')
     return redirect('goods-list')
 
 
