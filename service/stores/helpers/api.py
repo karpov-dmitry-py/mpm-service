@@ -12,12 +12,18 @@ from .common import _log
 from .common import new_uuid
 from .common import time_tracker
 from .common import to_float
+
 from .managers import StockManager
+from .managers import _get_user_qs
+
 from ..models import Marketplace
 from ..models import Good
 from ..models import GoodsBrand
 from ..models import GoodsCategory
+
 from ..models import Log
+from ..models import LogRow
+
 from ..models import Stock
 from ..models import Store
 from ..models import StoreWarehouse
@@ -62,30 +68,6 @@ def _handle_invalid_request(reason, status=400):
 
 def _get_response_decoded_body(response):
     return response.content.decode(encoding='utf-8')
-
-
-def _add_log(_dict):
-    ok_statuses = (200, 201, 204, 301, 302,)
-    try:
-        marketplace = _dict.get('marketplace')
-        status = _dict.get('response_status', 200)
-        log = Log(
-            marketplace=marketplace,
-            store=_dict.get('store'),
-            warehouse=_dict.get('warehouse'),
-            duration=time.time() - _dict.get('start_time', time.time()),
-            request=_dict.get('request'),
-            response=_dict.get('response'),
-            response_status=status,
-            success=_dict.get('success', status in ok_statuses),
-            error=_dict.get('error'),
-            comment=_dict.get('comment'),
-            user=_dict.get('user')
-        )
-        log.save()
-        _log(f'saved a log row to db for marketplace {marketplace}.')
-    except (OSError, Exception) as err:
-        _err(f'failed to save a log to db: {_exc(err)}')
 
 
 # noinspection PyUnresolvedReferences
@@ -903,9 +885,11 @@ class YandexApi:
     # noinspection PyUnresolvedReferences
     @time_tracker('yandex_update_stock')
     def update_stock(self, request, store_pk):
+        logger = Logger()
         status_code = 400
+        start_time = time.time()
         log = {
-            'start_time': time.time(),
+            'start_time': start_time,
             'request': request.body.decode(),
             'marketplace': _get_marketplace_by_name(self.marketplace_name),
         }
@@ -914,7 +898,7 @@ class YandexApi:
             err = f'no store with id "{store_pk}" found in database'
             resp_payload, response = _handle_invalid_request(err)
             log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
-            _add_log(log)
+            logger.log(log)
             return response
 
         store = qs[0]
@@ -929,7 +913,7 @@ class YandexApi:
             status_code = 403
             resp_payload, response = _handle_invalid_request(err, status_code)
             log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
-            _add_log(log)
+            logger.log(log)
             return response
 
         # validate auth header
@@ -938,14 +922,14 @@ class YandexApi:
             status_code = 403
             resp_payload, response = _handle_invalid_request(err, status_code)
             log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
-            _add_log(log)
+            logger.log(log)
             return response
 
         payload, err = _parse_json(request.body)
         if err:
             resp_payload, response = _handle_invalid_request(err)
             log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
-            _add_log(log)
+            logger.log(log)
             return response
 
         # parse warehouse
@@ -953,16 +937,17 @@ class YandexApi:
         if err:
             resp_payload, response = _handle_invalid_request(err)
             log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
-            _add_log(log)
+            logger.log(log)
             return response
 
         log['warehouse'] = wh
         skus = payload.get('skus')
         stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
-        # stock = {sku: stocks[sku][0]['amount'] if sku in stocks else 0 for sku in skus}
 
+        stock = {sku: stocks[sku][0]['amount'] if sku in stocks else 0 for sku in skus}  # all skus are in this dict
         skus_stock = []
         _now = now()
+
         for sku in skus:
             row = {
                 'sku': sku,
@@ -970,8 +955,7 @@ class YandexApi:
                 'items': [
                     {
                         'type': self.stock_type,
-                        # 'count': stock.get(sku, 0),
-                        'count': stocks[sku][0]['amount'] if sku in stocks else 0,
+                        'count': stock[sku],
                         'updatedAt': _now,
                     },
                 ],
@@ -981,17 +965,27 @@ class YandexApi:
         result = {
             'skus': skus_stock,
         }
-        response = JsonResponse(
-            data=result,
+        response = self._make_response(data=result)
+        log['response'] = _get_response_decoded_body(response)
+        log, err = logger.log(log)
+        if err:
+            return response  # failed to save log to db, let's return result
+
+        logger.log_rows(log, stock, user)
+        logger.update_log(log, {'start_time': start_time})
+
+        return response
+
+    @staticmethod
+    def _make_response(data, status=200):
+        return JsonResponse(
+            data=data,
             safe=False,
+            status=status,
             json_dumps_params={
                 'indent': 4,
                 'ensure_ascii': False,
             })
-        log['response'] = _get_response_decoded_body(response)
-        _add_log(log)
-
-        return response
 
     def _validate_auth_header_val(self, store, header_val):
         prop_name = 'store_api_auth_token'
@@ -1051,3 +1045,79 @@ class YandexApi:
             return None, None, f'all of skus are empty in "{skus}" in payload'
 
         return wh, yandex_wh_id, None
+
+
+# class for logging stock and price export events to db and also reading data from these logs
+class Logger:
+    ok_statuses = (200, 201, 204, 301, 302,)
+
+    def log(self, _dict):
+        try:
+            marketplace = _dict.get('marketplace')
+            status = _dict.get('response_status', 200)
+            log = Log(
+                marketplace=marketplace,
+                store=_dict.get('store'),
+                warehouse=_dict.get('warehouse'),
+                duration=time.time() - _dict.get('start_time', time.time()),
+                request=_dict.get('request'),
+                response=_dict.get('response'),
+                response_status=status,
+                success=_dict.get('success', status in self.ok_statuses),
+                error=_dict.get('error'),
+                comment=_dict.get('comment'),
+                user=_dict.get('user')
+            )
+            log.save()
+            _log(f'saved a log row to db for marketplace {marketplace}.')
+            return log, None
+        except (OSError, Exception) as err:
+            err_msg = f'failed to save a log to db: {_exc(err)}'
+            _err(err_msg)
+            return None, err_msg
+
+    @staticmethod
+    def update_log(log, _dict):
+        try:
+            for k, v in _dict.items():
+                key = k
+                val = v
+                if k == 'start_time':
+                    key = 'duration'
+                    val = time.time() - _dict.get('start_time', time.time())
+                setattr(log, key, val)
+            log.save()
+            _log('updated a log in db')
+            return log, None
+        except (OSError, Exception) as err:
+            err_msg = f'failed to update a log in db: {_exc(err)}'
+            _err(err_msg)
+            return None, err_msg
+
+    @staticmethod
+    def get_goods_qs_by_skus(skus, user):
+        qs = _get_user_qs(Good, user).filter(sku__in=skus)
+        _dict = {item.sku: item for item in qs}
+        return _dict
+
+    # noinspection PyUnresolvedReferences
+    def log_rows(self, log, stock, user):
+        goods = self.get_goods_qs_by_skus(list(stock.keys()), user)
+        rows = []
+        for sku, amount in stock.items():
+            good = goods.get(sku)
+            if good is None:
+                continue
+            row = LogRow(
+                log=log,
+                good=good,
+                amount=amount,
+            )
+            rows.append(row)
+        try:
+            LogRow.objects.bulk_create(rows)
+            _log(f'saved log rows to db: {len(rows)}')
+        except (OSError, Exception) as err:
+            err_msg = f'failed to save log rows ({len(rows)}) to db: {_exc(err)}'
+            _err(err_msg)
+            return err_msg

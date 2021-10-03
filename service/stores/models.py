@@ -368,12 +368,10 @@ class Log(models.Model):
         date_format = '%Y-%m-%dT%H:%M:%S %Z'
         return f'({self.end_date.strftime(date_format)}) склад магазина: ' \
                f'{self.warehouse.name if self.warehouse else ""}, ' \
-               f'{"успех" if self.success else "ошибка"}, код ответа: {self.response_status}'
+               f'{"успешно" if self.success else "ошибка"}, код ответа: {self.response_status}'
 
     def save(self, *args, **kwargs):
-        _now = now()
-        if not self.pk:
-            self.end_date = _now
+        self.end_date = now()
         return super().save(*args, **kwargs)
 
     class Meta:
@@ -381,3 +379,23 @@ class Log(models.Model):
         verbose_name = 'Лог обмена'
         verbose_name_plural = 'Логи обмена'
         ordering = ['-end_date']
+
+
+class LogRow(models.Model):
+    log = models.ForeignKey(Log, verbose_name='Лог обмена', on_delete=CASCADE, related_name='rows')
+    good = models.ForeignKey(Good, verbose_name='Товар', on_delete=CASCADE, related_name='logs')
+    amount = models.PositiveIntegerField(verbose_name='Переданный остаток', default=0, blank=True)
+    success = models.BooleanField(default=True, verbose_name='Успешно', blank=True)
+    err_code = models.CharField(verbose_name='Код ошибки', max_length=100, blank=True, null=True)
+    err_msg = models.CharField(verbose_name='Текст ошибки', max_length=200, blank=True, null=True)
+
+    # noinspection PyUnresolvedReferences
+    def __str__(self):
+        return f'({self.good.sku}) {self.good.name} - {self.amount} - {"успешно" if self.success else "ошибка"}'
+
+    class Meta:
+        db_table = 'log_rows'
+        verbose_name = 'Строка лога обмена'
+        verbose_name_plural = 'Строки логов обмена'
+        ordering = ['id']
+

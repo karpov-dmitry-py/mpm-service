@@ -18,6 +18,7 @@ from .models import System
 from .models import StockSetting
 from .models import StoreWarehouse
 from .models import Log
+from .models import LogRow
 
 # Register your models here.
 admin.site.register(StoreStatus)
@@ -40,5 +41,4 @@ admin.site.register(Stock)
 admin.site.register(System)
 admin.site.register(StockSetting)
 admin.site.register(Log)
-
-
+admin.site.register(LogRow)

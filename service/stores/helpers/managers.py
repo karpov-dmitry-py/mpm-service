@@ -23,8 +23,8 @@ from ..models import StoreWarehouse
 
 
 class StockManager:
-    goods_slice_size = 1000
-    goods_slice_handlers = 30
+    goods_slice_size = 200
+    goods_slice_handlers = 50
     setting_not_used_text = 'не применяется'
 
     def __init__(self):
@@ -126,7 +126,6 @@ class StockManager:
             })
         return stocks
 
-
     def get_stocks_loop_read_db_skus(self, qs, _ids, stocks, index):
         ids_count = len(_ids)
         for i, _id in enumerate(_ids, start=1):
@@ -225,7 +224,8 @@ class StockManager:
 
         return stocks
 
-    def get_user_stock_sync(self, user):
+    @staticmethod
+    def get_user_stock_sync(user):
         # noinspection PyUnresolvedReferences,PyTypeChecker
         whs = _get_user_qs(Warehouse, user)
         whs_dict = _get_dict_by_attr_from_items(whs, 'id')
