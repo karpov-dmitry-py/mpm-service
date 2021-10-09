@@ -1,6 +1,8 @@
 import json
 import os.path
 from collections import defaultdict
+import requests
+from bs4 import BeautifulSoup
 
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_GET
@@ -18,6 +20,7 @@ from django.views.generic import UpdateView
 from django.views.generic import DeleteView
 
 from django.http import JsonResponse
+from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.shortcuts import render
 from django.shortcuts import redirect
@@ -270,7 +273,6 @@ def drop_test_goods(request):
 
 @login_required()
 def drop_all_goods(request):
-
     stl_email = 'stl@company.com'
     user = request.user
     if user.email.strip().lower() == stl_email:
@@ -2375,3 +2377,43 @@ def api_update_stock(request):
 @require_POST
 def api_yandex_update_stock(request, store_pk):
     return YandexApi().update_stock(request, store_pk)
+
+
+# misc
+@require_GET
+@login_required()
+def check_suppliers_offers(request):
+    valid_email = 'test@test.ru'
+    user = request.user
+    if user.email != valid_email:
+        return HttpResponse(status=403, content="нет доступа для текущего пользователя")
+
+    rows = get_suppliers_offers_check_result()
+    context = {
+        'title': 'Сверка предложений поставщиков',
+        'items': rows,
+    }
+    return render(request, 'stores/misc/suppliers/offers/list.html', context=context)
+
+
+def get_suppliers_offers_check_result():
+    base_url = 'https://neotren.ru'
+    url = f'{base_url}/catalog?category=569%2C573%2C577%2C581%2C584%2C592'
+    session = requests.Session()
+    response = session.get(url=url)
+
+    status = response.status_code
+    if status != 200:
+        return None, f'Ошибка на сайте поставщика {base_url}, код ответа: {status}'
+
+
+    rows = dict()
+    soup = BeautifulSoup(response.text, 'lxml')
+    items = soup.find_all('table', class_='prodinfo')
+
+    for item in items:
+        props = dict()
+        price = item.find('span', class_='productPrice')
+        if price is not None:
+            props['price'] = price.text
+    return [], None

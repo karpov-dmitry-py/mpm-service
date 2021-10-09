@@ -23,33 +23,41 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <ul class="navbar-nav mr-auto">
             {% if user.is_authenticated %}
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'stores-list' %}">Магазины</a>
-            </li>
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'brands-list' %}">Бренды</a>
-            </li>
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'categories-list' %}">Категории</a>
-            </li>
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'goods-list' %}">Товары</a>
-            </li>
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'suppliers-list' %}">Поставщики</a>
-            </li>
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'warehouses-list' %}">Склады</a>
-            </li>
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'systems-list' %}">Учетные системы</a>
-            </li>
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'stock-list' %}">Остатки товаров</a>
-            </li>
-            <li class="nav-item">
-                <a class="btn btn-dark" href="{% url 'logs-list' %}">Логи обмена</a>
-            </li>
+                {% if user.email == 'test@test.ru' %}
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'suppliers-offers-check' %}">
+                            Предложения поставщиков
+                        </a>
+                    </li>
+                {% else %}
+                    `<li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'stores-list' %}">Магазины</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'brands-list' %}">Бренды</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'categories-list' %}">Категории</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'goods-list' %}">Товары</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'suppliers-list' %}">Поставщики</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'warehouses-list' %}">Склады</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'systems-list' %}">Учетные системы</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'stock-list' %}">Остатки товаров</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-dark" href="{% url 'logs-list' %}">Логи обмена</a>
+                    </li>
+                {% endif %}
             {% endif %}
         </ul>
         <ul class="navbar-nav">
@@ -74,7 +82,7 @@
         </ul>
     </nav>
 </div>
-<div class="container" style="max-width: 100%;">
+<div class="container-fluid" style="max-width: 100%;">
         <div class="container" style="width: 80%;">
             {% if messages %}
             {% for message in messages %}
@@ -88,9 +96,10 @@
                 {% endfor %}
                 {% endif %}
             </div>
-            {% block content %}
-            {% endblock %}
+
     </div>
+    {% block content %}
+    {% endblock %}
 </div>
     <!-- Option 1: jQuery and Bootstrap Bundle (includes Popper) -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"

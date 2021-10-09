@@ -114,5 +114,9 @@ urlpatterns = [
 
     # yandex
     path(f'{views.get_stocks_by_store_api_url()}', views.api_yandex_update_stock, name='api-yandex-update-stock'),
+
+    # misc
+    path('misc/suppliers/offers/check', views.check_suppliers_offers, name='suppliers-offers-check'),
+
 ]
 
