@@ -107,6 +107,26 @@ def time_tracker(action):
         duration = end - start
         _log(f'{action} took {duration} seconds.')
 
+
+def parse_int(src):
+    src = str(src)
+    if src.isnumeric():
+        dst = src
+    else:
+        digits = [str(i) for i in range(10)]
+        dst = ''.join([char for char in src if char in digits])
+    try:
+        result = int(dst)
+        return result, None
+    except (ValueError, Exception) as err:
+        err_msg = f'failed to parse an int from {src}: {_exc(err)}'
+        _err(err_msg)
+        return None, err_msg
+
+
+
+
+
 if __name__ == '__main__':
     email = 'sales@company.com'
     valid = is_valid_email(email)

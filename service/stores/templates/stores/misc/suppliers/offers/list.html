@@ -1,30 +1,52 @@
 {% extends 'users/base.html' %}
 {% block content %}
 <div class="container-fluid" style="width: 100%;">
-<h5 class="border-bottom mb-4 mt-3">Предложения поставщиков (всего {{ items_count }}):</h5>
-<table class="table table-hover">
-    <thead class="thead-dark">
-    <tr>
-        <th>№</th>
-        <th>Поставщик</th>
-        <th>Наименование товара</th>
-        <th>Ссылка на товар</th>
-        <th>Цена</th>
-        <th>Остаток</th>
-    </tr>
-    </thead>
+    <h5 class="border-bottom mb-4 mt-3">Предложения поставщика
+        <a target="_blank" href={{ supplier_url }}>{{ supplier }}</a>
+    (всего товаров {{ rows | length }})
+    </h5>
+
+    {% if price_diff_count %}
+        <div class="mb-1 bg-light text-dark">Кол-во товаров с расхождением в цене (или с не найденной ценой): {{ price_diff_count }}</div>
+    {% endif%}
+
+    {% if error_count %}
+        <div class="mb-3 bg-light text-dark">Кол-во товаров с ошибками получения данных: {{ error_count }}</div>
+    {% endif%}
+
+    <table class="table table-hover small">
+        <thead class="thead-dark">
+            <tr>
+                <th>№</th>
+                <th>Товар поставщика</th>
+                <th>Наш товар</th>
+                <th>Цена поставщика</th>
+                <th>Наша цена</th>
+                <th>Остаток поставщика</th>
+                <th>Наш остаток</th>
+                <th>Ошибки</th>
+            </tr>
+        </thead>
         <tbody>
-            {% for item in items %}
+            {% for name, props in rows.items %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
-                    <td>{{ item.supplier_name }}</td>
-                    <td>{{ item.good_name }}</td>
-                    <td>{{ item.dood_url }}</td>
-                    <td>{{ item.price }}</td>
-                    <td>{{ item.stock }}</td>
+                    <td><a target="_blank" href={{props.good_url}}>{{ props.good_name }}</a></td>
+                    <td><a target="_blank" href={{props.own_url}}>{{ props.own_name }}</a></td>
+                    <td>{{ props.price }}</td>
+                    {% if props.has_price_diff %}
+                        <td class="bg-danger text-white">
+                    {% else %}
+                        <td>
+                    {% endif %}
+                        {{ props.own_price }}
+                    </td>
+                    <td>{{ props.stock }}</td>
+                    <td class="text-muted">нет данных</td>
+                    <td>{{ props.error }}</td>
                 </tr>
             {% endfor %}
         </tbody>
-</table>
+    </table>
 </div>
 {% endblock content %}

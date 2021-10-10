@@ -1,8 +1,6 @@
 import json
 import os.path
 from collections import defaultdict
-import requests
-from bs4 import BeautifulSoup
 
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_GET
@@ -59,7 +57,7 @@ from .helpers.common import get_email_error
 from .helpers.common import get_supplier_warehouse_type
 from .helpers.common import is_valid_supplier_choice
 from .helpers.common import get_supplier_error
-# from .helpers.common import time_tracker
+from .helpers.suppliers import get_suppliers_offers_check_result
 
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
@@ -2388,32 +2386,10 @@ def check_suppliers_offers(request):
     if user.email != valid_email:
         return HttpResponse(status=403, content="нет доступа для текущего пользователя")
 
-    rows = get_suppliers_offers_check_result()
-    context = {
-        'title': 'Сверка предложений поставщиков',
-        'items': rows,
-    }
-    return render(request, 'stores/misc/suppliers/offers/list.html', context=context)
+    ctx, err = get_suppliers_offers_check_result()
+    if err:
+        messages.error(request, err)
+        ctx = dict()
 
-
-def get_suppliers_offers_check_result():
-    base_url = 'https://neotren.ru'
-    url = f'{base_url}/catalog?category=569%2C573%2C577%2C581%2C584%2C592'
-    session = requests.Session()
-    response = session.get(url=url)
-
-    status = response.status_code
-    if status != 200:
-        return None, f'Ошибка на сайте поставщика {base_url}, код ответа: {status}'
-
-
-    rows = dict()
-    soup = BeautifulSoup(response.text, 'lxml')
-    items = soup.find_all('table', class_='prodinfo')
-
-    for item in items:
-        props = dict()
-        price = item.find('span', class_='productPrice')
-        if price is not None:
-            props['price'] = price.text
-    return [], None
+    ctx['title'] = 'Сверка предложений поставщиков'
+    return render(request, 'stores/misc/suppliers/offers/list.html', context=ctx)
