@@ -79,8 +79,10 @@ urlpatterns = [
     path('systems/<int:pk>/delete/', views.SystemDeleteView.as_view(), name='systems-delete'),
 
     # stock settings
-    path('settings/stock/warehouse/<int:wh_pk>/list/', views.StockSettingListView.as_view(), name='stock-settings-list'),
-    path('settings/stock/warehouse/<int:wh_pk>/add/', views.StockSettingCreateView.as_view(), name='stock-settings-add'),
+    path('settings/stock/warehouse/<int:wh_pk>/list/', views.StockSettingListView.as_view(),
+         name='stock-settings-list'),
+    path('settings/stock/warehouse/<int:wh_pk>/add/', views.StockSettingCreateView.as_view(),
+         name='stock-settings-add'),
     path('settings/stock/<int:pk>/update/', views.StockSettingUpdateView.as_view(), name='stock-settings-update'),
     path('settings/stock/<int:pk>/delete/', views.StockSettingDeleteView.as_view(), name='stock-settings-delete'),
     path('settings/stock/batch-delete/', views.stock_settings_batch_delete, name='stock-settings-batch-delete'),
@@ -88,14 +90,16 @@ urlpatterns = [
     # warehouse stores
     path('stores/<int:store_pk>/warehouses/', views.StoreWarehouseListView.as_view(), name='store-warehouses-list'),
     path('stores/<int:store_pk>/warehouses/add', views.StoreWarehouseCreateView.as_view(), name='store-warehouses-add'),
-    path('stores/warehouses/<int:pk>/detail/', views.StoreWarehouseDetailView.as_view(), name='store-warehouses-detail'),
-    path('stores/warehouses/<int:pk>/update/', views.StoreWarehouseUpdateView.as_view(), name='store-warehouses-update'),
-    path('stores/warehouses/<int:pk>/delete/', views.StoreWarehouseDeleteView.as_view(), name='store-warehouses-delete'),
+    path('stores/warehouses/<int:pk>/detail/', views.StoreWarehouseDetailView.as_view(),
+         name='store-warehouses-detail'),
+    path('stores/warehouses/<int:pk>/update/', views.StoreWarehouseUpdateView.as_view(),
+         name='store-warehouses-update'),
+    path('stores/warehouses/<int:pk>/delete/', views.StoreWarehouseDeleteView.as_view(),
+         name='store-warehouses-delete'),
 
     # logs
     path('logs/', views.LogListView.as_view(), name='logs-list'),
     path('logs/<int:pk>/detail/', views.LogDetailView.as_view(), name='logs-detail'),
-
 
     # API
     # help page
@@ -116,7 +120,6 @@ urlpatterns = [
     path(f'{views.get_stocks_by_store_api_url()}', views.api_yandex_update_stock, name='api-yandex-update-stock'),
 
     # misc
-    path('misc/suppliers/offers/check', views.check_suppliers_offers, name='suppliers-offers-check'),
+    path('misc/suppliers/offers/check', views.process_categories_choice, name='suppliers-offers-check'),
 
 ]
-

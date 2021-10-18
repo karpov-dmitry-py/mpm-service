@@ -10,11 +10,23 @@ from .common import _log
 cyrillics = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
 
 
-def get_suppliers_offers_check_result():
+def get_categories():
+    result = {
+        'Беговые дорожки': 569,
+        'Велотренажеры': 573,
+        'Эллиптические тренажеры': 577,
+        'Степперы и эскалаторы': 581,
+        'Гребные тренажеры': 584,
+        'Силовые тренажеры': 592,
+    }
+    return result
+
+
+def get_suppliers_offers_check_result(categories):
     base_url = 'https://neotren.ru'
     supplier = base_url.split('//')[1]
-    target_url = f'{base_url}/catalog?category=569%2C573%2C577%2C581%2C584%2C592&limit=1000000'
-    # target_url = f'{base_url}/catalog?category=592&limit=34'
+    # target_url = f'{base_url}/catalog?limit=1000000&category={",".join(categories)}'
+    target_url = f'{base_url}/catalog?limit=10&category={",".join(categories)}'
 
     session = requests.Session()
     response = session.get(url=target_url, timeout=120)

@@ -57,7 +57,9 @@ from .helpers.common import get_email_error
 from .helpers.common import get_supplier_warehouse_type
 from .helpers.common import is_valid_supplier_choice
 from .helpers.common import get_supplier_error
+
 from .helpers.suppliers import get_suppliers_offers_check_result
+from .helpers.suppliers import get_categories
 
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
@@ -79,6 +81,7 @@ from .forms import CreateSystemForm
 from .forms import CreateStockSettingForm
 from .forms import DeleteSelectedStockSettingsForm
 from .forms import CreateStoreWarehouseForm
+from .forms import SportCategorySelectForm
 
 BASE_URL = 'https://stl-market.ru'
 ACTIVE_STORE_STATUS = 'подключен'
@@ -2378,18 +2381,47 @@ def api_yandex_update_stock(request, store_pk):
 
 
 # misc
-@require_GET
+
+@require_http_methods(['GET', 'POST'])
 @login_required()
-def check_suppliers_offers(request):
+def process_categories_choice(request):
+    redirect_to = f'{reverse_lazy("suppliers-offers-check")}'
     valid_email = 'test@test.ru'
+    empty_choice_err = 'Не выбраны категории товаров.'
+
     user = request.user
     if user.email != valid_email:
         return HttpResponse(status=403, content="нет доступа для текущего пользователя")
 
-    ctx, err = get_suppliers_offers_check_result()
+    if request.method == 'POST':
+        form = SportCategorySelectForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, empty_choice_err)
+            return redirect(redirect_to)
+
+        categories = form.cleaned_data.get('categories')
+        if not categories:
+            messages.error(request, empty_choice_err)
+            return redirect(redirect_to)
+
+        return check_suppliers_offers(request, categories)
+
+    form = SportCategorySelectForm()
+    # form.choices = get_categories()
+
+    context = {
+        'title': 'Сверка предложений поставщиков',
+        'form': form,
+    }
+    return render(request, 'stores/misc/suppliers/offers/choice_form.html', context=context)
+
+
+def check_suppliers_offers(request, categories):
+    redirect_to = f'{reverse_lazy("suppliers-offers-check")}'
+    ctx, err = get_suppliers_offers_check_result(categories)
     if err:
         messages.error(request, err)
-        ctx = dict()
+        return redirect(redirect_to)
 
     ctx['title'] = 'Сверка предложений поставщиков'
     return render(request, 'stores/misc/suppliers/offers/list.html', context=ctx)

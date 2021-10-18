@@ -5,6 +5,7 @@ from django.forms import Textarea
 from django.forms import TextInput
 from django.forms import NumberInput
 from django.forms import CheckboxSelectMultiple
+from django.forms import MultipleChoiceField
 from django.forms import Select
 from django.forms import CharField
 from django.forms import Form
@@ -18,6 +19,8 @@ from .models import Warehouse
 from .models import System
 from .models import StockSetting
 from .models import StoreWarehouse
+
+from .helpers.suppliers import get_categories
 
 
 class CreateStoreForm(ModelForm):
@@ -160,3 +163,9 @@ class CreateStoreWarehouseForm(ModelForm):
                 'rows': 3,
             })
         }
+
+
+class SportCategorySelectForm(Form):
+    choices = [(v, k) for k, v in get_categories().items()]
+    categories = MultipleChoiceField(label='Категории товаров', choices=choices,
+                                     widget=CheckboxSelectMultiple, required=True)
