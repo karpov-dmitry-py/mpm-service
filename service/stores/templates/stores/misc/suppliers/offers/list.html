@@ -3,7 +3,12 @@
 <div class="container-fluid" style="width: 100%;">
     <h5 class="border-bottom mb-4 mt-3">Предложения поставщика
         <a target="_blank" href={{ supplier_url }}>{{ supplier }}</a>
-    (всего товаров {{ rows | length }})
+    <small class="text-muted">
+        (всего товаров: {{ rows | length }})
+        {% if duration %}
+            , время обработки: {{ duration }}
+        {% endif %}
+    </small>
     </h5>
 
     {% if price_diff_count %}
@@ -18,6 +23,7 @@
         <thead class="thead-dark">
             <tr>
                 <th>№</th>
+                <th>Категория</th>
                 <th>Товар поставщика</th>
                 <th>Наш товар</th>
                 <th>Цена поставщика</th>
@@ -31,6 +37,7 @@
             {% for name, props in rows.items %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
+                    <td><a target="_blank" href={{props.category_url}}>{{ props.category }}</a></td>
                     <td><a target="_blank" href={{props.good_url}}>{{ props.good_name }}</a></td>
                     <td><a target="_blank" href={{props.own_url}}>{{ props.own_name }}</a></td>
                     <td>{{ props.price }}</td>

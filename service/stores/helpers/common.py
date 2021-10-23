@@ -108,8 +108,15 @@ def time_tracker(action):
         _log(f'{action} took {duration} seconds.')
 
 
+def get_duration(start):
+    return str(datetime.datetime.now() - start)
+
+
 def parse_int(src):
-    src = str(src)
+    src = str(src).lower().strip()
+    sep = 'руб'
+    src = src.split(sep)[0]
+
     if src.isnumeric():
         dst = src
     else:
@@ -122,9 +129,6 @@ def parse_int(src):
         err_msg = f'failed to parse an int from {src}: {_exc(err)}'
         _err(err_msg)
         return None, err_msg
-
-
-
 
 
 if __name__ == '__main__':

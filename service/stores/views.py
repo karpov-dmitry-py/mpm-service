@@ -58,8 +58,7 @@ from .helpers.common import get_supplier_warehouse_type
 from .helpers.common import is_valid_supplier_choice
 from .helpers.common import get_supplier_error
 
-from .helpers.suppliers import get_suppliers_offers_check_result
-from .helpers.suppliers import get_categories
+from .helpers.suppliers import Parser
 
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
@@ -2386,11 +2385,11 @@ def api_yandex_update_stock(request, store_pk):
 @login_required()
 def process_categories_choice(request):
     redirect_to = f'{reverse_lazy("suppliers-offers-check")}'
-    valid_email = 'test@test.ru'
+    valid_username = 'misc'
     empty_choice_err = 'Не выбраны категории товаров.'
 
     user = request.user
-    if user.email != valid_email:
+    if user.username != valid_username:
         return HttpResponse(status=403, content="нет доступа для текущего пользователя")
 
     if request.method == 'POST':
@@ -2399,16 +2398,14 @@ def process_categories_choice(request):
             messages.error(request, empty_choice_err)
             return redirect(redirect_to)
 
-        categories = form.cleaned_data.get('categories')
-        if not categories:
+        category_ids = form.cleaned_data.get('categories')
+        if not category_ids:
             messages.error(request, empty_choice_err)
             return redirect(redirect_to)
 
-        return check_suppliers_offers(request, categories)
+        return check_suppliers_offers(request, category_ids)
 
     form = SportCategorySelectForm()
-    # form.choices = get_categories()
-
     context = {
         'title': 'Сверка предложений поставщиков',
         'form': form,
@@ -2418,7 +2415,7 @@ def process_categories_choice(request):
 
 def check_suppliers_offers(request, categories):
     redirect_to = f'{reverse_lazy("suppliers-offers-check")}'
-    ctx, err = get_suppliers_offers_check_result(categories)
+    ctx, err = Parser().get_suppliers_offers(categories)
     if err:
         messages.error(request, err)
         return redirect(redirect_to)

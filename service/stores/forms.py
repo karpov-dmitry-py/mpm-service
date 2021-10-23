@@ -20,7 +20,7 @@ from .models import System
 from .models import StockSetting
 from .models import StoreWarehouse
 
-from .helpers.suppliers import get_categories
+from .helpers.suppliers import Parser
 
 
 class CreateStoreForm(ModelForm):
@@ -166,6 +166,6 @@ class CreateStoreWarehouseForm(ModelForm):
 
 
 class SportCategorySelectForm(Form):
-    choices = [(v, k) for k, v in get_categories().items()]
+    choices = [(k, v) for k, v in Parser.get_categories().items()]
     categories = MultipleChoiceField(label='Категории товаров', choices=choices,
                                      widget=CheckboxSelectMultiple, required=True)

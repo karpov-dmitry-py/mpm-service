@@ -23,7 +23,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <ul class="navbar-nav mr-auto">
             {% if user.is_authenticated %}
-                {% if user.email == 'test@test.ru' %}
+                {% if user.username == 'misc' %}
                     <li class="nav-item">
                         <a class="btn btn-dark" href="{% url 'suppliers-offers-check' %}">
                             Предложения поставщиков
