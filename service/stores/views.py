@@ -63,6 +63,8 @@ from .helpers.suppliers import Parser
 from .helpers.xls_processer import ExcelProcesser
 from .helpers.api import API
 from .helpers.api import YandexApi
+from .helpers.api import OzonApi
+
 from .helpers.managers import StockManager
 from .helpers.managers import get_stock_condition_types
 from .helpers.managers import get_stock_condition_fields
@@ -477,9 +479,14 @@ def get_store_warehouse_by_id(wh_id, user):
     # noinspection PyUnresolvedReferences
     rows = StoreWarehouse.objects.filter(user=user).filter(id=wh_id)
     if not len(rows):
-        return None, err_msg
+        return None, f'Не найден склад магазина с id {wh_id} для текущего пользователя'
 
     wh = rows[0]
+
+    # check whether store is active
+    if not is_active_store(wh.store):
+        return None, f'Магазин склада ("{wh.store.name}") не активен, настройки доступны только для активных магазинов.'
+
     return wh, None
 
 
@@ -2210,6 +2217,31 @@ class StoreWarehouseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteVi
         return context
 
 
+@require_GET
+@login_required
+def store_wh_update_stock(request, pk):
+    redirect_to = f'{reverse_lazy("stores-list")}'
+    user = request.user
+    wh, err = get_store_warehouse_by_id(pk, user)
+
+    if err:
+        messages.error(request, err)
+        return redirect(redirect_to)
+
+    if not wh.outgoing_stock_update_available():
+        messages.error(request, f'Маркетплейс склада не поддерживает обновление остатков по api')
+        return redirect(redirect_to)
+
+    err = OzonApi().update_stock(wh)
+    if err:
+        messages.error(request, err)
+        return redirect(redirect_to)
+
+    redirect_to = f'{reverse_lazy("logs-list")}'
+    messages.success(request, f'Обработаны остатки склада магазина "{wh.name}"')
+    return redirect(redirect_to)
+
+
 # LOG
 class LogListView(LoginRequiredMixin, ListView):
     template_name = 'stores/log/list.html'
@@ -2380,7 +2412,6 @@ def api_yandex_update_stock(request, store_pk):
 
 
 # misc
-
 @require_http_methods(['GET', 'POST'])
 @login_required()
 def process_categories_choice(request):

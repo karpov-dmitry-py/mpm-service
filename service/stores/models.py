@@ -317,6 +317,11 @@ class StoreWarehouse(models.Model):
     def __str__(self):
         return f'({self.store.name}) {self.name}'
 
+    # noinspection PyUnresolvedReferences
+    def outgoing_stock_update_available(self):
+        marketplaces = ('ozon',)
+        return self.store.marketplace.name.lower().strip() in marketplaces
+
     class Meta:
         db_table = 'store_warehouses'
         verbose_name = 'Склад магазина'
@@ -398,4 +403,3 @@ class LogRow(models.Model):
         verbose_name = 'Строка лога обмена'
         verbose_name_plural = 'Строки логов обмена'
         ordering = ['id']
-

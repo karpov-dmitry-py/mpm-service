@@ -4,6 +4,7 @@ import time
 from collections import defaultdict
 from typing import Dict, Any
 
+import requests
 from django.http import JsonResponse
 
 from .common import _err
@@ -873,6 +874,82 @@ class API:
         return stats
 
 
+# class for logging stock and price export events to db and also reading data from these logs
+class Logger:
+    ok_statuses = (200, 201, 204, 301, 302,)
+
+    def log(self, _dict):
+        try:
+            marketplace = _dict.get('marketplace')
+            status = _dict.get('response_status', 200)
+            log = Log(
+                marketplace=marketplace,
+                store=_dict.get('store'),
+                warehouse=_dict.get('warehouse'),
+                duration=time.time() - _dict.get('start_time', time.time()),
+                request=_dict.get('request'),
+                response=_dict.get('response'),
+                response_status=status,
+                success=_dict.get('success', status in self.ok_statuses),
+                error=_dict.get('error'),
+                comment=_dict.get('comment'),
+                user=_dict.get('user')
+            )
+            log.save()
+            _log(f'saved a log row to db for marketplace {marketplace}.')
+            return log, None
+        except (OSError, Exception) as err:
+            err_msg = f'failed to save a log to db: {_exc(err)}'
+            _err(err_msg)
+            return None, err_msg
+
+    @staticmethod
+    def update_log(log, _dict):
+        try:
+            for k, v in _dict.items():
+                key = k
+                val = v
+                if k == 'start_time':
+                    key = 'duration'
+                    val = time.time() - _dict.get('start_time', time.time())
+                setattr(log, key, val)
+            log.save()
+            _log('updated a log in db')
+            return log, None
+        except (OSError, Exception) as err:
+            err_msg = f'failed to update a log in db: {_exc(err)}'
+            _err(err_msg)
+            return None, err_msg
+
+    @staticmethod
+    def get_goods_qs_by_skus(skus, user):
+        qs = _get_user_qs(Good, user).filter(sku__in=skus)
+        _dict = {item.sku: item for item in qs}
+        return _dict
+
+    # noinspection PyUnresolvedReferences
+    def log_rows(self, log, stock, user):
+        goods = self.get_goods_qs_by_skus(list(stock.keys()), user)
+        rows = []
+        for sku, amount in stock.items():
+            good = goods.get(sku)
+            if good is None:
+                continue
+            row = LogRow(
+                log=log,
+                good=good,
+                amount=amount,
+            )
+            rows.append(row)
+        try:
+            LogRow.objects.bulk_create(rows)
+            _log(f'saved log rows to db: {len(rows)}')
+        except (OSError, Exception) as err:
+            err_msg = f'failed to save log rows ({len(rows)}) to db: {_exc(err)}'
+            _err(err_msg)
+            return err_msg
+
+
 # class for communication with yandex market via api
 class YandexApi:
     stock_type = 'FIT'
@@ -1047,77 +1124,110 @@ class YandexApi:
         return wh, yandex_wh_id, None
 
 
-# class for logging stock and price export events to db and also reading data from these logs
-class Logger:
-    ok_statuses = (200, 201, 204, 301, 302,)
+# class for communication with ozon via api
+class OzonApi:
+    marketplace_name = 'ozon'
+    stock_update_batch_size = 100
+    api_base_url = 'https://api-seller.ozon.ru/v2'
 
-    def log(self, _dict):
-        try:
-            marketplace = _dict.get('marketplace')
-            status = _dict.get('response_status', 200)
-            log = Log(
-                marketplace=marketplace,
-                store=_dict.get('store'),
-                warehouse=_dict.get('warehouse'),
-                duration=time.time() - _dict.get('start_time', time.time()),
-                request=_dict.get('request'),
-                response=_dict.get('response'),
-                response_status=status,
-                success=_dict.get('success', status in self.ok_statuses),
-                error=_dict.get('error'),
-                comment=_dict.get('comment'),
-                user=_dict.get('user')
-            )
-            log.save()
-            _log(f'saved a log row to db for marketplace {marketplace}.')
-            return log, None
-        except (OSError, Exception) as err:
-            err_msg = f'failed to save a log to db: {_exc(err)}'
-            _err(err_msg)
-            return None, err_msg
+    def __init__(self):
+        self._session = requests.Session()
+        self._auth_headers = None
+        self._log = Logger()
+        self._errors = []
 
-    @staticmethod
-    def update_log(log, _dict):
-        try:
-            for k, v in _dict.items():
-                key = k
-                val = v
-                if k == 'start_time':
-                    key = 'duration'
-                    val = time.time() - _dict.get('start_time', time.time())
-                setattr(log, key, val)
-            log.save()
-            _log('updated a log in db')
-            return log, None
-        except (OSError, Exception) as err:
-            err_msg = f'failed to update a log in db: {_exc(err)}'
-            _err(err_msg)
-            return None, err_msg
-
-    @staticmethod
-    def get_goods_qs_by_skus(skus, user):
-        qs = _get_user_qs(Good, user).filter(sku__in=skus)
-        _dict = {item.sku: item for item in qs}
-        return _dict
-
-    # noinspection PyUnresolvedReferences
-    def log_rows(self, log, stock, user):
-        goods = self.get_goods_qs_by_skus(list(stock.keys()), user)
+    def _update_stock(self, wh, skus):
+        target_url = f'{self.api_base_url}/products/stocks'
         rows = []
-        for sku, amount in stock.items():
-            good = goods.get(sku)
-            if good is None:
-                continue
-            row = LogRow(
-                log=log,
-                good=good,
-                amount=amount,
-            )
-            rows.append(row)
+
+        start_time = time.time()
+        log = {
+            'start_time': start_time,
+            'marketplace': wh.store.marketplace,
+            'store': wh.store,
+            'warehouse': wh,
+            'user': wh.user,
+        }
+
+        wh_code = wh.code
+        for _dict in skus:
+            for sku, amount in _dict.items():
+                row = {'offer_id': sku, 'stock': amount, 'warehouse_id': wh_code}
+                rows.append(row)
+        payload = {'stocks': rows}
+        log['request'] = payload
+
+        response = self._session.post(url=target_url, headers=self._auth_headers, json=payload)
+        resp_as_str = self._resp_as_str(response)
+        log['response'] = resp_as_str
+
+        status = response.status_code
+        log['response_status'] = status
+
+        if status != 200:
+            err = f'Ошибочный ответ от api маркетплейса {target_url}\n, статус: {status}\n, ' \
+                  f'текст ответа:\n {resp_as_str}'
+            self._errors.append(err)
+            log['error'] = resp_as_str
+
+            _, err = self._log.log(log)
+            if err:
+                self._errors.append(err)
+            return
+
+        _, err = self._log.log(log)
+        if err:
+            self._errors.append(err)
+
+        # TODO - log detailed sku update result to log rows
+
+    @staticmethod
+    def _resp_as_str(resp):
+        if resp.status_code >= 500:
+            return resp.text
         try:
-            LogRow.objects.bulk_create(rows)
-            _log(f'saved log rows to db: {len(rows)}')
-        except (OSError, Exception) as err:
-            err_msg = f'failed to save log rows ({len(rows)}) to db: {_exc(err)}'
-            _err(err_msg)
-            return err_msg
+            payload = resp.json
+            return json.dumps(payload, indent=4, ensure_ascii=False)
+        except (json.JSONDecodeError, Exception):
+            return resp.text
+
+    def _set_auth_headers(self, store):
+        headers = {
+            'Client-Id': None,
+            'Api-Key': None,
+        }
+
+        for k in headers:
+            headers[k] = store.get_prop(prop_name=k)
+
+        missing_headers = [k for k, v in headers.items() if v is None]
+        if len(missing_headers):
+            return f'В карточке магазина "{store.name}" введены не все обязательные поля: ' \
+                   f'{", ".join(missing_headers)}'
+
+        self._auth_headers = headers
+
+    def update_stock(self, wh):
+        stocks = StockManager().calculate_stock_for_skus(wh.user, None, wh.id, False)
+        if not len(stocks):
+            err = f'Нет доступных остатков (с учетом правил доступности остатков) по складу магазина "{wh.name}"'
+            return err
+
+        stocks_list = [{sku: _list[0]['amount']} for sku, _list in stocks.items()]
+        slices = []
+        while len(stocks_list) > 0:
+            _slice = stocks_list[:self.stock_update_batch_size]
+            slices.append(_slice)
+            stocks_list = stocks_list[self.stock_update_batch_size:]
+
+        _log(f'total slices: {len(slices)}')
+
+        err = self._set_auth_headers(wh.store)
+        if err:
+            return err
+
+        for _slice in slices:
+            self._update_stock(wh, _slice)
+
+        if len(self._errors):
+            return '. '.join(self._errors)

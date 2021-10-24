@@ -57,9 +57,9 @@ class Parser:
     def get_suppliers_offers(self, category_ids):
         start = datetime.datetime.now()
 
-        err = self._get_own_stock()
-        if err and self.own_stock_is_required:
-            return None, err
+        # err = self._get_own_stock()
+        # if err and self.own_stock_is_required:
+        #     return None, err
 
         with ThreadPoolExecutor(max_workers=min(len(category_ids), 50)) as executor:
             for cat_id in category_ids:

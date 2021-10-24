@@ -87,7 +87,7 @@ urlpatterns = [
     path('settings/stock/<int:pk>/delete/', views.StockSettingDeleteView.as_view(), name='stock-settings-delete'),
     path('settings/stock/batch-delete/', views.stock_settings_batch_delete, name='stock-settings-batch-delete'),
 
-    # warehouse stores
+    # store warehouses
     path('stores/<int:store_pk>/warehouses/', views.StoreWarehouseListView.as_view(), name='store-warehouses-list'),
     path('stores/<int:store_pk>/warehouses/add', views.StoreWarehouseCreateView.as_view(), name='store-warehouses-add'),
     path('stores/warehouses/<int:pk>/detail/', views.StoreWarehouseDetailView.as_view(),
@@ -96,6 +96,10 @@ urlpatterns = [
          name='store-warehouses-update'),
     path('stores/warehouses/<int:pk>/delete/', views.StoreWarehouseDeleteView.as_view(),
          name='store-warehouses-delete'),
+
+    # update stock in marketplace via api
+    path('stores/warehouses/<int:pk>/stock/update', views.store_wh_update_stock,
+         name='store-warehouses-out-api-stock-update'),
 
     # logs
     path('logs/', views.LogListView.as_view(), name='logs-list'),
