@@ -3,16 +3,23 @@
 <div class="container-fluid" style="width: 100%;">
     <h5 class="border-bottom mb-4 mt-3">Предложения поставщика
         <a target="_blank" href={{ supplier_url }}>{{ supplier }}</a>
-    <small class="text-muted">
+    <small class="text-muted" style="font-size: 15px;">
         (всего товаров: {{ rows | length }})
         {% if duration %}
             , время обработки: {{ duration }}
         {% endif %}
+        , <a target="_blank" href="{{ own_stock_url }}">источник наличия собственных остатков</a>
     </small>
     </h5>
 
     {% if price_diff_count %}
-        <div class="mb-1 bg-light text-dark">Кол-во товаров с расхождением в цене (или с не найденной ценой): {{ price_diff_count }}</div>
+        <div class="mb-1 bg-light text-dark">Кол-во товаров с расхождением в цене (или с не найденной ценой):
+            {{ price_diff_count }}</div>
+    {% endif%}
+
+    {% if stock_diff_count %}
+        <div class="mb-1 bg-light text-dark">Кол-во товаров с расхождением в наличии (или с не найденной карточкой товара):
+            {{ stock_diff_count }}</div>
     {% endif%}
 
     {% if error_count %}
@@ -48,8 +55,16 @@
                     {% endif %}
                         {{ props.own_price }}
                     </td>
+
                     <td>{{ props.stock }}</td>
-                    <td class="text-muted">нет данных</td>
+                    {% if props.has_stock_diff %}
+                        <td class="bg-danger text-white">
+                    {% else %}
+                        <td>
+                    {% endif %}
+                        {{ props.own_stock }}
+                    </td>
+
                     <td>{{ props.error }}</td>
                 </tr>
             {% endfor %}

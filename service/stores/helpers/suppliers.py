@@ -17,15 +17,22 @@ cyrillics = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
 class Parser:
     supplier_base_url = 'https://neotren.ru'
     supplier = supplier_base_url.split('//')[1]
+    own_stock_url = 'https://sportpremier.ru/bitrix/catalog_export/yandex_all.php'
     own_stock_is_required = True
-    search_result_count = 2  # 10**6
+    search_result_count = 10**6
+    availability = {
+        'true': True,
+        'false': False,
+        True: 'В наличии',
+        False: 'Не в наличии',
+    }
 
     def __init__(self):
         self._mutex = Lock()
         self._rows = dict()
+        self._own_stock = dict()
         self._error = None
         self._cats = self.get_categories()
-        self._own_stock = None
 
     @staticmethod
     def get_categories():
@@ -40,7 +47,7 @@ class Parser:
         return result
 
     def _get_own_stock(self):
-        url = 'https://sportpremier.ru/bitrix/catalog_export/yandex_all.php'
+        url = self.own_stock_url
         response = requests.get(url, timeout=60)
         if response.status_code != 200:
             error = f'failed to download src xml file, response status: {response.status_code}, ' \
@@ -49,17 +56,41 @@ class Parser:
             return error
 
         soup = BeautifulSoup(response.text, 'lxml')
-        currencies = soup.find_all('currency')
-        cats = soup.find_all('category')
-        offers = soup.find_all('offer')
-        _log('done')
+        stock = soup.find_all('offer')
+
+        if not len(stock):
+            return f'Не найдены остатки по источнику {url}'
+
+        goods = dict()
+        for row in stock:
+            good = dict()
+            good_url = row.find('url')
+            if good_url is None:
+                _log('Нет тега "url" в предложении по собственным остаткам')
+                continue
+
+            # name
+            name = row.find('url')
+            if name is not None:
+                good['name'] = name.text
+
+            # is_available
+            is_available = row.attrs.get('available', 'false')
+            good['available'] = self.availability.get(is_available, False)
+
+            goods[good_url.text] = good
+
+        if not len(goods):
+            return f'Найдены пустые остатки (нет тега "url") по источнику {url}'
+
+        self._own_stock = goods
 
     def get_suppliers_offers(self, category_ids):
         start = datetime.datetime.now()
 
-        # err = self._get_own_stock()
-        # if err and self.own_stock_is_required:
-        #     return None, err
+        err = self._get_own_stock()
+        if err and self.own_stock_is_required:
+            return None, err
 
         with ThreadPoolExecutor(max_workers=min(len(category_ids), 50)) as executor:
             for cat_id in category_ids:
@@ -73,15 +104,20 @@ class Parser:
                 executor.submit(self.check_item, name=name)
 
         price_diff_count = 0
+        stock_diff_count = 0
         error_count = 0
 
         for name, props in self._rows.items():
 
             has_price_diff = props.get('price') != props.get('own_price')
             props['has_price_diff'] = has_price_diff
-
             if has_price_diff:
                 price_diff_count += 1
+
+            has_stock_diff = not self._stock_matches(props.get('stock', ''), props.get('own_stock', ''))
+            props['has_stock_diff'] = has_stock_diff
+            if has_stock_diff:
+                stock_diff_count += 1
 
             if props.get('error'):
                 error_count += 1
@@ -92,7 +128,9 @@ class Parser:
                    'supplier_url': self.supplier_base_url,
                    'rows': self._rows,
                    'price_diff_count': price_diff_count if price_diff_count > 0 else None,
+                   'stock_diff_count': stock_diff_count if stock_diff_count > 0 else None,
                    'error_count': error_count if error_count > 0 else None,
+                   'own_stock_url': self.own_stock_url,
                }, None
 
     def _get_supplier_category_offers(self, category_id):
@@ -179,7 +217,8 @@ class Parser:
         if name_div is not None:
             name_href = name_div.find('a')
             if name_href is not None:
-                props['url'] = f'{self_base_url}{name_href.attrs.get("href")}'
+                searched_path = name_href.attrs.get("href", '').split('?sphrase_id=')[0]
+                props['url'] = f'{self_base_url}{searched_path}'
                 props['name'] = name_href.text
 
         if not len(props):
@@ -206,11 +245,25 @@ class Parser:
                                             f'на сайте {self_base_url}'
             return
 
+        url = props.get('url')
+        good = self._own_stock.get(url)
+        if good is None or not good.get('available', False):
+            props['stock'] = self.availability[False]
+        else:
+            props['stock'] = self.availability[True]
+
         with self._mutex:
             item_props = self._rows[name]
             for k, v in props.items():
                 item_props[f'own_{k}'] = v
             self._rows[name] = item_props
+
+    @staticmethod
+    def _stock_matches(pivot, other):
+        available = 'в наличии'
+        if pivot.strip().lower() == available and pivot.strip().lower() != other.strip().lower():
+            return False
+        return True
 
     @staticmethod
     def _parse_stock(item_soup):
@@ -236,4 +289,4 @@ class Parser:
         if not stock_val:
             return default_val, None
 
-        return stock_val, None
+        return stock_val.strip(), None
