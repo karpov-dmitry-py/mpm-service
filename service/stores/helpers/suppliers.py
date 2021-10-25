@@ -261,7 +261,8 @@ class Parser:
     @staticmethod
     def _stock_matches(pivot, other):
         available = 'в наличии'
-        if pivot.strip().lower() == available and pivot.strip().lower() != other.strip().lower():
+        if (pivot.strip().lower() == available or other.strip().lower() == available) \
+                and pivot.strip().lower() != other.strip().lower():
             return False
         return True
 
