@@ -1132,9 +1132,12 @@ class OzonApi:
 
     def __init__(self):
         self._session = requests.Session()
-        self._auth_headers = None
         self._log = Logger()
         self._errors = []
+
+    def _get_seller_stock(self, store):
+        store_type = store.store_type.name.lower().strip()
+        api_url = f'{self.api_base_url}/product/info/stocks'
 
     def _update_stock(self, wh, skus):
         target_url = f'{self.api_base_url}/products/stocks'
@@ -1157,7 +1160,7 @@ class OzonApi:
         payload = {'stocks': rows}
         log['request'] = payload
 
-        response = self._session.post(url=target_url, headers=self._auth_headers, json=payload)
+        response = self._session.post(url=target_url, json=payload)
         resp_as_str = self._resp_as_str(response)
         log['response'] = resp_as_str
 
@@ -1205,9 +1208,13 @@ class OzonApi:
             return f'В карточке магазина "{store.name}" введены не все обязательные поля: ' \
                    f'{", ".join(missing_headers)}'
 
-        self._auth_headers = headers
+        self._session.headers.update(headers)
 
     def update_stock(self, wh):
+        err = self._set_auth_headers(wh.store)
+        if err:
+            return err
+
         stocks = StockManager().calculate_stock_for_skus(wh.user, None, wh.id, False)
         if not len(stocks):
             err = f'Нет доступных остатков (с учетом правил доступности остатков) по складу магазина "{wh.name}"'
@@ -1221,10 +1228,6 @@ class OzonApi:
             stocks_list = stocks_list[self.stock_update_batch_size:]
 
         _log(f'total slices: {len(slices)}')
-
-        err = self._set_auth_headers(wh.store)
-        if err:
-            return err
 
         for _slice in slices:
             self._update_stock(wh, _slice)
