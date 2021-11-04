@@ -126,10 +126,8 @@ class StockManager:
             })
         return stocks
 
-    def get_stocks_loop_read_db_skus(self, qs, _ids, stocks, index):
-        ids_count = len(_ids)
+    def get_stocks_loop_read_db_skus(self, qs, _ids, stocks):
         for i, _id in enumerate(_ids, start=1):
-            _log(f'[worker {index}] computing stock for good {i} of {ids_count} ...')
             rows = qs.filter(good_id=_id)
             _stocks = rows.values('warehouse') \
                 .annotate(total_amount=Sum('amount')) \
@@ -198,11 +196,9 @@ class StockManager:
 
         return items
 
-    def _get_stock_by_sku_slice(self, qs, _ids, stocks, index):
-        ids_count = len(_ids)
+    def _get_stock_by_sku_slice(self, qs, _ids, stocks):
         with ThreadPoolExecutor(max_workers=min(self.goods_slice_size, self.goods_slice_handlers)) as executor:
             for i, good_id in enumerate(_ids, start=1):
-                _log(f'worker {index} computing stock for good {i} of {ids_count} ...')
                 executor.submit(self._get_stock_by_good_db, qs=qs, good_id=good_id, stocks=stocks)
 
     def get_user_stock_double_threading_read_db(self, rows, good_ids):
@@ -219,8 +215,8 @@ class StockManager:
         with ThreadPoolExecutor(max_workers=50) as executor:
             for i, _ids in enumerate(slices, start=1):
                 _log(f'processing sku slice {i} of {slices_count} ...')
-                executor.submit(self._get_stock_by_sku_slice, qs=rows, _ids=_ids, stocks=stocks, index=i)
-                # executor.submit(self.get_stocks_loop_read_db_skus, qs=rows, _ids=_ids, stocks=stocks, index=i)
+                executor.submit(self._get_stock_by_sku_slice, qs=rows, _ids=_ids, stocks=stocks)
+                # executor.submit(self.get_stocks_loop_read_db_skus, qs=rows, _ids=_ids, stocks=stocks)
 
         return stocks
 

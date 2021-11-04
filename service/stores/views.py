@@ -2238,7 +2238,7 @@ def store_wh_update_stock(request, pk):
         return redirect(redirect_to)
 
     redirect_to = f'{reverse_lazy("logs-list")}'
-    messages.success(request, f'Обновлены остатки склада магазина "{wh.name}"')
+    messages.success(request, f'Обновлены остатки склада магазина "{wh.name}" в маркетплейсе')
     return redirect(redirect_to)
 
 

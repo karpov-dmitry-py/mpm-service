@@ -13,18 +13,14 @@ from .common import _log
 from .common import new_uuid
 from .common import time_tracker
 from .common import to_float
-
 from .managers import StockManager
 from .managers import _get_user_qs
-
-from ..models import Marketplace
 from ..models import Good
 from ..models import GoodsBrand
 from ..models import GoodsCategory
-
 from ..models import Log
 from ..models import LogRow
-
+from ..models import Marketplace
 from ..models import Stock
 from ..models import Store
 from ..models import StoreWarehouse
@@ -922,23 +918,30 @@ class Logger:
             return None, err_msg
 
     @staticmethod
-    def get_goods_qs_by_skus(skus, user):
+    def _get_goods_qs_by_skus(skus, user):
         qs = _get_user_qs(Good, user).filter(sku__in=skus)
         _dict = {item.sku: item for item in qs}
         return _dict
 
     # noinspection PyUnresolvedReferences
-    def log_rows(self, log, stock, user):
-        goods = self.get_goods_qs_by_skus(list(stock.keys()), user)
+    def log_rows(self, log, stock):
+        user = log.user
+        goods = self._get_goods_qs_by_skus(list(stock.keys()), user)
         rows = []
-        for sku, amount in stock.items():
-            good = goods.get(sku)
-            if good is None:
-                continue
+        for sku, _dict in stock.items():
+            amount = _dict.get('amount', 0)
+            success = _dict.get('success', True)
+            err_code = _dict.get('err_code', None)
+            err_msg = _dict.get('err_msg', None)
+
             row = LogRow(
                 log=log,
-                good=good,
+                good=goods.get(sku),
+                sku=sku,
                 amount=amount,
+                success=success,
+                err_code=err_code,
+                err_msg=err_msg,
             )
             rows.append(row)
         try:
@@ -1048,7 +1051,8 @@ class YandexApi:
         if err:
             return response  # failed to save log to db, let's return result
 
-        logger.log_rows(log, stock, user)
+        stock = {sku: {'amount': amount} for sku, amount in stock.items()}
+        logger.log_rows(log, stock)
         logger.update_log(log, {'start_time': start_time})
 
         return response
@@ -1128,21 +1132,108 @@ class YandexApi:
 class OzonApi:
     marketplace_name = 'ozon'
     stock_update_batch_size = 100
+    ok_statuses = (200, 201, 204, 301, 302, 304,)
     api_base_url = 'https://api-seller.ozon.ru/v2'
 
     def __init__(self):
         self._session = requests.Session()
-        self._log = Logger()
+        self._logger = Logger()
         self._errors = []
 
+    def _log(self, msg):
+        return self._logger.log(msg)
+
+    @staticmethod
+    def _resp_ok(status):
+        return status in OzonApi.ok_statuses
+
+    def _post(self, url, _json=None):
+        if _json is None:
+            response = self._session.post(url)
+        else:
+            response = self._session.post(url, json=_json)
+
+        status = response.status_code
+        if self._resp_ok(status):
+            return response.json(), status, None
+
+        return None, status, response.text
+
     def _get_seller_stock(self, store):
+        result_key = 'result'
+        items_key = 'items'
+        sku_key = 'offer_id'
+        sku_stocks_key = 'stocks'
+        sku_stock_type_key = 'type'
+        sku_reserved_stock_key = 'reserved'
+
+        target_url = f'{self.api_base_url}/product/info/stocks'
+        query_page_size = int(2 ** 32 / 2) - 1
+        # query_page_size = 50
+        query_page_num = 0
+
+        base_err = f'В ответе от api маркетплейса ({target_url})'
+        key_not_found_err = f'{base_err} не найдено значение по ключу'
+
         store_type = store.store_type.name.lower().strip()
-        api_url = f'{self.api_base_url}/product/info/stocks'
+        stocks = dict()
+
+        payload = dict(page_size=query_page_size, page=query_page_num)
+        resp_payload, _, err = self._post(target_url, _json=payload)
+        if err:
+            return None, err
+
+        result = resp_payload.get(result_key)
+        if result is None:
+            return None, f'{key_not_found_err} "{result_key}"'
+
+        items = result.get(items_key)
+        if items is None:
+            return None, f'{key_not_found_err} "{items_key}"'
+
+        if not len(items):
+            return stocks, None
+
+        for item in items:
+
+            sku = item.get(sku_key)
+            if sku is None:
+                return None, f'{key_not_found_err} "{sku_key}"'
+
+            sku_stocks = item.get(sku_stocks_key)
+            if sku_stocks is None:
+                return None, f'{key_not_found_err} "{sku_stocks_key}"'
+
+            sku_total_reserved = 0
+            store_type_has_sku_stock = False
+            for stock in sku_stocks:
+
+                stock_type = stock.get(sku_stock_type_key)
+                if stock_type is None:
+                    return None, f'{key_not_found_err} "{sku_stock_type_key}"'
+
+                if stock_type.strip().lower() == store_type:
+                    reserved = stock.get(sku_reserved_stock_key)
+                    if reserved is None:
+                        return None, f'{key_not_found_err} "{sku_reserved_stock_key}"'
+
+                    sku_total_reserved += reserved
+                    store_type_has_sku_stock = True
+
+            if not store_type_has_sku_stock:
+                return None, f'{base_err} нет остатка товара {sku} для типа магазина {store_type}'
+
+            stocks[sku] = sku_total_reserved
+
+        return stocks, None
+
+    @staticmethod
+    def _json(val):
+        return json.dumps(val, indent=4, ensure_ascii=False)
 
     def _update_stock(self, wh, skus):
         target_url = f'{self.api_base_url}/products/stocks'
         rows = []
-
         start_time = time.time()
         log = {
             'start_time': start_time,
@@ -1158,41 +1249,101 @@ class OzonApi:
                 row = {'offer_id': sku, 'stock': amount, 'warehouse_id': wh_code}
                 rows.append(row)
         payload = {'stocks': rows}
-        log['request'] = payload
+        log['request'] = self._json(payload)
 
-        response = self._session.post(url=target_url, json=payload)
-        resp_as_str = self._resp_as_str(response)
-        log['response'] = resp_as_str
-
-        status = response.status_code
+        resp_payload, status, err = self._post(url=target_url, _json=payload)
         log['response_status'] = status
+        log['response'] = self._json(resp_payload)
 
-        if status != 200:
+        if err:
+            log['response'] = err
             err = f'Ошибочный ответ от api маркетплейса {target_url}\n, статус: {status}\n, ' \
-                  f'текст ответа:\n {resp_as_str}'
+                  f'текст ответа:\n {err}'
             self._errors.append(err)
-            log['error'] = resp_as_str
+            log['error'] = err
 
-            _, err = self._log.log(log)
+            _, err = self._log(log)
             if err:
                 self._errors.append(err)
             return
 
-        _, err = self._log.log(log)
+        log, err = self._log(log)
         if err:
             self._errors.append(err)
 
-        # TODO - log detailed sku update result to log rows
+        # todo - append skus detailed rows to log
+        skus, err = self._handle_stock_update_response(resp_payload, skus, target_url)
+        if err:
+            self._errors.append(err)
+            return
+
+        self._logger.log_rows(log, skus)
+        self._logger.update_log(log, {'start_time': start_time})
 
     @staticmethod
-    def _resp_as_str(resp):
-        if resp.status_code >= 500:
-            return resp.text
-        try:
-            payload = resp.json
-            return json.dumps(payload, indent=4, ensure_ascii=False)
-        except (json.JSONDecodeError, Exception):
-            return resp.text
+    def _handle_stock_update_response(payload, stocks, target_url):
+        result_key = 'result'
+        sku_key = 'offer_id'
+        updated_key = 'updated'
+        errors_key = 'errors'
+        err_code_key = 'code'
+        err_msg_key = 'message'
+
+        base_err = f'В ответе от api маркетплейса ({target_url})'
+        key_not_found_err = f'{base_err} не найдено значение по ключу'
+
+        _stocks = dict()
+        for _dict in stocks:
+            for sku, amount in _dict.items():
+                _stocks[sku] = amount
+
+        items = payload.get(result_key)
+        if items is None:
+            return None, f'{key_not_found_err} "{result_key}"'
+
+        skus = dict()
+        for item in items:
+
+            sku = item.get(sku_key)
+            if sku is None:
+                return None, f'{key_not_found_err} "{sku_key}"'
+
+            is_updated = item.get(updated_key)
+            if is_updated is None:
+                return None, f'{key_not_found_err} "{updated_key}"'
+
+            sku_data = {
+                'amount': _stocks.get(sku, 0),
+                'success': is_updated,
+            }
+
+            errors = item.get(errors_key)
+            if errors is None:
+                return None, f'{key_not_found_err} "{errors_key}"'
+
+            err_codes = dict()
+            err_msgs = dict()
+            for err in errors:
+
+                err_code = err.get(err_code_key)
+                if err_code is None:
+                    return None, f'{key_not_found_err} "{err_code_key}"'
+                err_codes[err_code] = True
+
+                err_msg = err.get(err_msg_key)
+                if err_msg is None:
+                    return None, f'{key_not_found_err} "{err_msg_key}"'
+                err_msgs[err_msg] = True
+
+            err_codes_all = ', '.join(list(err_codes.keys()))
+            err_msgs_all = ', '.join(list(err_msgs.keys()))
+
+            sku_data['err_code'] = err_codes_all
+            sku_data['err_msg'] = err_msgs_all
+
+            skus[sku] = sku_data
+
+        return skus, None
 
     def _set_auth_headers(self, store):
         headers = {
@@ -1205,22 +1356,48 @@ class OzonApi:
 
         missing_headers = [k for k, v in headers.items() if v is None]
         if len(missing_headers):
-            return f'В карточке магазина "{store.name}" введены не все обязательные поля: ' \
-                   f'{", ".join(missing_headers)}'
+            return f'В карточке магазина "{store.name}" введены не все обязательные поля для работы с ' \
+                   f'api маркетплейса: {", ".join(missing_headers)}'
 
         self._session.headers.update(headers)
 
+    @staticmethod
+    def _merge_stocks(seller_stocks, db_stocks):
+        for sku in list(seller_stocks.keys()):
+            db_stock = db_stocks.get(sku)
+            if db_stock is None:
+                seller_stocks[sku] = 0
+                continue
+
+            reserved = seller_stocks.get(sku, 0)
+            seller_stocks[sku] = max(0, db_stock - reserved)
+            db_stocks.pop(sku)
+
+        # merge remaining skus from db stocks
+        for sku, db_stock in db_stocks.items():
+            seller_stocks[sku] = db_stock
+
     def update_stock(self, wh):
-        err = self._set_auth_headers(wh.store)
+        # todo - set limit 80 requests per minute !!!
+
+        store = wh.store
+        err = self._set_auth_headers(store)
         if err:
             return err
 
-        stocks = StockManager().calculate_stock_for_skus(wh.user, None, wh.id, False)
-        if not len(stocks):
+        seller_stocks, err = self._get_seller_stock(store)
+        if err:
+            return err
+
+        db_stocks = StockManager().calculate_stock_for_skus(wh.user, None, wh.id, False)
+        if not len(db_stocks):
             err = f'Нет доступных остатков (с учетом правил доступности остатков) по складу магазина "{wh.name}"'
             return err
 
-        stocks_list = [{sku: _list[0]['amount']} for sku, _list in stocks.items()]
+        db_stocks = {sku: _list[0]['amount'] for sku, _list in db_stocks.items()}
+        self._merge_stocks(seller_stocks, db_stocks)
+        stocks_list = [{sku: stock} for sku, stock in seller_stocks.items()]
+
         slices = []
         while len(stocks_list) > 0:
             _slice = stocks_list[:self.stock_update_batch_size]

@@ -388,7 +388,8 @@ class Log(models.Model):
 
 class LogRow(models.Model):
     log = models.ForeignKey(Log, verbose_name='Лог обмена', on_delete=CASCADE, related_name='rows')
-    good = models.ForeignKey(Good, verbose_name='Товар', on_delete=CASCADE, related_name='logs')
+    good = models.ForeignKey(Good, verbose_name='Товар', on_delete=CASCADE, related_name='logs', blank=True, null=True)
+    sku = models.CharField(verbose_name='SKU товара', max_length=100, blank=True, null=True)
     amount = models.PositiveIntegerField(verbose_name='Переданный остаток', default=0, blank=True)
     success = models.BooleanField(default=True, verbose_name='Успешно', blank=True)
     err_code = models.CharField(verbose_name='Код ошибки', max_length=100, blank=True, null=True)
@@ -396,7 +397,9 @@ class LogRow(models.Model):
 
     # noinspection PyUnresolvedReferences
     def __str__(self):
-        return f'({self.good.sku}) {self.good.name} - {self.amount} - {"успешно" if self.success else "ошибка"}'
+        return f'(лог {self.log.id}) ({self.good.sku if self.good else self.sku})' \
+               f' {self.good.name if self.good else "нет карточки товара"} - {self.amount} ' \
+               f'- {"успешно" if self.success else "ошибка"}'
 
     class Meta:
         db_table = 'log_rows'
