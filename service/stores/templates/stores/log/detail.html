@@ -1,8 +1,8 @@
 {% extends 'users/base.html' %}
 {% load static %}
 {% block content %}
-<div class="container-fluid mb-5" style="width: 85%;">
-    <legend class="border-bottom mb-4">Просмотр лога обмена с маркетплейсами</legend>
+<div class="container-fluid mb-5" style="width: 80%;">
+    <legend class="border-bottom mb-4">Лог обмена с маркетплейсом</legend>
     <dl class="row">
         <dt class="col-sm-3">ID</dt>
         <dd class="col-sm-9 mb-3">{{ item.id }}</dd>
@@ -73,59 +73,56 @@
         </dd>
 
     </dl>
-    <a href="#" class="disabled btn btn-secondary">Выгрузить в файл</a>
 
     {% if item.rows.all %}
-    <h5 class="mb-3 mt-4">Детальные записи по товарам <span class="text-muted small">(всего: {{ item.rows.all | length }})</span></h5>
-    <table class="table table-hover small">
-        <thead>
-        <tr>
-            <th scope="col">№</th>
-            <th scope="col">SKU</th>
-            <th scope="col">Товар</th>
-            <th scope="col">Количество</th>
-            <th scope="col">Успешно</th>
-            <th scope="col">Код ошибки</th>
-            <th scope="col">Текст ошибки</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for row in item.rows.all %}
+        <a href="{% url 'logs-export' item.id %}" class="btn btn-info">Выгрузить записи по товарам в файл</a>
+        <h6 class="mb-3 mt-4">Детальные записи по товарам <span class="text-muted small">(всего: {{ item.rows.all | length }})</span></h6>
+        <table class="table table-hover small">
+            <thead>
             <tr>
-                <td>{{ forloop.counter }}</td>
-                <td>{{ row.sku }}</td>
-                <td>
-                    {% if row.good %}
-                        <a href="{% url 'goods-detail' row.good.id %}">
-                            {{ row.good.name }}
-                        </a>
-                    {% else %} нет карточки товара в БД {% endif %}
-                </td>
-
-                <td>{{ row.amount }}</td>
-                <td>
-                    {% if row.success %}
-                        <span style="font-size: 0.8rem;">&#9989;</span>
-                    {% else %} - {% endif %}
-                </td>
-                <td>
-                    {% if row.err_code %}
-                        {{ row.err_code }}
-                    {% else %} - {% endif %}
-                </td>
-                <td>
-                    {% if row.err_msg %}
-                        {{ row.err_msg }}
-                    {% else %} - {% endif %}
-                </td>
+                <th scope="col">№</th>
+                <th scope="col">SKU</th>
+                <th scope="col">Товар</th>
+                <th scope="col">Количество</th>
+                <th scope="col">Успешно</th>
+                <th scope="col">Код ошибки</th>
+                <th scope="col">Текст ошибки</th>
             </tr>
-        {% endfor %}
-        <tbody>
-    </table>
+            </thead>
+            <tbody>
+            {% for row in item.rows.all %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ row.sku }}</td>
+                    <td>
+                        {% if row.good %}
+                            <a href="{% url 'goods-detail' row.good.id %}">
+                                {{ row.good.name }}
+                            </a>
+                        {% else %} нет карточки товара в БД {% endif %}
+                    </td>
 
+                    <td>{{ row.amount }}</td>
+                    <td>
+                        {% if row.success %}
+                            <span style="font-size: 0.8rem;">&#9989;</span>
+                        {% else %} - {% endif %}
+                    </td>
+                    <td>
+                        {% if row.err_code %}
+                            {{ row.err_code }}
+                        {% else %} - {% endif %}
+                    </td>
+                    <td>
+                        {% if row.err_msg %}
+                            {{ row.err_msg }}
+                        {% else %} - {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            <tbody>
+        </table>
     {% endif %}
-
-
 </div>
 {% endblock content %}
 

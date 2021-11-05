@@ -1,16 +1,22 @@
 import datetime
 import logging
 import sys
+import os
 import re
 import time
 import uuid
 from contextlib import contextmanager
+
+from django.http import FileResponse
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 EMAIL_RE = re.compile('^[\w.+\-]+@[\w]+\.[a-z]{2,3}$')
 PHONE_PREFIX = '+7'
+CONTENT_TYPES = {
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
 
 
 def _log(msg):
@@ -127,6 +133,23 @@ def parse_int(src):
         return result, None
     except (ValueError, Exception) as err:
         err_msg = f'failed to parse an int from {src}: {_exc(err)}'
+        _err(err_msg)
+        return None, err_msg
+
+
+def get_file_response(src_path, target_filename, content_type, delete_after=False):
+    try:
+        content_type = CONTENT_TYPES.get(content_type, content_type) # get full content type by a shorter simple alias
+        response = FileResponse(
+            open(src_path, 'rb'),
+            as_attachment=True,
+            content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename={target_filename}'
+        if delete_after:
+            os.remove(src_path)
+        return response, None
+    except (OSError, Exception) as err:
+        err_msg = f'Не удалось сформировать ответ по файлу {src_path}: {_exc(err)}'
         _err(err_msg)
         return None, err_msg
 

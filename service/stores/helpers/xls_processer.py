@@ -1,20 +1,27 @@
 import os.path
 import shutil
 import uuid
+
 from datetime import datetime
+from collections import OrderedDict
 
 import openpyxl
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.dimensions import ColumnDimension, DimensionHolder
+
 from django.http import HttpResponse
 
 from .common import _log
 from .common import _err
 from .common import _exc
+from .common import new_uuid
+
 from ..models import GoodsBrand
 from ..models import GoodsCategory
 from ..models import Good
 
 
-class ExcelProcesser:
+class XlsProcesser:
     BASE_DIR = '/tmp/mpm-goods-batch-processing'
 
     def __init__(self, check_tmp_dir=True):
@@ -33,7 +40,75 @@ class ExcelProcesser:
         if not os.path.exists(_dir):
             os.makedirs(_dir, exist_ok=True)
 
-    def export_goods(self, queryset):
+    # noinspection PyPep8Naming
+    @staticmethod
+    def _adjust_cols_width(ws):
+        dim_holder = DimensionHolder(worksheet=ws)
+        for col in range(ws.min_column, ws.max_column + 1):
+            dim_holder[get_column_letter(col)] = ColumnDimension(ws, min=col, max=col, width=25)
+        ws.column_dimensions = dim_holder
+
+    def log_export(self, log_rows_qs):
+        base_path = '/tmp'
+        save_path = os.path.join(base_path, f'log_export_{new_uuid()}.xlsx')
+
+        success_vals = {
+            True: 'Да',
+            False: 'Нет',
+        }
+
+        headers = {
+            'row_num': '№',
+            'sku': 'SKU',
+            'name': 'Наименование товара',
+            'amount': 'Переданное количество',
+            'success': 'Успешно',
+            'err_code': 'Код ошибки',
+            'err_msg': 'Текст ошибки',
+        }
+        ordered_headers = OrderedDict(headers)
+
+        wb = openpyxl.Workbook()
+        sheet = wb.active
+        sheet.title = 'Данные по товарам'
+
+        # write headers
+        headers_keys = list(ordered_headers.keys())
+        headers_vals = list(ordered_headers.values())
+
+        row = 1
+        for col, header in enumerate(headers_vals, start=1):
+            cell = sheet.cell(row=row, column=col)
+            cell.value = header
+
+        for row_num, row in enumerate(log_rows_qs, start=1):
+            for col_num, header_key in enumerate(headers_keys, start=1):
+                cell = sheet.cell(row=row_num + 1, column=col_num)
+
+                if header_key == 'row_num':
+                    cell.value = row_num
+                    continue
+
+                if header_key == 'success':
+                    cell.value = success_vals.get(row.success)
+                    continue
+
+                value = getattr(row, header_key, None)
+                if value is None:
+                    if header_key == 'name':
+                        if row.good is None:
+                            value = 'Нет карточки товара в БД'
+                        else:
+                            value = row.good.name
+
+                cell.value = value
+
+        self._adjust_cols_width(sheet)
+        wb.save(save_path)
+
+        return save_path
+
+    def goods_export(self, queryset):
         data_first_row = 3
         dirname = os.path.dirname(__file__)
         template_file = 'templates/goods/goods_upload_sample.xlsx'

@@ -60,10 +60,11 @@ from .helpers.common import get_supplier_error
 
 from .helpers.suppliers import Parser
 
-from .helpers.xls_processer import ExcelProcesser
+from .helpers.xls_processer import XlsProcesser
 from .helpers.api import API
 from .helpers.api import YandexApi
 from .helpers.api import OzonApi
+from .helpers.api import Logger
 
 from .helpers.managers import StockManager
 from .helpers.managers import get_stock_condition_types
@@ -188,7 +189,7 @@ def batch_goods_upload(request):
 
             bytes_io = form.files['file'].file
             raw = bytes_io.read()
-            excel_handler = ExcelProcesser()
+            excel_handler = XlsProcesser()
             save_dir, filename = excel_handler.batch_goods_upload(raw, extension, request.user)
             messages.success(request, f'Файл обработан.')
             form = BatchGoodsUploadForm()
@@ -211,7 +212,7 @@ def batch_goods_upload(request):
 @require_GET
 @login_required()
 def batch_goods_upload_success_file(request, path):
-    excel_handler = ExcelProcesser()
+    excel_handler = XlsProcesser()
     result, error = excel_handler.get_file_content(path)
     if error:
         messages.error(request, error)
@@ -229,8 +230,8 @@ def export_goods(request):
     if not len(qs):
         messages.error(request, "Нет товаров для выгрузки. Измените фильтры.")
         return redirect(return_view)
-    xls_handler = ExcelProcesser()
-    result, error = xls_handler.export_goods(qs)
+    xls_handler = XlsProcesser()
+    result, error = xls_handler.goods_export(qs)
     if error:
         messages.error(request, error)
         return redirect(return_view)
@@ -2267,7 +2268,6 @@ class LogListView(LoginRequiredMixin, ListView):
 
 class LogDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     model = Log
-    # fields = ['id', 'name', 'code', 'token', 'description', ]
     fields = ['__all__']
     context_object_name = 'item'
     template_name = 'stores/log/detail.html'
@@ -2280,6 +2280,17 @@ class LogDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Просмотр лога обмена'
         return context
+
+
+@require_GET
+@login_required()
+def log_export(request, pk):
+    redirect_to = reverse_lazy('logs-list')
+    result, err = Logger.log_export(request, pk)
+    if err:
+        messages.error(request, err)
+        return redirect(redirect_to)
+    return result
 
 
 @require_POST

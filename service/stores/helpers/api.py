@@ -13,8 +13,13 @@ from .common import _log
 from .common import new_uuid
 from .common import time_tracker
 from .common import to_float
+from .common import get_file_response
+
+from .xls_processer import XlsProcesser
+
 from .managers import StockManager
 from .managers import _get_user_qs
+
 from ..models import Good
 from ..models import GoodsBrand
 from ..models import GoodsCategory
@@ -952,6 +957,26 @@ class Logger:
             _err(err_msg)
             return err_msg
 
+    # noinspection PyUnresolvedReferences
+    @staticmethod
+    def log_export(request, log_id):
+        logs = Log.objects.filter(user=request.user).filter(id=log_id)
+        if not len(logs):
+            return None, f'Не найден лог с id {log_id} для текущего пользователя'
+
+        log = logs[0]
+        qs = log.rows.all()
+        if not qs.count():
+            return None, f'Лог с id {log_id} не имеет детальных записей по товарам'
+
+        xls_worker = XlsProcesser(check_tmp_dir=False)
+        src_path = xls_worker.log_export(qs)
+        target_filename = f'log_export_{log_id}.xlsx'
+        return get_file_response(src_path=src_path,
+                                 target_filename=target_filename,
+                                 content_type='xlsx',
+                                 delete_after=True)
+
 
 # class for communication with yandex market via api
 class YandexApi:
@@ -1169,7 +1194,7 @@ class OzonApi:
 
         target_url = f'{self.api_base_url}/product/info/stocks'
         query_page_size = int(2 ** 32 / 2) - 1
-        # query_page_size = 50
+        # query_page_size = 10
         query_page_num = 0
 
         base_err = f'В ответе от api маркетплейса ({target_url})'

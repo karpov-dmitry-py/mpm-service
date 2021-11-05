@@ -157,7 +157,7 @@ class StockManager:
         else:
             rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
 
-        _log(f'total stock rows count: {rows.count()}')
+        # _log(f'total stock rows count: {rows.count()}')
         good_ids = rows.values_list('good', flat=True).distinct()
 
         # read db sequentially
@@ -214,9 +214,8 @@ class StockManager:
         slices_count = len(slices)
         with ThreadPoolExecutor(max_workers=50) as executor:
             for i, _ids in enumerate(slices, start=1):
-                _log(f'processing sku slice {i} of {slices_count} ...')
+                # _log(f'processing sku slice {i} of {slices_count} ...')
                 executor.submit(self._get_stock_by_sku_slice, qs=rows, _ids=_ids, stocks=stocks)
-                # executor.submit(self.get_stocks_loop_read_db_skus, qs=rows, _ids=_ids, stocks=stocks)
 
         return stocks
 
@@ -511,7 +510,7 @@ class StockManager:
         result = defaultdict(list)
         with ThreadPoolExecutor(max_workers=whs_count) as executor:
             for i, wh in enumerate(whs, start=1):
-                _log(f'applying stock settings for store warehouse {i} of {whs_count} ...')
+                # _log(f'applying stock settings for store warehouse {i} of {whs_count} ...')
                 _stocks = stocks if whs_count == 1 else copy.deepcopy(stocks)
                 executor.submit(self.calculate_stock_by_store_warehouse,
                                 wh=wh, stocks=_stocks, result=result)
@@ -560,7 +559,7 @@ class StockManager:
         goods_count = len(stocks)
 
         for i, setting in enumerate(settings, start=1):
-            _log(f'calculating setting # {i} ...')
+            # _log(f'calculating setting # {i} ...')
 
             stocks, stocks_by_conditions = StockManager.calculate_stock_setting_content(setting.content, stocks)
             if i > 1 and len(stocks) == goods_count:
@@ -607,7 +606,7 @@ class StockManager:
             elif _type == 'stock':
                 stocks = StockManager._calculate_min_stock(stocks, condition)
 
-            _log(f' --- condition # {i} - stocks {len(stocks)}')
+            # _log(f' --- condition # {i} - stocks {len(stocks)}')
             conditions_stats[i] = len(stocks)
 
         return stocks, conditions_stats

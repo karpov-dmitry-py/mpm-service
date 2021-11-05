@@ -105,13 +105,21 @@
                         {% else %} - {% endif %}
                     </td>
                     <td>
-                        <div>
-                            <a href="{% url 'logs-detail' item.id %}">
-                                Детальнее
-                            </a>
-                        </div>
-                        <div>
-                            <span class="text-muted">Выгрузить в файл</span>
+                        <div class="row">
+                            <div class="mr-4 ml-3">
+                                <a href="{% url 'logs-detail' item.id %}">
+                                    Детальнее
+                                </a>
+                            </div>
+                            <div>
+                                {% if item.rows.all %}
+                                    <a href="{% url 'logs-export' item.id %}">
+                                        Выгрузить в файл
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">Нет данных для выгрузки</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </td>
                 </tr>

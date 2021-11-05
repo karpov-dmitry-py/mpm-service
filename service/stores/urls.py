@@ -104,6 +104,7 @@ urlpatterns = [
     # logs
     path('logs/', views.LogListView.as_view(), name='logs-list'),
     path('logs/<int:pk>/detail/', views.LogDetailView.as_view(), name='logs-detail'),
+    path('logs/<int:pk>/export/', views.log_export, name='logs-export'),
 
     # API
     # help page
