@@ -7,7 +7,7 @@
 }
 
 .smaller {
-    font-size: 14px;
+    font-size: 10px;
 }
 
 .smaller-header {
@@ -23,4 +23,9 @@
 .ul {
     padding-bottom: 0px;
     margin-bottom: 0px;
+}
+
+.actions {
+    text-align: right;
+    width: 17rem;
 }

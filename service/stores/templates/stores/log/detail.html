@@ -2,7 +2,7 @@
 {% load static %}
 {% block content %}
 <div class="container-fluid mb-5" style="width: 80%;">
-    <legend class="border-bottom mb-4">Лог обмена с маркетплейсом</legend>
+    <h5 class="border-bottom mb-4 mt-2">Лог обмена с маркетплейсом</h5>
     <dl class="row">
         <dt class="col-sm-3">ID</dt>
         <dd class="col-sm-9 mb-3">{{ item.id }}</dd>
@@ -74,6 +74,7 @@
 
     </dl>
 
+    <!--    detailed rows-->
     {% if item.rows.all %}
         <a href="{% url 'logs-export' item.id %}" class="btn btn-info">Выгрузить записи по товарам в файл</a>
         <h6 class="mb-3 mt-4">Детальные записи по товарам <span class="text-muted small">(всего: {{ item.rows.all | length }})</span></h6>
@@ -99,7 +100,7 @@
                             <a href="{% url 'goods-detail' row.good.id %}">
                                 {{ row.good.name }}
                             </a>
-                        {% else %} нет карточки товара в БД {% endif %}
+                        {% else %} Нет карточки товара в БД {% endif %}
                     </td>
 
                     <td>{{ row.amount }}</td>

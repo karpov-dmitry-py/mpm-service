@@ -1,9 +1,13 @@
 {% extends 'users/base.html' %}
+{% load static %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'stores/css/common.css' %}">
 <div class="container-fluid" style="width: 100%;">
-<a class="btn btn btn-success mb-3" style="margin-top: 1rem;" href="{% url 'systems-add' %}">Создать учетную систему</a>
-<legend class="border-bottom mb-4" >Мои учетные системы (всего {{ items_count }}):</legend>
-<table class="table table-hover">
+<a class="btn btn btn-success mb-3 mt-3" href="{% url 'systems-add' %}">Создать учетную систему</a>
+<h5 class="border-bottom mb-3" >
+    Учетные системы (внешние источники данных) <span class="text-muted small">(всего: {{ items_count }})</span>
+</h5>
+<table class="table table-hover small">
     <thead class="thead-dark">
     <tr>
         <th>№</th>
@@ -22,9 +26,9 @@
                     <td><a href="{% url 'systems-detail' item.id %}">{{ item.name }}</a></td>
                     <td>{{ item.code }}</td>
                     <td>{{ item.token }}</td>
-                    <td style="text-align: center; padding-right: 0rem; width: 13rem;">
-                        <a class="btn btn-primary" href="{% url 'systems-update' item.id %}">Изменить</a>
-                        <a class="btn btn-secondary" href="{% url 'systems-delete' item.id %}">Удалить</a>
+                    <td class="actions">
+                        <a class="btn btn-primary btn-sm" href="{% url 'systems-update' item.id %}">Изменить</a>
+                        <a class="btn btn-secondary btn-sm" href="{% url 'systems-delete' item.id %}">Удалить</a>
                     </td>
                 </tr>
             {% endfor %}

@@ -6,11 +6,11 @@
 <link rel="stylesheet" href="{% static 'stores/css/list_stock_settings.css' %}">
 <link rel="stylesheet" href="{% static 'stores/css/common.css' %}">
 <div class="container-fluid" style="width: 100%;">
-<a class="btn btn btn-success mb-3" style="margin-top: 1rem;" href="{% url 'stock-settings-add' wh.id %}">Создать настройку</a>
-<legend class="border-bottom mb-4">
-    Настройки остатков склада магазина - <a href="{% url 'store-warehouses-detail' wh.id %}">
-                            {{ wh.name }}</a> (всего {{ items_count }}):
-</legend>
+<a class="btn btn btn-success mb-3 mt-3" href="{% url 'stock-settings-add' wh.id %}">Создать настройку</a>
+<h5 class="border-bottom mb-1">
+    Настройки остатков склада магазина -
+    <a href="{% url 'store-warehouses-detail' wh.id %}">{{ wh.name }}</a> <span class="text-muted small">(всего: {{ items_count }})</span>
+</h5>
 
 <!--delete selected settings form-->
 <div class="container-fluid">
@@ -22,7 +22,9 @@
             <fieldset class="form-group mb-1">
                 {{ batch_delete_form|crispy }}
                 <div class="form-group mb-0 mr-0">
-                    <button id="delete-settings-btn" onclick="getSelectedSettings();" class="btn btn-light delete-settings-btn" type="submit">Удалить выбранные настройки</button>
+                    <button id="delete-settings-btn" onclick="getSelectedSettings();" class="btn btn-sm btn-light delete-settings-btn" type="submit">
+                        Удалить выбранные настройки
+                    </button>
                 </div>
             </fieldset>
         </form>
@@ -30,7 +32,7 @@
   </div>
 </div>
 
-<table class="table table-hover smaller">
+<table class="table table-hover small">
     <thead class="thead-dark">
     <tr>
         <th>
@@ -60,9 +62,9 @@
                     <td class="setting_stock">{{ calculated_stock_by_settings|get_item:item.id }}</td>
                     <td>{{ calculated_stock_by_conditions|get_item:item.id }}</td>
 
-                    <td style="text-align: center; padding-right: 0rem;">
-                        <a class="btn btn-primary" href="{% url 'stock-settings-update' item.id %}">Изменить</a>
-                        <a class="btn btn-secondary" href="{% url 'stock-settings-delete' item.id %}">Удалить</a>
+                    <td class="actions">
+                        <a class="btn btn-sm btn-primary" href="{% url 'stock-settings-update' item.id %}">Изменить</a>
+                        <a class="btn btn-sm btn-secondary" href="{% url 'stock-settings-delete' item.id %}">Удалить</a>
                     </td>
                 </tr>
             {% endfor %}

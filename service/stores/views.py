@@ -725,6 +725,7 @@ class GoodsBrandListView(LoginRequiredMixin, ListView):
     model = GoodsBrand
     context_object_name = 'items'
     ordering = ['id']
+    paginate_by = 10
 
     def get_queryset(self):
         # noinspection PyUnresolvedReferences
@@ -732,7 +733,8 @@ class GoodsBrandListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['items_count'] = len(context['items'])
+        context['items_count'] = self.object_list.count()
+        context['pages'] = _get_pages_list(context['page_obj'], frequency=1)
         context['title'] = 'Бренды товаров'
         return context
 
@@ -1258,6 +1260,7 @@ class SupplierListView(LoginRequiredMixin, ListView):
     model = Supplier
     context_object_name = 'items'
     ordering = ['id']
+    paginate_by = 10
 
     def get_queryset(self):
         # noinspection PyUnresolvedReferences
@@ -1266,7 +1269,8 @@ class SupplierListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['items_count'] = len(context['items'])
+        context['items_count'] = self.object_list.count()
+        context['pages'] = _get_pages_list(context['page_obj'], frequency=1)
         context['title'] = 'Поставщики товаров'
         return context
 
@@ -1419,6 +1423,7 @@ class WarehouseListView(LoginRequiredMixin, ListView):
     model = Warehouse
     context_object_name = 'items'
     ordering = ['id']
+    paginate_by = 10
 
     def get_queryset(self):
         # noinspection PyUnresolvedReferences
@@ -1427,7 +1432,8 @@ class WarehouseListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['items_count'] = len(context['items'])
+        context['items_count'] = self.object_list.count()
+        context['pages'] = _get_pages_list(context['page_obj'], frequency=1)
         context['title'] = 'Склады'
         return context
 
