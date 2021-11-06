@@ -15,6 +15,7 @@ from .common import _log
 from .common import _err
 from .common import _exc
 from .common import new_uuid
+from .common import get_file_response
 
 from ..models import GoodsBrand
 from ..models import GoodsCategory
@@ -22,7 +23,7 @@ from ..models import Good
 
 
 class XlsProcesser:
-    BASE_DIR = '/tmp/mpm-goods-batch-processing'
+    BASE_DIR = '/tmp/tmp-processing-dir'
 
     def __init__(self, check_tmp_dir=True):
         if check_tmp_dir:
@@ -218,8 +219,15 @@ class XlsProcesser:
                         cell.value = value
 
         wb.save(file_full_path)
-        file_path = f'{_dir}&&{filename}'
-        return self.get_file_content(file_path)
+
+        return get_file_response(
+            src_path=file_full_path,
+            target_filename=filename,
+            delete_after=True,
+            content_type='xlsx')
+
+        # file_path = f'{_dir}&&{filename}'
+        # return self.get_file_content(file_path)
 
     @staticmethod
     def _new_dir():
@@ -456,8 +464,12 @@ class XlsProcesser:
         if not os.path.isfile(fullpath):
             err_msg = f'Не найден файл: {relative_path_to_file}'
             return None, err_msg
+
+        return
+
         with open(fullpath, 'rb') as file:
             raw = file.read()
+
         filename = os.path.basename(fullpath)
         shutil.rmtree(_dir, ignore_errors=True)
         response = HttpResponse(raw, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

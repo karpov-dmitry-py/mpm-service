@@ -12,7 +12,7 @@ from django.db.models import Max
 from .common import _log
 from .common import _exc
 from .common import _err
-# from .common import time_tracker
+from .common import uwsgi_lock
 
 from ..models import GoodsCategory
 from ..models import GoodsBrand
@@ -152,24 +152,15 @@ class StockManager:
 
     # noinspection PyTypeChecker
     def get_user_stock(self, user, skus=None):
+        qs = _get_user_qs(Stock, user).filter(amount__gt=0)
         if skus:
-            rows = _get_user_qs(Stock, user).filter(good__sku__in=skus).filter(amount__gt=0).order_by('good')
-        else:
-            rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
-
-        # _log(f'total stock rows count: {rows.count()}')
-        good_ids = rows.values_list('good', flat=True).distinct()
-
-        # read db sequentially
-        # items = StockManager.get_stocks_loop_read_db(rows, good_ids)
-
-        # OR read db in threads
-        # items = self.get_user_stock_threading_read_db(rows, good_ids)
-        items = self.get_user_stock_double_threading_read_db(rows, good_ids)
+            qs = qs.filter(good__sku__in=skus)
+        qs = qs.order_by('good')
+        items = self._get_user_stock_threading(qs)
 
         return items
 
-    def get_user_stock_threading_read_db(self, rows, good_ids):
+    def get_user_stock_old_threading_read_db(self, rows, good_ids):
         items = []
         iteration = 0
         while len(good_ids):
@@ -201,9 +192,12 @@ class StockManager:
             for i, good_id in enumerate(_ids, start=1):
                 executor.submit(self._get_stock_by_good_db, qs=qs, good_id=good_id, stocks=stocks)
 
-    def get_user_stock_double_threading_read_db(self, rows, good_ids):
+    @uwsgi_lock('_get_user_stock_threading')
+    def _get_user_stock_threading(self, qs):
         stocks = []
         slices = []
+        good_ids = qs.values_list('good', flat=True).distinct()
+
         while len(good_ids):
             _slice = good_ids[:self.goods_slice_size]
             if not len(_slice):
@@ -211,11 +205,9 @@ class StockManager:
             slices.append(_slice)
             good_ids = good_ids[self.goods_slice_size:]
 
-        slices_count = len(slices)
         with ThreadPoolExecutor(max_workers=50) as executor:
             for i, _ids in enumerate(slices, start=1):
-                # _log(f'processing sku slice {i} of {slices_count} ...')
-                executor.submit(self._get_stock_by_sku_slice, qs=rows, _ids=_ids, stocks=stocks)
+                executor.submit(self._get_stock_by_sku_slice, qs=qs, _ids=_ids, stocks=stocks)
 
         return stocks
 

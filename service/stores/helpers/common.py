@@ -9,6 +9,16 @@ from contextlib import contextmanager
 
 from django.http import FileResponse
 
+uwsgi_import_ok = True
+try:
+    # noinspection PyUnresolvedReferences
+    import uwsgi
+
+    print('uwsgi import ok')
+except ImportError:
+    uwsgi_import_ok = False
+    print('uwsgi import failed')
+
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -114,6 +124,19 @@ def time_tracker(action):
         _log(f'{action} took {duration} seconds.')
 
 
+@contextmanager
+def uwsgi_lock(func):
+    if uwsgi_import_ok:
+        uwsgi.lock()
+        _log(f'uwsgi lock set: {func}')
+    try:
+        yield
+    finally:
+        if uwsgi_import_ok:
+            uwsgi.unlock()
+            _log(f'uwsgi lock released: {func}')
+
+
 def get_duration(start):
     return str(datetime.datetime.now() - start)
 
@@ -139,7 +162,7 @@ def parse_int(src):
 
 def get_file_response(src_path, target_filename, content_type, delete_after=False):
     try:
-        content_type = CONTENT_TYPES.get(content_type, content_type) # get full content type by a shorter simple alias
+        content_type = CONTENT_TYPES.get(content_type, content_type)  # get full content type by a shorter simple alias
         response = FileResponse(
             open(src_path, 'rb'),
             as_attachment=True,
