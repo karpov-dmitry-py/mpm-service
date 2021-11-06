@@ -988,9 +988,16 @@ class GoodsCategoryUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVie
         return reverse_lazy('categories-list')
 
     def form_valid(self, form):
-        name = form.cleaned_data['name']
+
+        parent = form.cleaned_data['parent']
+        if parent is not None and self.object.id == parent.id:
+            form.errors['Ошибка заполнения'] = f'Указана не корректная родительская категория ' \
+                                               f'(элемент ссылается сам на себя)'
+
+            return self.form_invalid(form)
 
         # validation
+        name = form.cleaned_data['name']
         # noinspection PyUnresolvedReferences
         qs = self.model.objects.filter(user=self.request.user).exclude(id=form.instance.id)
         existing_rows = qs.filter(name__iexact=name)
