@@ -29,10 +29,23 @@ CONTENT_TYPES = {
 }
 
 
+@contextmanager
+def with_try(func):
+    try:
+        yield
+    except (UnicodeDecodeError, Exception) as err:
+        err_msg = f'failed to {func}: {_exc(err)}'
+        print(err_msg)
+    finally:
+        pass
+
+
+@with_try('_log')
 def _log(msg):
     logging.info(msg)
 
 
+@with_try('_err')
 def _err(msg):
     logging.error(msg)
 

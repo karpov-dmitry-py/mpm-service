@@ -679,11 +679,10 @@ class API:
                             db_row.amount = amount
                             try:
                                 db_row.save()
-                                _log(f'Updated an existing db row with data: {data_to_update}')
+                                _log('updated an existing stock row in db')
                                 self._append_to_dict(stats, 'processed_offers_rows', data_to_update)
                             except Exception as err:
-                                err_msg = f'Failed to update an existing db row with data: {data_to_update}. ' \
-                                          f'{_exc(err)}'
+                                err_msg = f'failed to update an existing stock row in db: {_exc(err)}'
                                 _err(err_msg)
                                 self._append_to_dict(stats, 'failed_to_process_offers_rows', data_to_update)
                                 sku_stock_processing_success = False
@@ -695,7 +694,7 @@ class API:
                             try:
                                 db_row.delete()
                             except Exception as err:
-                                err_msg = f'Failed to delete a redundant db row for warehouse code {wh_code} ' \
+                                err_msg = f'failed to delete a redundant db row for warehouse code {wh_code} ' \
                                           f'and sku {sku}. {_exc(err)}'
                                 _err(err_msg)
                                 sku_stock_processing_success = False
@@ -711,10 +710,10 @@ class API:
                     new_db_row = Stock(**new_db_row_data)
                     try:
                         new_db_row.save()
-                        _log(f'Added a new db row with data: {data_to_update}')
+                        _log('saved a new stock row to db')
                         self._append_to_dict(stats, 'processed_offers_rows', data_to_update)
                     except Exception as err:
-                        err_msg = f'Failed to add a new db row with data: {data_to_update}. {_exc(err)}'
+                        err_msg = f'failed to save a new stock row to db: {_exc(err)}'
                         _err(err_msg)
                         self._append_to_dict(stats, 'failed_to_process_offers_rows', data_to_update)
                         sku_stock_processing_success = False
@@ -1195,7 +1194,7 @@ class OzonApi:
 
         target_url = f'{self.api_base_url}/product/info/stocks'
         query_page_size = int(2 ** 32 / 2) - 1
-        # query_page_size = 10
+        # query_page_size = 2 # testing
         query_page_num = 0
 
         base_err = f'В ответе от api маркетплейса ({target_url})'
@@ -1397,14 +1396,9 @@ class OzonApi:
 
             reserved = seller_stocks.get(sku, 0)
             seller_stocks[sku] = max(0, db_stock - reserved)
-            db_stocks.pop(sku)
-
-        # merge remaining skus from db stocks
-        for sku, db_stock in db_stocks.items():
-            seller_stocks[sku] = db_stock
 
     def update_stock(self, wh):
-        # todo - set limit 80 requests per minute !!!
+        # todo - set limit - max 80 requests per minute !!!
 
         store = wh.store
         err = self._set_auth_headers(store)
@@ -1415,12 +1409,14 @@ class OzonApi:
         if err:
             return err
 
-        db_stocks = StockManager().calculate_stock_for_skus(wh.user, None, wh.id, False)
-        if not len(db_stocks):
-            err = f'Нет доступных остатков (с учетом правил доступности остатков) по складу магазина "{wh.name}"'
-            return err
+        skus = list(seller_stocks.keys())
+        db_stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
+        if len(db_stocks):
+            db_stocks = {sku: _list[0]['amount'] for sku, _list in db_stocks.items()}
+        else:
+            _log(f'Нет доступных остатков по товарам из остатков маркетплейса (с учетом правил доступности остатков) '
+                 f'по складу магазина "{wh.name}"')
 
-        db_stocks = {sku: _list[0]['amount'] for sku, _list in db_stocks.items()}
         self._merge_stocks(seller_stocks, db_stocks)
         stocks_list = [{sku: stock} for sku, stock in seller_stocks.items()]
 
@@ -1430,12 +1426,8 @@ class OzonApi:
             slices.append(_slice)
             stocks_list = stocks_list[self.stock_update_batch_size:]
 
-        _log(f'total slices: {len(slices)}')
-
         for _slice in slices:
             self._update_stock(wh, _slice)
 
         if len(self._errors):
             return '. '.join(self._errors)
-
-

@@ -1,11 +1,14 @@
 <!--pagination {    -->
 <nav aria-label="detailed pagination">
-    <ul class="pagination justify-content-center flex-wrap mb-3">
+        <ul class="pagination justify-content-center flex-wrap mb-3">
         {% if page_obj.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                Предыдущая
+            </a>
         </li>
         {% else %}
-        <li class="page-item disabled">
+        <li class="page-item disabled small">
             <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Предыдущая</a>
         </li>
         {% endif %}
