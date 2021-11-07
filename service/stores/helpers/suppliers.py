@@ -19,7 +19,7 @@ class Parser:
     supplier = supplier_base_url.split('//')[1]
     own_stock_url = 'https://sportpremier.ru/bitrix/catalog_export/yandex_all.php'
     own_stock_is_required = True
-    search_result_count = 10**6
+    search_result_count = 10 ** 6
     availability = {
         'true': True,
         'false': False,
@@ -32,21 +32,47 @@ class Parser:
         self._rows = dict()
         self._own_stock = dict()
         self._error = None
-        self._cats = self.get_categories()
+        self._cats = self._get_categories()
 
     @staticmethod
-    def get_categories():
+    def _get_categories():
         result = {
-            '569': 'Беговые дорожки',
-            '573': 'Велотренажеры',
-            '577': 'Эллиптические тренажеры',
-            '581': 'Степперы и эскалаторы',
-            '584': 'Гребные тренажеры',
-            '592': 'Силовые тренажеры',
+            '569': {
+                'name': 'Беговые дорожки',
+                'own_cat_id': '3',
+            },
+            '573': {
+                'name': 'Велотренажеры',
+                'own_cat_id': '12',
+            },
+            '577': {
+                'name': 'Эллиптические тренажеры',
+                'own_cat_id': '21',
+            },
+            '581': {
+                'name': 'Степперы и эскалаторы',
+                'own_cat_id': '35',
+            },
+            '584': {
+                'name': 'Гребные тренажеры',
+                'own_cat_id': '30',
+            },
+            '592': {
+                'name': 'Силовые тренажеры',
+                'own_cat_id': '47',
+            },
         }
+
+        for k in result.keys():
+            result[k]['own_cats'] = []
+
         return result
 
-    def _get_own_stock(self):
+    @staticmethod
+    def get_supplier_categories():
+        return {k: v['name'] for k, v in Parser._get_categories().items()}
+
+    def _get_own_stock(self, category_ids):
         url = self.own_stock_url
         response = requests.get(url, timeout=60)
         if response.status_code != 200:
@@ -57,13 +83,12 @@ class Parser:
 
         soup = BeautifulSoup(response.text, 'lxml')
         stock = soup.find_all('offer')
-
         if not len(stock):
             return f'Не найдены остатки по источнику {url}'
 
         goods = dict()
         for row in stock:
-            good = dict()
+            good = {'is_on_supplier_site': False}
             good_url = row.find('url')
             if good_url is None:
                 _log('Нет тега "url" в предложении по собственным остаткам')
@@ -83,12 +108,31 @@ class Parser:
         if not len(goods):
             return f'Найдены пустые остатки (нет тега "url") по источнику {url}'
 
-        self._own_stock = goods
+        # parse categories
+        cats_soup = soup.find_all('category')
+        cats, err = self._parse_own_categories(cats_soup, url)
+        if err:
+            return err
+
+        self._own_stock = {
+            'cats': cats,
+            'goods': goods,
+        }
+
+    @staticmethod
+    def _parse_own_categories(cats, url):
+        if not cats:
+            return None, f'Не найдены категории товаров по источнику {url}'
+        parsed_cats = dict()
+        for cat in cats:
+            pass
+
+        return parsed_cats, None
 
     def get_suppliers_offers(self, category_ids):
         start = datetime.datetime.now()
 
-        err = self._get_own_stock()
+        err = self._get_own_stock(category_ids)
         if err and self.own_stock_is_required:
             return None, err
 
@@ -176,7 +220,6 @@ class Parser:
 
             if name:
                 with self._mutex:
-                    _log('about to add name to props ...')
                     self._rows[name] = props
 
         if not len(self._rows):
@@ -192,6 +235,7 @@ class Parser:
                 self._rows[name]['error'] = f'Сформирована пустая строка поиска для товара "{name}"'
             return
 
+        self_stock = self._own_stock.get('goods', {})
         self_base_url = 'https://sportpremier.ru'
         target_url = f'{self_base_url}/search/?q={cleaned_name}'
 
@@ -246,7 +290,10 @@ class Parser:
             return
 
         url = props.get('url')
-        good = self._own_stock.get(url)
+        good = self_stock.get(url)
+        if good is not None:
+            self_stock[url]['is_on_supplier_site'] = True
+
         if good is None or not good.get('available', False):
             props['stock'] = self.availability[False]
         else:

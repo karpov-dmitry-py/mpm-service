@@ -1411,11 +1411,9 @@ class OzonApi:
 
         skus = list(seller_stocks.keys())
         db_stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
+
         if len(db_stocks):
             db_stocks = {sku: _list[0]['amount'] for sku, _list in db_stocks.items()}
-        else:
-            _log(f'Нет доступных остатков по товарам из остатков маркетплейса (с учетом правил доступности остатков) '
-                 f'по складу магазина "{wh.name}"')
 
         self._merge_stocks(seller_stocks, db_stocks)
         stocks_list = [{sku: stock} for sku, stock in seller_stocks.items()]

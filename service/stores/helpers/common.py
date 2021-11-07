@@ -33,7 +33,7 @@ CONTENT_TYPES = {
 def with_try(func):
     try:
         yield
-    except (UnicodeDecodeError, Exception) as err:
+    except (UnicodeDecodeError, UnicodeEncodeError, Exception) as err:
         err_msg = f'failed to {func}: {_exc(err)}'
         print(err_msg)
     finally:

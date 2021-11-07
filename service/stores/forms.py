@@ -166,6 +166,6 @@ class CreateStoreWarehouseForm(ModelForm):
 
 
 class SportCategorySelectForm(Form):
-    choices = [(k, v) for k, v in Parser.get_categories().items()]
+    choices = [(k, v) for k, v in Parser.get_supplier_categories().items()]
     categories = MultipleChoiceField(label='Категории товаров', choices=choices,
                                      widget=CheckboxSelectMultiple, required=True)
