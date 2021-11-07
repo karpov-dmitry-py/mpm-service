@@ -1,6 +1,6 @@
 <!--pagination {    -->
 <nav aria-label="detailed pagination">
-    <ul class="pagination pagination-sm justify-content-center flex-wrap mb-3">
+    <ul class="pagination justify-content-center flex-wrap mb-3">
         {% if page_obj.has_previous %}
         <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a>
         </li>
@@ -12,7 +12,7 @@
         {% for page_num in pages %}
         <li class="page-item">
             {% if page_num == page_obj.number %}
-            <a style="background-color: #87CEEB;" class="page-link" href="?page={{ page_num }}">
+            <a class="page-link current-page-link" href="?page={{ page_num }}">
                 <span style="color: white"><strong>{{ page_num }}</strong></span>
                 {% else %}
                 <a class="page-link" href="?page={{ page_num }}">

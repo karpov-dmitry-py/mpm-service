@@ -29,3 +29,11 @@
     text-align: right;
     width: 17rem;
 }
+
+.page-link {
+    font-size: 0.8rem;
+}
+
+.current-page-link {
+    background-color: #87CEEB;
+}

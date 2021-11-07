@@ -56,7 +56,6 @@ from .helpers.common import get_phone_error
 from .helpers.common import get_email_error
 from .helpers.common import get_supplier_warehouse_type
 from .helpers.common import is_valid_supplier_choice
-from .helpers.common import get_supplier_error
 
 from .helpers.suppliers import Parser
 
