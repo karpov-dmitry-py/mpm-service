@@ -195,7 +195,7 @@ class Parser:
             name = ''
             props = {
                 'error': '',
-                'category': self._cats.get(category_id),
+                'category': self._cats.get(category_id, dict()).get('name', ''),
                 'category_url': category_url,
             }
 

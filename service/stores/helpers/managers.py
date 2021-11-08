@@ -192,7 +192,6 @@ class StockManager:
             for i, good_id in enumerate(_ids, start=1):
                 executor.submit(self._get_stock_by_good_db, qs=qs, good_id=good_id, stocks=stocks)
 
-    @uwsgi_lock('_get_user_stock_threading')
     def _get_user_stock_threading(self, qs):
         stocks = []
         slices = []

@@ -1202,32 +1202,34 @@ class OzonApi:
 
         store_type = store.store_type.name.lower().strip()
         stocks = dict()
+        skipped_skus = dict()
 
         payload = dict(page_size=query_page_size, page=query_page_num)
         resp_payload, _, err = self._post(target_url, _json=payload)
         if err:
-            return None, err
+            return None, None, err
 
         result = resp_payload.get(result_key)
         if result is None:
-            return None, f'{key_not_found_err} "{result_key}"'
+            return None, None, f'{key_not_found_err} "{result_key}"'
 
         items = result.get(items_key)
         if items is None:
-            return None, f'{key_not_found_err} "{items_key}"'
+            return None, None, f'{key_not_found_err} "{items_key}"'
 
         if not len(items):
-            return stocks, None
+            return None, None, f'{base_err} получен пустой список остатков товаров. Обновление остатков не требуется.'
 
         for item in items:
 
             sku = item.get(sku_key)
             if sku is None:
-                return None, f'{key_not_found_err} "{sku_key}"'
+                return None, None, f'{key_not_found_err} "{sku_key}"'
 
             sku_stocks = item.get(sku_stocks_key)
-            if sku_stocks is None:
-                return None, f'{key_not_found_err} "{sku_stocks_key}"'
+            if sku_stocks is None or not len(sku_stocks):
+                skipped_skus[sku] = 1
+                continue
 
             sku_total_reserved = 0
             store_type_has_sku_stock = False
@@ -1235,28 +1237,33 @@ class OzonApi:
 
                 stock_type = stock.get(sku_stock_type_key)
                 if stock_type is None:
-                    return None, f'{key_not_found_err} "{sku_stock_type_key}"'
+                    return None, None, f'{key_not_found_err} "{sku_stock_type_key}"'
 
                 if stock_type.strip().lower() == store_type:
                     reserved = stock.get(sku_reserved_stock_key)
                     if reserved is None:
-                        return None, f'{key_not_found_err} "{sku_reserved_stock_key}"'
+                        return None, None, f'{key_not_found_err} "{sku_reserved_stock_key}"'
 
                     sku_total_reserved += reserved
                     store_type_has_sku_stock = True
 
             if not store_type_has_sku_stock:
-                return None, f'{base_err} нет остатка товара {sku} для типа магазина {store_type}'
+                return None, None, f'{base_err} нет остатка товара {sku} для типа магазина {store_type}'
 
             stocks[sku] = sku_total_reserved
 
-        return stocks, None
+        return stocks, skipped_skus, None
 
     @staticmethod
     def _json(val):
         return json.dumps(val, indent=4, ensure_ascii=False)
 
-    def _update_stock(self, wh, skus):
+    @staticmethod
+    def _repr_skipped_skus(skus):
+        if skus:
+            return f'Пропущенные sku из ответа маркетплейса по остаткам (нет остатка): {", ".join(list(skus.keys()))}'
+
+    def _update_stock(self, wh, skus, skipped_skus=None):
         target_url = f'{self.api_base_url}/products/stocks'
         rows = []
         start_time = time.time()
@@ -1266,6 +1273,7 @@ class OzonApi:
             'store': wh.store,
             'warehouse': wh,
             'user': wh.user,
+            'comment': self._repr_skipped_skus(skipped_skus),
         }
 
         wh_code = wh.code
@@ -1405,7 +1413,7 @@ class OzonApi:
         if err:
             return err
 
-        seller_stocks, err = self._get_seller_stock(store)
+        seller_stocks, skipped_skus, err = self._get_seller_stock(store)
         if err:
             return err
 
@@ -1424,7 +1432,10 @@ class OzonApi:
             slices.append(_slice)
             stocks_list = stocks_list[self.stock_update_batch_size:]
 
-        for _slice in slices:
+        for i, _slice in enumerate(slices, start=1):
+            if i == 1:
+                self._update_stock(wh, _slice, skipped_skus)
+                continue
             self._update_stock(wh, _slice)
 
         if len(self._errors):

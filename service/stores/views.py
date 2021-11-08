@@ -2261,7 +2261,7 @@ class LogListView(LoginRequiredMixin, ListView):
     model = Log
     context_object_name = 'items'
     _qs = None
-    paginate_by = 10
+    paginate_by = 50
 
     # noinspection PyUnresolvedReferences
     def get_queryset(self):
