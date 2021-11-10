@@ -1156,7 +1156,7 @@ class YandexApi:
 # class for communication with ozon via api
 class OzonApi:
     marketplace_name = 'ozon'
-    stock_update_batch_size = 10000
+    stock_update_batch_size = 1000
     ok_statuses = (200, 201, 204, 301, 302, 304,)
     api_base_url = 'https://api-seller.ozon.ru/v2'
 
@@ -1220,7 +1220,7 @@ class OzonApi:
         base_err = f'В ответе от api маркетплейса ({target_url})'
         key_not_found_err = f'{base_err} не найдено значение по ключу'
 
-        _log(f'querying ozon stocks with page # {page_num} ...')
+        _log(f'fetching ozon stocks - page # {page_num} ...')
         payload = dict(page_size=query_page_size, page=page_num)
         resp_payload, _, err = self._post(target_url, _json=payload)
         if err:
@@ -1448,7 +1448,9 @@ class OzonApi:
             slices.append(_slice)
             stocks_list = stocks_list[self.stock_update_batch_size:]
 
+        slices_count = len(slices)
         for i, _slice in enumerate(slices, start=1):
+            _log(f'updating ozon stocks - batch # {i} of {slices_count} ...')
             if i == 1:
                 self._update_stock(wh, _slice, skipped_skus)
                 continue
