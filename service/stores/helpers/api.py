@@ -1156,7 +1156,7 @@ class YandexApi:
 # class for communication with ozon via api
 class OzonApi:
     marketplace_name = 'ozon'
-    stock_update_batch_size = 100
+    stock_update_batch_size = 10000
     ok_statuses = (200, 201, 204, 301, 302, 304,)
     api_base_url = 'https://api-seller.ozon.ru/v2'
 
