@@ -1184,7 +1184,28 @@ class OzonApi:
 
         return None, status, response.text
 
-    def _get_seller_stock(self, store):
+    def _get_seller_stock(self, store, ):
+        store_type = store.store_type.name.lower().strip()
+        stocks = dict()
+        skipped_skus = dict()
+        query_page_num = 1
+
+        all_stocks_fetched = False
+        while not all_stocks_fetched:
+            all_stocks_fetched, err = self._get_seller_stock_page(store_type, stocks, skipped_skus, query_page_num)
+            if err:
+                return None, None, err
+            query_page_num += 1
+
+        if not len(stocks):
+            return None, None, 'Получен пустой список остатков от маркетплейса. Обновление остатков не требуется.'
+
+        return stocks, skipped_skus, None
+
+    def _get_seller_stock_page(self, store_type, stocks, skipped_skus, page_num):
+        """
+        returns a tuple with 'items' length and error
+        """
         result_key = 'result'
         items_key = 'items'
         sku_key = 'offer_id'
@@ -1193,38 +1214,34 @@ class OzonApi:
         sku_reserved_stock_key = 'reserved'
 
         target_url = f'{self.api_base_url}/product/info/stocks'
-        query_page_size = int(2 ** 32 / 2) - 1
+        query_page_size = 1000
         # query_page_size = 2 # testing
-        query_page_num = 0
 
         base_err = f'В ответе от api маркетплейса ({target_url})'
         key_not_found_err = f'{base_err} не найдено значение по ключу'
 
-        store_type = store.store_type.name.lower().strip()
-        stocks = dict()
-        skipped_skus = dict()
-
-        payload = dict(page_size=query_page_size, page=query_page_num)
+        _log(f'querying ozon stocks with page # {page_num} ...')
+        payload = dict(page_size=query_page_size, page=page_num)
         resp_payload, _, err = self._post(target_url, _json=payload)
         if err:
-            return None, None, err
+            return None, err
 
         result = resp_payload.get(result_key)
         if result is None:
-            return None, None, f'{key_not_found_err} "{result_key}"'
+            return None, f'{key_not_found_err} "{result_key}"'
 
         items = result.get(items_key)
         if items is None:
-            return None, None, f'{key_not_found_err} "{items_key}"'
+            return None, f'{key_not_found_err} "{items_key}"'
 
         if not len(items):
-            return None, None, f'{base_err} получен пустой список остатков товаров. Обновление остатков не требуется.'
+            return True, None
 
         for item in items:
 
             sku = item.get(sku_key)
             if sku is None:
-                return None, None, f'{key_not_found_err} "{sku_key}"'
+                return None, f'{key_not_found_err} "{sku_key}"'
 
             sku_stocks = item.get(sku_stocks_key)
             if sku_stocks is None or not len(sku_stocks):
@@ -1237,22 +1254,22 @@ class OzonApi:
 
                 stock_type = stock.get(sku_stock_type_key)
                 if stock_type is None:
-                    return None, None, f'{key_not_found_err} "{sku_stock_type_key}"'
+                    return None, f'{key_not_found_err} "{sku_stock_type_key}"'
 
                 if stock_type.strip().lower() == store_type:
                     reserved = stock.get(sku_reserved_stock_key)
                     if reserved is None:
-                        return None, None, f'{key_not_found_err} "{sku_reserved_stock_key}"'
+                        return None, f'{key_not_found_err} "{sku_reserved_stock_key}"'
 
                     sku_total_reserved += reserved
                     store_type_has_sku_stock = True
 
             if not store_type_has_sku_stock:
-                return None, None, f'{base_err} нет остатка товара {sku} для типа магазина {store_type}'
+                return None, f'{base_err} нет остатка товара {sku} для типа магазина {store_type}'
 
             stocks[sku] = sku_total_reserved
 
-        return stocks, skipped_skus, None
+        return len(items) < query_page_size, None
 
     @staticmethod
     def _json(val):
@@ -1261,7 +1278,8 @@ class OzonApi:
     @staticmethod
     def _repr_skipped_skus(skus):
         if skus:
-            return f'Пропущенные sku из ответа маркетплейса по остаткам (нет остатка): {", ".join(list(skus.keys()))}'
+            return f'Пропущенные sku из ответа маркетплейса по остаткам (нет остатка), всего {len(skus)} sku: ' \
+                   f'{", ".join(list(skus.keys()))}'
 
     def _update_stock(self, wh, skus, skipped_skus=None):
         target_url = f'{self.api_base_url}/products/stocks'
@@ -1406,8 +1424,6 @@ class OzonApi:
             seller_stocks[sku] = max(0, db_stock - reserved)
 
     def update_stock(self, wh):
-        # todo - set limit - max 80 requests per minute !!!
-
         store = wh.store
         err = self._set_auth_headers(store)
         if err:
