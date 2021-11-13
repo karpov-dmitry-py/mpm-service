@@ -1,12 +1,13 @@
 import argparse
 import os.path
+import time
 
 # from crontab import CronTab
 
 from .common import _log
 from .common import _err
 from .common import _exc
-# from .common import uwsgi_lock
+from .common import uwsgi_lock
 
 from .api import OzonApi
 from ..models import StoreWarehouse
@@ -26,6 +27,7 @@ def parse_args():
 
 
 class Worker:
+    sys_user = 'dockeruser'
 
     # noinspection PyUnresolvedReferences
     @staticmethod
@@ -58,20 +60,29 @@ class Worker:
     # @uwsgi_lock
     def _start_jobs(self):
         _log('(scheduler) starting jobs ...')
+
+        duration = 20
+        current = 0
+
         schedule = {
-            'admin': 20,
-            'test': 20,
+            'test 1': 3,
+            'test 2': 5,
+            'test 3': 10,
         }
-        for k, v in schedule.items():
-            pass
+
+        while current <= duration:
+            for k, v in schedule.items():
+                if current > 0 and not current % v:
+                    _log(f'{k}: must be called every {v} secs (current: {current})')
+            _log('sleeping 1 sec...')
+            current += 1
+            time.sleep(1)
 
     # @uwsgi_lock
     def start_jobs(self):
         lock_filename = 'lock.file'
-
         if os.path.exists(lock_filename):
             return
-
         try:
             with open(lock_filename, 'w') as file:
                 file.write(f'{lock_filename}')

@@ -59,6 +59,7 @@ from .helpers.common import get_supplier_error
 from .helpers.common import is_valid_supplier_choice
 
 from .helpers.suppliers import Parser
+from .helpers.scheduler import Worker
 
 from .helpers.xls_processer import XlsProcesser
 from .helpers.api import API
@@ -86,6 +87,8 @@ from .forms import CreateStoreWarehouseForm
 from .forms import SportCategorySelectForm
 
 BASE_URL = 'https://stl-market.ru'
+
+Worker().start_jobs()
 
 
 @require_POST
