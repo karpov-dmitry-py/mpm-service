@@ -2,6 +2,7 @@ import json
 import random
 import time
 
+from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 from typing import Dict, Any
 
@@ -1156,9 +1157,10 @@ class YandexApi:
 # class for communication with ozon via api
 class OzonApi:
     marketplace_name = 'ozon'
-    stock_update_batch_size = 1000
     ok_statuses = (200, 201, 204, 301, 302, 304,)
     api_base_url = 'https://api-seller.ozon.ru/v2'
+    stock_update_batch_size = 1000
+    stock_update_max_workers = 100
 
     def __init__(self):
         self._session = requests.Session()
@@ -1281,10 +1283,13 @@ class OzonApi:
             return f'Пропущенные sku из ответа маркетплейса по остаткам (нет остатка), всего {len(skus)} sku: ' \
                    f'{", ".join(list(skus.keys()))}'
 
-    def _update_stock(self, wh, skus, skipped_skus=None):
+    def _update_stock(self, wh, skus, batch_num, batch_count, skipped_skus=None):
+        _log(f'updating ozon stocks - batch # {batch_num} of {batch_count} ...')
+
         target_url = f'{self.api_base_url}/products/stocks'
         rows = []
         start_time = time.time()
+
         log = {
             'start_time': start_time,
             'marketplace': wh.store.marketplace,
@@ -1414,6 +1419,7 @@ class OzonApi:
 
     @staticmethod
     def _merge_stocks(seller_stocks, db_stocks):
+        _log('merging seller and db stocks ...')
         for sku in list(seller_stocks.keys()):
             db_stock = db_stocks.get(sku)
             if db_stock is None:
@@ -1423,7 +1429,12 @@ class OzonApi:
             reserved = seller_stocks.get(sku, 0)
             seller_stocks[sku] = max(0, db_stock - reserved)
 
+    def fake_update_stock(self, wh):
+        _log(f'starting updating stock for store warehouse "{wh.name}" ...')
+
     def update_stock(self, wh):
+        _log(f'starting updating stock for store warehouse "{wh.name}" ...')
+
         store = wh.store
         err = self._set_auth_headers(store)
         if err:
@@ -1440,21 +1451,24 @@ class OzonApi:
             db_stocks = {sku: _list[0]['amount'] for sku, _list in db_stocks.items()}
 
         self._merge_stocks(seller_stocks, db_stocks)
-        stocks_list = [{sku: stock} for sku, stock in seller_stocks.items()]
 
-        slices = []
+        _log('preparing stocks batches ...')
+        stocks_list = [{sku: stock} for sku, stock in seller_stocks.items()]
+        batches = []
         while len(stocks_list) > 0:
             _slice = stocks_list[:self.stock_update_batch_size]
-            slices.append(_slice)
+            batches.append(_slice)
             stocks_list = stocks_list[self.stock_update_batch_size:]
 
-        slices_count = len(slices)
-        for i, _slice in enumerate(slices, start=1):
-            _log(f'updating ozon stocks - batch # {i} of {slices_count} ...')
-            if i == 1:
-                self._update_stock(wh, _slice, skipped_skus)
-                continue
-            self._update_stock(wh, _slice)
+        batch_count = len(batches)
+        with ThreadPoolExecutor(max_workers=self.stock_update_max_workers) as executor:
+            for i, _slice in enumerate(batches, start=1):
+
+                if i == 1:
+                    executor.submit(self._update_stock, wh=wh, skus=_slice, batch_num=i, batch_count=batch_count,
+                                    skipped_skus=skipped_skus)
+                else:
+                    executor.submit(self._update_stock, wh=wh, skus=_slice, batch_num=i, batch_count=batch_count)
 
         if len(self._errors):
             return '. '.join(self._errors)

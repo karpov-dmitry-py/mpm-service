@@ -494,14 +494,15 @@ class StockManager:
             return result
         whs_count = whs.count()
 
+        _log('getting user aggregated stocks ...')
         stocks = self.get_user_stock(user, skus)
         if not stocks:
             return result
 
+        _log('running user stocks through settings ...')
         result = defaultdict(list)
         with ThreadPoolExecutor(max_workers=whs_count) as executor:
             for i, wh in enumerate(whs, start=1):
-                # _log(f'applying stock settings for store warehouse {i} of {whs_count} ...')
                 _stocks = stocks if whs_count == 1 else copy.deepcopy(stocks)
                 executor.submit(self.calculate_stock_by_store_warehouse,
                                 wh=wh, stocks=_stocks, result=result)

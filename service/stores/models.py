@@ -9,6 +9,8 @@ from django.utils import timezone
 
 from .helpers.common import new_uuid
 
+ACTIVE_STORE_STATUS = 'подключен'
+
 
 def now():
     if settings.USE_TZ:
@@ -77,6 +79,9 @@ class Store(models.Model):
         if not rows:
             return
         return rows[0].value
+
+    def is_active(self):
+        return self.status.name.lower() == ACTIVE_STORE_STATUS
 
     class Meta:
         db_table = 'stores'
@@ -318,7 +323,7 @@ class StoreWarehouse(models.Model):
         return f'({self.store.name}) {self.name}'
 
     # noinspection PyUnresolvedReferences
-    def outgoing_stock_update_available(self):
+    def stock_update_available(self):
         marketplaces = ('ozon',)
         return self.store.marketplace.name.lower().strip() in marketplaces
 

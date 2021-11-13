@@ -55,6 +55,7 @@ from .helpers.common import format_phone
 from .helpers.common import get_phone_error
 from .helpers.common import get_email_error
 from .helpers.common import get_supplier_warehouse_type
+from .helpers.common import get_supplier_error
 from .helpers.common import is_valid_supplier_choice
 
 from .helpers.suppliers import Parser
@@ -85,7 +86,6 @@ from .forms import CreateStoreWarehouseForm
 from .forms import SportCategorySelectForm
 
 BASE_URL = 'https://stl-market.ru'
-ACTIVE_STORE_STATUS = 'подключен'
 
 
 @require_POST
@@ -452,10 +452,6 @@ def get_stocks_by_store_api_url():
     return f'{API.get_api_full_path()}/stores/<int:store_pk>/stocks'
 
 
-def is_active_store(store):
-    return store.status.name.lower() == ACTIVE_STORE_STATUS
-
-
 def get_store_by_id(store_id, user):
     err_msg = f'неверный id магазина: {store_id}'
     if not isinstance(store_id, int):
@@ -466,7 +462,7 @@ def get_store_by_id(store_id, user):
         return None, err_msg
 
     store = rows[0]
-    if not is_active_store(store):
+    if not store.is_active():
         return None, f'Магазин {store.name} не активен, настройки доступны только для активных магазинов.'
 
     return store, None
@@ -484,7 +480,7 @@ def get_store_warehouse_by_id(wh_id, user):
     wh = rows[0]
 
     # check whether store is active
-    if not is_active_store(wh.store):
+    if not wh.store.is_active():
         return None, f'Магазин склада ("{wh.store.name}") не активен, настройки доступны только для активных магазинов.'
 
     return wh, None
@@ -517,8 +513,8 @@ class StoreListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         # noinspection PyUnresolvedReferences
         qs = Store.objects.filter(user=self.request.user).order_by('id')
-        for row in qs:
-            setattr(row, 'is_active', is_active_store(row))
+        for store in qs:
+            setattr(store, 'is_active', store.is_active())
         return qs
 
     def get_context_data(self, **kwargs):
@@ -622,7 +618,7 @@ def view_store(request, pk):
 
     context = {
         'item': store,
-        'is_active': is_active_store(store),
+        'is_active': store.is_active(),
         'props': props,
         'marketplace': store.marketplace.name,
         'title': 'Просмотр магазина',
@@ -2241,7 +2237,7 @@ def store_wh_update_stock(request, pk):
         messages.error(request, err)
         return redirect(redirect_to)
 
-    if not wh.outgoing_stock_update_available():
+    if not wh.stock_update_available():
         messages.error(request, f'Маркетплейс склада не поддерживает обновление остатков по api')
         return redirect(redirect_to)
 
