@@ -10,19 +10,27 @@ from ..models import StoreWarehouse
 
 
 class Scheduler:
+    mode = 'dev'
+    # mode = 'prod'
     update_stock_pattern = 'update stock'
+    settings = {
+        'dev': {
+            'os_user': 'dkarpov',
+            'intepreter_path': '/home/dkarpov/projects/self/mpm-service/venv/bin/python',
+            'command_path': '/home/dkarpov/projects/self/mpm-service/service/manage.py scheduler',
+            'cron_log_path': '/home/dkarpov/projects/self/mpm-service/service/stores/cron.log',
+        },
+        'prod': {
+            'os_user': 'dockeruser',
+            'intepreter_path': '/usr/local/bin/python3',
+            'command_path': '/home/dockeruser/workdir/manage.py scheduler',
+            'cron_log_path': '/home/dockeruser/workdir/cron.log',
+        }
+    }
+    active_settings = settings[mode]
 
-    os_user = 'dockeruser'
-    # os_user = 'dkarpov'
-
-    intepreter_path = '/usr/local/bin/python3'
-    # intepreter_path = '/home/dkarpov/projects/self/mpm-service/venv/bin/python'
-
-    command_path = '/home/dockeruser/workdir/manage.py scheduler'
-    # command_path = '/home/dkarpov/projects/self/mpm-service/service/manage.py scheduler'
-
-    # cron_log_path = '/home/dkarpov/projects/self/mpm-service/service/stores/cron.log'
-    cron_log_path = '/home/dockeruser/workdir/cron.log'
+    def _is_prod(self):
+        return self.mode == 'prod'
 
     # noinspection PyUnresolvedReferences
     @staticmethod
@@ -39,11 +47,9 @@ class Scheduler:
 
         for wh in whs:
             if not wh.stock_update_available():
-                _log(f'store wh "{wh.name}" skipped, stock update not supported by marketplace')
                 continue
 
             if not wh.store.is_active():
-                _log(f'store wh "{wh.name}" skipped, store "{wh.store.name}" is inactive')
                 continue
 
             # err = OzonApi().update_stock(wh)
@@ -53,25 +59,30 @@ class Scheduler:
 
             # todo - log to job execution log
 
-    # @uwsgi_lock
+    def _prop(self, prop):
+        return self.active_settings[prop]
+
     def _add_jobs(self):
         _log('(scheduler) adding jobs to cron ...')
 
-        user = self.os_user
-        app_users = ("admin",)  # todo - fetch schedule from db
+        user = self._prop('os_user')
+        intepreter_path = self._prop('intepreter_path')
+        command_path = self._prop('command_path')
+        cron_log_path = self._prop('cron_log_path')
 
+        app_users = ("admin",)  # todo - fetch schedule from db
         self._drop_jobs(user)
         cron = CronTab(user=user)
 
         for app_user in app_users:
             command_args = app_user
-            job = cron.new(command=f'{self.intepreter_path} {self.command_path} {command_args} '
-                                   f'>> {self.cron_log_path} 2>&1', comment=f'{self.update_stock_pattern}: {app_user}')
+            job = cron.new(command=f'{intepreter_path} {command_path} {command_args} '
+                                   f'>> {cron_log_path} 2>&1', comment=f'{self.update_stock_pattern}: {app_user}')
             job.minute.every(1)
             cron.write()
             _log(f'added a cron job for app user: {app_user}')
 
-    def run_scheduler(self):
+    def run(self):
         lock_filename = 'lock.file'
         if os.path.exists(lock_filename):
             return
@@ -79,7 +90,10 @@ class Scheduler:
         try:
             with open(lock_filename, 'w') as file:
                 file.write(lock_filename)
-                os.system('service cron start')
+
+                # explicitly start cron system service if this is production
+                if self._is_prod():
+                    os.system('service cron start')
         except (OSError, Exception) as err:
             err_msg = f'failed to run scheduler: {_exc(err)}'
             _err(err_msg)

@@ -411,3 +411,36 @@ class LogRow(models.Model):
         verbose_name = 'Строка лога обмена'
         verbose_name_plural = 'Строки логов обмена'
         ordering = ['id']
+
+
+class Job(models.Model):
+    name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
+    code = models.CharField(verbose_name='Уникальный код', max_length=100, blank=False, null=False, unique=True)
+    description = models.TextField(verbose_name='Описание', blank=True, null=True)
+
+    def __str__(self):
+        return f'{self.code} {self.name}'
+
+    class Meta:
+        db_table = 'jobs'
+        verbose_name = 'Общая задача по расписанию'
+        verbose_name_plural = 'Общие задачи по расписанию'
+        ordering = ['id']
+
+
+class UserJob(models.Model):
+    name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
+    active = models.BooleanField(default=False, verbose_name='Задача активна', blank=True)
+    description = models.TextField(verbose_name='Описание', blank=True, null=True)
+    job = models.ForeignKey(Job, verbose_name='Задача по расписанию', on_delete=CASCADE,
+                            related_name='user_jobs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт', related_name='jobs')
+
+    def __str__(self):
+        return f'({self.user}) {self.name} ({"активная" if self.active else "не активная"})'
+
+    class Meta:
+        db_table = 'user_jobs'
+        verbose_name = 'Пользовательская задача по расписанию'
+        verbose_name_plural = 'Пользовательские задачи по расписанию'
+        ordering = ['id']

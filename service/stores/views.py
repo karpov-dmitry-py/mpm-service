@@ -89,7 +89,7 @@ from .forms import SportCategorySelectForm
 BASE_URL = 'https://stl-market.ru'
 
 # start cron jobs scheduler
-Scheduler().run_scheduler()
+Scheduler().run()
 
 
 @require_POST

@@ -128,7 +128,7 @@ def time_tracker(action):
     finally:
         end = time.time()
         duration = end - start
-        _log(f'{action} took {duration} seconds.')
+        _log(f'{action} took {round(duration, 3)} seconds.')
 
 
 def get_duration(start):
