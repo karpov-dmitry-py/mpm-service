@@ -1,36 +1,32 @@
-import argparse
 import os.path
-import time
-
-# from crontab import CronTab
+from crontab import CronTab
 
 from .common import _log
 from .common import _err
 from .common import _exc
-from .common import uwsgi_lock
-
+from .common import time_tracker
 from .api import OzonApi
 from ..models import StoreWarehouse
 
 
-def parse_args():
-    try:
-        parser = argparse.ArgumentParser(description='username for ozon stock update job')
-        parser.add_argument('username', type=str, help='username')
-        args = parser.parse_args()
-        _username = args.username
-        _log(f'parsed username passed to script: {username}')
-        return _username
-    except Exception as err:
-        err_msg = f'failed to parse "username" arg: {_exc(err)}'
-        _err(err_msg)
+class Scheduler:
+    update_stock_pattern = 'update stock'
 
+    os_user = 'dockeruser'
+    # os_user = 'dkarpov'
 
-class Worker:
-    sys_user = 'dockeruser'
+    intepreter_path = '/usr/local/bin/python3'
+    # intepreter_path = '/home/dkarpov/projects/self/mpm-service/venv/bin/python'
+
+    command_path = '/home/dockeruser/workdir/manage.py scheduler'
+    # command_path = '/home/dkarpov/projects/self/mpm-service/service/manage.py scheduler'
+
+    # cron_log_path = '/home/dkarpov/projects/self/mpm-service/service/stores/cron.log'
+    cron_log_path = '/home/dockeruser/workdir/cron.log'
 
     # noinspection PyUnresolvedReferences
     @staticmethod
+    @time_tracker('(scheduler) update_ozon_stocks')
     def update_ozon_stocks(_username):
         if not _username:
             _log('username is None or an empty string')
@@ -47,7 +43,7 @@ class Worker:
                 continue
 
             if not wh.store.is_active():
-                _log(f'store wh "{wh.name}" skipped, stock update not supported by marketplace')
+                _log(f'store wh "{wh.name}" skipped, store "{wh.store.name}" is inactive')
                 continue
 
             # err = OzonApi().update_stock(wh)
@@ -58,40 +54,43 @@ class Worker:
             # todo - log to job execution log
 
     # @uwsgi_lock
-    def _start_jobs(self):
-        _log('(scheduler) starting jobs ...')
+    def _add_jobs(self):
+        _log('(scheduler) adding jobs to cron ...')
 
-        duration = 20
-        current = 0
+        user = self.os_user
+        app_users = ("admin",)  # todo - fetch schedule from db
 
-        schedule = {
-            'test 1': 3,
-            'test 2': 5,
-            'test 3': 10,
-        }
+        self._drop_jobs(user)
+        cron = CronTab(user=user)
 
-        while current <= duration:
-            for k, v in schedule.items():
-                if current > 0 and not current % v:
-                    _log(f'{k}: must be called every {v} secs (current: {current})')
-            _log('sleeping 1 sec...')
-            current += 1
-            time.sleep(1)
+        for app_user in app_users:
+            command_args = app_user
+            job = cron.new(command=f'{self.intepreter_path} {self.command_path} {command_args} '
+                                   f'>> {self.cron_log_path} 2>&1', comment=f'{self.update_stock_pattern}: {app_user}')
+            job.minute.every(1)
+            cron.write()
+            _log(f'added a cron job for app user: {app_user}')
 
-    # @uwsgi_lock
-    def start_jobs(self):
+    def run_scheduler(self):
         lock_filename = 'lock.file'
         if os.path.exists(lock_filename):
             return
+
         try:
             with open(lock_filename, 'w') as file:
-                file.write(f'{lock_filename}')
-                self._start_jobs()
+                file.write(lock_filename)
+                os.system('service cron start')
         except (OSError, Exception) as err:
-            err_msg = f'failed to create lock file "{lock_filename}": {_exc(err)}'
+            err_msg = f'failed to run scheduler: {_exc(err)}'
             _err(err_msg)
+            return
 
+        self._add_jobs()
 
-if __name__ == '__main__':
-    username = parse_args()
-    Worker.update_ozon_stocks(username)
+    def _drop_jobs(self, os_user):
+        cron = CronTab(user=os_user)
+        for job in cron:
+            if self.update_stock_pattern in job.comment:
+                _log(f'removing update stock cron job: {job.comment}')
+                cron.remove(job)
+                cron.write()

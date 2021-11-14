@@ -19,13 +19,13 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
 #    restart: unless-stopped
-#  app:
-#    container_name: mpm_service_app_container
-#    image: mpm_service_app:latest
-#    depends_on:
-#      - pg
-#    network_mode: "host"
-#    volumes:
-#      - /tmp:/tmp
-#    ports:
-#      - "127.0.0.1:8001:8001"
+  app:
+    container_name: mpm_service_app_container
+    image: mpm_service_app:latest
+    depends_on:
+      - pg
+    network_mode: "host"
+    volumes:
+      - /tmp:/tmp
+    ports:
+      - "127.0.0.1:8001:8001"

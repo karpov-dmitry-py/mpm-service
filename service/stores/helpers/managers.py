@@ -12,7 +12,6 @@ from django.db.models import Max
 from .common import _log
 from .common import _exc
 from .common import _err
-from .common import uwsgi_lock
 
 from ..models import GoodsCategory
 from ..models import GoodsBrand

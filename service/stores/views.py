@@ -59,7 +59,7 @@ from .helpers.common import get_supplier_error
 from .helpers.common import is_valid_supplier_choice
 
 from .helpers.suppliers import Parser
-from .helpers.scheduler import Worker
+from .helpers.scheduler import Scheduler
 
 from .helpers.xls_processer import XlsProcesser
 from .helpers.api import API
@@ -88,7 +88,8 @@ from .forms import SportCategorySelectForm
 
 BASE_URL = 'https://stl-market.ru'
 
-Worker().start_jobs()
+# start cron jobs scheduler
+Scheduler().run_scheduler()
 
 
 @require_POST

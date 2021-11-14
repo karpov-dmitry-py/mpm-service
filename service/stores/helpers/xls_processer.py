@@ -16,6 +16,7 @@ from .common import _err
 from .common import _exc
 from .common import new_uuid
 from .common import get_file_response
+from .common import now_as_str
 
 from ..models import GoodsBrand
 from ..models import GoodsCategory
@@ -31,10 +32,6 @@ class XlsProcesser:
 
     def get_save_dir(self):
         return self.BASE_DIR
-
-    @staticmethod
-    def _now_as_str():
-        return datetime.now().strftime('%d%m%Y_%H%M%S')
 
     def _check_tmp_dir(self):
         _dir = self.BASE_DIR
@@ -115,7 +112,7 @@ class XlsProcesser:
         template_file = 'templates/goods/goods_upload_sample.xlsx'
         template_path = os.path.join(dirname, template_file)
 
-        filename = f'goods_export_{self._now_as_str()}.xlsx'
+        filename = f'goods_export_{now_as_str()}.xlsx'
         _dir = self._new_dir()
         path = os.path.join(self.BASE_DIR, _dir)
         os.makedirs(path, exist_ok=True)
@@ -254,7 +251,7 @@ class XlsProcesser:
 
     def batch_goods_upload(self, raw, file_extension, user):
         # save raw to file
-        filename = f'goods_upload_{self._now_as_str()}{file_extension}'
+        filename = f'goods_upload_{now_as_str()}{file_extension}'
         save_dir = self._new_dir()
         dir_path = os.path.join(self.BASE_DIR, save_dir)
         os.makedirs(dir_path)
@@ -464,8 +461,6 @@ class XlsProcesser:
         if not os.path.isfile(fullpath):
             err_msg = f'Не найден файл: {relative_path_to_file}'
             return None, err_msg
-
-        return
 
         with open(fullpath, 'rb') as file:
             raw = file.read()

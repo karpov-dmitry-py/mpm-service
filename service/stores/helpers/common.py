@@ -9,16 +9,6 @@ from contextlib import contextmanager
 
 from django.http import FileResponse
 
-uwsgi_import_ok = True
-try:
-    # noinspection PyUnresolvedReferences
-    import uwsgi
-
-    print('uwsgi import ok')
-except ImportError:
-    uwsgi_import_ok = False
-    print('uwsgi import failed')
-
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -52,6 +42,10 @@ def _err(msg):
 
 def _exc(exception):
     return f'error: ({exception.__class__.__name__}) {str(exception)}'
+
+
+def now_as_str():
+    return datetime.datetime.now().strftime('%d%m%Y_%H%M%S')
 
 
 def is_valid_email(_email):
@@ -135,19 +129,6 @@ def time_tracker(action):
         end = time.time()
         duration = end - start
         _log(f'{action} took {duration} seconds.')
-
-
-@contextmanager
-def uwsgi_lock(func):
-    if uwsgi_import_ok:
-        uwsgi.lock()
-        _log(f'uwsgi lock set: {func}')
-    try:
-        yield
-    finally:
-        if uwsgi_import_ok:
-            uwsgi.unlock()
-            _log(f'uwsgi lock released: {func}')
 
 
 def get_duration(start):

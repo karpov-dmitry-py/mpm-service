@@ -31,7 +31,7 @@
             <dd class="mb-4"><span class="text-muted">Цены</span></dd>
         </dl>
 
-    {% if item.outgoing_stock_update_available %}
+    {% if item.stock_update_available %}
         <a href="{% url 'store-warehouses-out-api-stock-update' item.id %}" class="btn btn-success">Обновить остатки в маркетплейсе</a>
     {% endif %}
     <a href="{% url 'store-warehouses-update' item.id %}" class="btn btn-primary">Изменить</a>

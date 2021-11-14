@@ -1430,7 +1430,7 @@ class OzonApi:
             seller_stocks[sku] = max(0, db_stock - reserved)
 
     def fake_update_stock(self, wh):
-        _log(f'starting updating stock for store warehouse "{wh.name}" ...')
+        _log(f'FAKE starting updating stock for store warehouse "{wh.name}" ...')
 
     def update_stock(self, wh):
         _log(f'starting updating stock for store warehouse "{wh.name}" ...')
