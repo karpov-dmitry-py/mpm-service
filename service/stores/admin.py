@@ -19,6 +19,10 @@ from .models import StockSetting
 from .models import StoreWarehouse
 from .models import Log
 from .models import LogRow
+from .models import Job
+from .models import UserJob
+from .models import JobState
+from .models import UserJobLog
 
 # Register your models here.
 admin.site.register(StoreStatus)
@@ -42,3 +46,7 @@ admin.site.register(System)
 admin.site.register(StockSetting)
 admin.site.register(Log)
 admin.site.register(LogRow)
+admin.site.register(Job)
+admin.site.register(JobState)
+admin.site.register(UserJob)
+admin.site.register(UserJobLog)

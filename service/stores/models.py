@@ -419,18 +419,34 @@ class Job(models.Model):
     description = models.TextField(verbose_name='Описание', blank=True, null=True)
 
     def __str__(self):
-        return f'{self.code} {self.name}'
+        return f'{self.name} (код: {self.code})'
 
     class Meta:
         db_table = 'jobs'
-        verbose_name = 'Общая задача по расписанию'
-        verbose_name_plural = 'Общие задачи по расписанию'
+        verbose_name = 'Задача по расписанию'
+        verbose_name_plural = 'Список задач по расписанию'
+        ordering = ['id']
+
+
+class JobState(models.Model):
+    name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
+    code = models.CharField(verbose_name='Уникальный код', max_length=100, blank=False, null=False, unique=True)
+    description = models.TextField(verbose_name='Описание', blank=True, null=True)
+
+    def __str__(self):
+        return f'{self.name} (код: {self.code})'
+
+    class Meta:
+        db_table = 'job_states'
+        verbose_name = 'Состояние задачи'
+        verbose_name_plural = 'Состояния задач'
         ordering = ['id']
 
 
 class UserJob(models.Model):
     name = models.CharField(verbose_name='Наименование', max_length=500, blank=False, null=False)
-    active = models.BooleanField(default=False, verbose_name='Задача активна', blank=True)
+    active = models.BooleanField(default=True, verbose_name='Задача активна', blank=True)
+    schedule = models.CharField(verbose_name='Расписание', max_length=500, blank=True, null=False)
     description = models.TextField(verbose_name='Описание', blank=True, null=True)
     job = models.ForeignKey(Job, verbose_name='Задача по расписанию', on_delete=CASCADE,
                             related_name='user_jobs')
@@ -441,6 +457,30 @@ class UserJob(models.Model):
 
     class Meta:
         db_table = 'user_jobs'
-        verbose_name = 'Пользовательская задача по расписанию'
-        verbose_name_plural = 'Пользовательские задачи по расписанию'
+        verbose_name = 'Периодическая задача пользователя'
+        verbose_name_plural = 'Периодические задачи пользователей'
         ordering = ['id']
+
+
+class UserJobLog(models.Model):
+    start_date = models.DateTimeField(verbose_name='Дата начала', blank=True)
+    end_date = models.DateTimeField(verbose_name='Дата завершения', blank=True)
+    success = models.BooleanField(default=True, verbose_name='Успешно', blank=True)
+    error = models.CharField(verbose_name='Ошибка', max_length=5000, blank=True, null=True)
+    state = models.ForeignKey(JobState, verbose_name='Состояние', on_delete=CASCADE, related_name='user_job_logs')
+    job = models.ForeignKey(UserJob, verbose_name='Задача', on_delete=CASCADE, related_name='logs')
+
+    # noinspection PyUnresolvedReferences
+    def __str__(self):
+        return f'({self.job.user.username}) {self.job.name}, {self.state.name}'
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            self.start_date = now()
+        return super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'user_job_logs'
+        verbose_name = 'Лог периодической задачи пользователя'
+        verbose_name_plural = 'Логи периодических задач пользователей'
+        ordering = ['-start_date']
