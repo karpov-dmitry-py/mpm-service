@@ -465,6 +465,7 @@ class UserJob(models.Model):
 class UserJobLog(models.Model):
     start_date = models.DateTimeField(verbose_name='Дата начала', blank=True)
     end_date = models.DateTimeField(verbose_name='Дата завершения', blank=True)
+    duration = models.DurationField(verbose_name='Длительность', null=True, blank=True)
     success = models.BooleanField(default=True, verbose_name='Успешно', blank=True)
     error = models.CharField(verbose_name='Ошибка', max_length=5000, blank=True, null=True)
     state = models.ForeignKey(JobState, verbose_name='Состояние', on_delete=CASCADE, related_name='user_job_logs')
