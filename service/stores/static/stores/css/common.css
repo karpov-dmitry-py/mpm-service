@@ -1,5 +1,5 @@
 .stock {
-    min-width: 200px;
+    min-width: 300px;
 }
 
 .narrow {
@@ -27,6 +27,11 @@
 
 .actions {
     text-align: right;
+    width: 17rem;
+}
+
+.actions-center {
+    text-align: center;
     width: 17rem;
 }
 

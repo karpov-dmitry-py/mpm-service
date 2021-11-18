@@ -42,6 +42,7 @@ from .models import System
 from .models import StockSetting
 from .models import StoreWarehouse
 from .models import Log
+from .models import UserJob
 
 # noinspection PyProtectedMember
 from .helpers.common import _exc
@@ -505,6 +506,10 @@ def is_stock_settings_priority_used(priority, wh, skip_setting_id=None):
     else:
         is_used = any(row.priority == priority for row in rows)
     return is_used
+
+
+def _json(obj):
+    return json.dumps(obj, ensure_ascii=False)
 
 
 # STORE
@@ -2046,6 +2051,85 @@ class StockSettingDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
         return context
 
 
+@require_POST
+@login_required()
+def stock_settings_batch_delete(request):
+    user = request.user
+    form = DeleteSelectedStockSettingsForm(request.POST)
+    redirect_to = f'{reverse_lazy("stores-list")}'
+    if form.is_valid():
+        _ids = form.cleaned_data['selected_settings']
+        if not _ids:
+            messages.error(request, 'Не выделены настройки.')
+            return redirect(redirect_to)
+        _ids = _ids.split(',')
+        _ids = set(_ids)
+
+        try:
+            _ids = map(lambda item: int(item), _ids)
+        except (ValueError, Exception):
+            messages.error(request, 'Не удалось прочитать выделенные настройки.')
+            return redirect(redirect_to)
+
+        deleted = 0
+        # noinspection PyUnresolvedReferences
+        rows = StockSetting.objects.filter(pk__in=_ids)
+
+        for row in rows:
+            if row.user != user:
+                continue
+            try:
+                row.delete()
+                deleted += 1
+            except (ValueError, Exception) as err:
+                err_msg = f'Не удалось удалить настройку с id {row.id}: {_exc(err)}'
+                messages.error(request, err_msg)
+                return redirect(redirect_to)
+
+        messages.success(request, f'Удалено настроек: {deleted}')
+        return redirect(redirect_to)
+
+    messages.error(request, f'Форма заполнена неверно: {form.errors.as_data()}')
+    return redirect(redirect_to)
+
+
+# noinspection PyTypeChecker
+def get_brands_by_user(user):
+    rows = _qs_filtered_by_user(model=GoodsBrand, user=user)
+    items = []
+    for row in rows:
+        _row = {
+            'val': row.id,
+            'text': row.name,
+        }
+        items.append(_row)
+    return _json(items)
+
+
+# noinspection PyTypeChecker
+def get_warehouses_by_user(user):
+    rows = _qs_filtered_by_user(model=Warehouse, user=user)
+    rows = rows.filter(active=True)
+    items = []
+    for row in rows:
+        _row = {
+            'val': row.id,
+            'text': row.name,
+        }
+        items.append(_row)
+    return _json(items)
+
+
+@require_GET
+@login_required()
+def get_user_goods(request):
+    rows = _qs_filtered_by_user(Good, request.user)
+    if not len(rows):
+        return JsonResponse(data=None, status=404, safe=False)
+    items = [{'sku': row.sku, 'name': row.name, } for row in rows]
+    return JsonResponse(data=items, status=200, safe=False)
+
+
 # STORE WAREHOUSE
 class StoreWarehouseListView(LoginRequiredMixin, ListView):
     template_name = 'stores/store_warehouse/list.html'
@@ -2305,87 +2389,27 @@ def log_export(request, pk):
     return result
 
 
-@require_POST
-@login_required()
-def stock_settings_batch_delete(request):
-    user = request.user
-    form = DeleteSelectedStockSettingsForm(request.POST)
-    redirect_to = f'{reverse_lazy("stores-list")}'
-    if form.is_valid():
-        _ids = form.cleaned_data['selected_settings']
-        if not _ids:
-            messages.error(request, 'Не выделены настройки.')
-            return redirect(redirect_to)
-        _ids = _ids.split(',')
-        _ids = set(_ids)
+# JOB
+class UserJobListView(LoginRequiredMixin, ListView):
+    template_name = 'stores/job/list.html'
+    model = UserJob
+    context_object_name = 'items'
+    _qs = None
+    paginate_by = 10
 
-        try:
-            _ids = map(lambda item: int(item), _ids)
-        except (ValueError, Exception):
-            messages.error(request, 'Не удалось прочитать выделенные настройки.')
-            return redirect(redirect_to)
+    # noinspection PyUnresolvedReferences
+    def get_queryset(self):
+        if self._qs is None:
+            self._qs = self.model.objects.filter(user=self.request.user)
+        return self._qs
 
-        deleted = 0
-        # noinspection PyUnresolvedReferences
-        rows = StockSetting.objects.filter(pk__in=_ids)
-
-        for row in rows:
-            if row.user != user:
-                continue
-            try:
-                row.delete()
-                deleted += 1
-            except (ValueError, Exception) as err:
-                err_msg = f'Не удалось удалить настройку с id {row.id}: {_exc(err)}'
-                messages.error(request, err_msg)
-                return redirect(redirect_to)
-
-        messages.success(request, f'Удалено настроек: {deleted}')
-        return redirect(redirect_to)
-
-    messages.error(request, f'Форма заполнена неверно: {form.errors.as_data()}')
-    return redirect(redirect_to)
-
-
-@require_GET
-@login_required()
-def get_user_goods(request):
-    rows = _qs_filtered_by_user(Good, request.user)
-    if not len(rows):
-        return JsonResponse(data=None, status=404, safe=False)
-    items = [{'sku': row.sku, 'name': row.name, } for row in rows]
-    return JsonResponse(data=items, status=200, safe=False)
-
-
-def _json(obj):
-    return json.dumps(obj, ensure_ascii=False)
-
-
-# noinspection PyTypeChecker
-def get_brands_by_user(user):
-    rows = _qs_filtered_by_user(model=GoodsBrand, user=user)
-    items = []
-    for row in rows:
-        _row = {
-            'val': row.id,
-            'text': row.name,
-        }
-        items.append(_row)
-    return _json(items)
-
-
-# noinspection PyTypeChecker
-def get_warehouses_by_user(user):
-    rows = _qs_filtered_by_user(model=Warehouse, user=user)
-    rows = rows.filter(active=True)
-    items = []
-    for row in rows:
-        _row = {
-            'val': row.id,
-            'text': row.name,
-        }
-        items.append(_row)
-    return _json(items)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['items_count'] = self._qs.count()
+        context['pages'] = _get_pages_list(context['page_obj'], frequency=1)
+        # noinspection PyTypeChecker,PyTypeChecker
+        context['title'] = _get_model_list_title(self.model)
+        return context
 
 
 # API
@@ -2434,7 +2458,7 @@ def api_yandex_update_stock(request, store_pk):
     return YandexApi().update_stock(request, store_pk)
 
 
-# misc
+# misc (other)
 @require_http_methods(['GET', 'POST'])
 @login_required()
 def process_categories_choice(request):

@@ -1,0 +1,49 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid" style="width: 100%;">
+    <h5 class="border-bottom mb-3 mt-3">
+        Задачи по расписанию
+        <span class="text-muted small">(всего: {{ items_count }})</span>
+    </h5>
+
+    {% include "../reusables/pagination.html" %}
+
+    <table class="table table-hover small">
+        <thead class="thead-dark">
+        <tr>
+            <th>№</th>
+            <th>ID</th>
+            <th>Наименование</th>
+            <th>Системная задача</th>
+            <th>Активна</th>
+            <th>Расписание</th>
+            <th class="actions-center">Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.id }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.job.name }}</td>
+                <td>
+                    {% if item.active %}
+                    <span style="font-size: 0.9rem;">&#9989;</span>
+                    {% else %} - {% endif %}
+                </td>
+                <td>{{ item.schedule }}</td>
+                <td class="actions-center">
+                    <a class="btn btn-primary btn-sm" href="{% url 'systems-update' item.id %}">Изменить</a>
+                    <a class="btn btn-secondary btn-sm" href="{% url 'systems-delete' item.id %}">Удалить</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% include "../reusables/pagination.html" %}
+
+</div>
+{% endblock content %}

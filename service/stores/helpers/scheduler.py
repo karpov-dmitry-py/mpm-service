@@ -90,10 +90,10 @@ class Scheduler:
         try:
             with open(lock_filename, 'w') as file:
                 file.write(lock_filename)
-
                 # explicitly start cron system service if this is production
                 if self._is_prod():
                     os.system('service cron start')
+                _log('ran scheduler successfully')
         except (OSError, Exception) as err:
             err_msg = f'failed to run scheduler: {_exc(err)}'
             _err(err_msg)

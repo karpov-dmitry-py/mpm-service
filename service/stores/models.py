@@ -8,6 +8,8 @@ from django.db.models import SET_NULL
 from django.utils import timezone
 
 from .helpers.common import new_uuid
+# noinspection PyProtectedMember
+from .helpers.common import _log
 
 ACTIVE_STORE_STATUS = 'подключен'
 
@@ -459,6 +461,7 @@ class UserJob(models.Model):
         db_table = 'user_jobs'
         verbose_name = 'Периодическая задача пользователя'
         verbose_name_plural = 'Периодические задачи пользователей'
+        unique_together = [['job', 'user']]
         ordering = ['id']
 
 
