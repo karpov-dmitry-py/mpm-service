@@ -23,7 +23,7 @@
         <th>HTTP-код ответа</th>
         <th>Описание ошибки</th>
         <th>Комментарий</th>
-        <th>Действия</th>
+        <th class="pl-0">Действия</th>
     </tr>
     </thead>
         <tbody>
@@ -77,20 +77,20 @@
                     </td>
                     <td>
                         <div class="row">
-                            <div class="mr-4 ml-3">
+                            <span class="mr-3 ml-1">
                                 <a href="{% url 'logs-detail' item.id %}">
                                     Детальнее
                                 </a>
-                            </div>
-                            <div>
+                            </span>
+                            <span>
                                 {% if item.rows.all %}
                                     <a href="{% url 'logs-export' item.id %}">
                                         Выгрузить в файл
                                     </a>
                                 {% else %}
-                                    <span class="text-muted">Нет данных для выгрузки</span>
+                                    <span class="text-muted">-</span>
                                 {% endif %}
-                            </div>
+                            </span>
                         </div>
                     </td>
                 </tr>
