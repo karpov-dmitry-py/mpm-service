@@ -107,7 +107,9 @@ urlpatterns = [
     path('logs/<int:pk>/export/', views.log_export, name='logs-export'),
 
     # job
-    path('user_jobs/', views.UserJobListView.as_view(), name='user-jobs-list'),
+    path('jobs/', views.UserJobListView.as_view(), name='user-jobs-list'),
+    path('jobs/<int:pk>/detail/', views.UserJobDetailView.as_view(), name='user-jobs-detail'),
+    path('jobs/<int:pk>/update/', views.UserJobUpdateView.as_view(), name='user-jobs-update'),
 
     # API
     # help page

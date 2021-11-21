@@ -86,6 +86,7 @@ from .forms import CreateStockSettingForm
 from .forms import DeleteSelectedStockSettingsForm
 from .forms import CreateStoreWarehouseForm
 from .forms import SportCategorySelectForm
+from .forms import CreateUserJobForm
 
 BASE_URL = 'https://stl-market.ru'
 
@@ -2409,6 +2410,75 @@ class UserJobListView(LoginRequiredMixin, ListView):
         context['pages'] = _get_pages_list(context['page_obj'], frequency=1)
         # noinspection PyTypeChecker,PyTypeChecker
         context['title'] = _get_model_list_title(self.model)
+        return context
+
+
+class UserJobDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = UserJob
+    fields = ['__all__']
+    context_object_name = 'item'
+    template_name = 'stores/job/detail.html'
+
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Просмотр задачи по расписанию'
+        return context
+
+
+class UserJobUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = UserJob
+    form_class = CreateUserJobForm
+    form_class.base_fields.pop('job')  # system job should not be edited in an existing user job
+
+    template_name = 'stores/job/update.html'
+    context_object_name = 'item'
+
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
+    def get_success_url(self):
+        messages.success(self.request, f'Изменения успешно сохранены')
+        return reverse_lazy('user-jobs-detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        form_is_valid = True
+
+        fr_type = form.cleaned_data.get('frequency')
+        fr_val = form.cleaned_data.get('schedule')
+
+        # todo - validate fr_type
+
+        if not fr_val:
+            form_is_valid = False
+            form.errors['Ошибка расписания'] = 'значение расписания не заполнено'
+
+        err = Scheduler.validate_fr_val(fr_val)
+        if err:
+            form_is_valid = False
+            form.errors['Ошибка в расписании'] = err
+
+        if not form_is_valid:
+            return self.form_invalid(form)
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        errors = ''.join(f'{k}: {v}. ' for k, v in form.errors.items())
+        messages.error(self.request, f'Неверно заполнена форма. {errors}')
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Редактирование задачи по расписанию'
+
+        instance = context[self.context_object_name]
+        fr_type, fr_val = Scheduler.from_db_schedule(instance.schedule)
+
         return context
 
 

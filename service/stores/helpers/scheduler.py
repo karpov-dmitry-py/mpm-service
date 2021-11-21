@@ -29,6 +29,29 @@ class Scheduler:
     }
     active_settings = settings[mode]
 
+    job_min_frequency = 5
+    job_max_frequency = 60
+    valid_frequencies = {
+        'min': 'раз в n минут',
+        'max': 'раз в n часов',
+    }
+
+    @classmethod
+    def _default_fr_type(cls):
+        return 'min'
+
+    @classmethod
+    def min_frequency(cls):
+        return cls.job_min_frequency
+
+    @classmethod
+    def max_frequency(cls):
+        return cls.job_max_frequency
+
+    @classmethod
+    def frequency_choices(cls):
+        return [(k, v) for k, v in cls.valid_frequencies.items()]
+
     def _is_prod(self):
         return self.mode == 'prod'
 
@@ -108,3 +131,38 @@ class Scheduler:
                 _log(f'removing update stock cron job: {job.comment}')
                 cron.remove(job)
                 cron.write()
+
+    @classmethod
+    def is_valid_fr_type(cls, val):
+        return val in cls.valid_frequencies.keys()
+
+    @classmethod
+    def validate_fr_val(cls, val):
+        try:
+            _int = int(val.strip())
+            if _int < cls.min_frequency() or _int > cls.max_frequency():
+                return f'Значение не входит в разрешенный диапазон значений ' \
+                       f'({cls.min_frequency()}-{cls.max_frequency()})'
+        except (ValueError, TypeError, Exception):
+            return f'Значение не является валидным целым числом: {val}'
+
+    @staticmethod
+    def to_db_schedule(_type, val):
+        return f'{_type} {val}'
+
+    @classmethod
+    def from_db_schedule(cls, src):
+        parts = src.split(' ')
+
+        if len(parts) > 1:
+            fr_type, fr_val = parts[0], parts[1]
+        else:
+            fr_type, fr_val = parts[0], None
+
+        if not cls.is_valid_fr_type(fr_type):
+            fr_type = cls._default_fr_type()
+
+        if cls.validate_fr_val(fr_val):
+            fr_val = cls.min_frequency()
+
+        return fr_type, fr_val

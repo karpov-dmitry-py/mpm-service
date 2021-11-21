@@ -76,7 +76,7 @@
 
     <!--    detailed rows-->
     {% if item.rows.all %}
-        <a href="{% url 'logs-export' item.id %}" class="btn btn-info">Выгрузить записи по товарам в файл</a>
+        <a href="{% url 'logs-export' item.id %}" class="btn btn-sm btn-info">Выгрузить записи по товарам в файл</a>
         <h6 class="mb-3 mt-4">Детальные записи по товарам <span class="text-muted small">(всего: {{ item.rows.all | length }})</span></h6>
         <table class="table table-hover small">
             <thead>

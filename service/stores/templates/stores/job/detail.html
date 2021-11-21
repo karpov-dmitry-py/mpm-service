@@ -1,0 +1,33 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid mb-5" style="width: 80%;">
+    <h5 class="border-bottom mb-4 mt-2">Просмотр задачи по расписанию</h5>
+    <dl class="row">
+        <dt class="col-sm-3">ID</dt>
+        <dd class="col-sm-9 mb-3">{{ item.id }}</dd>
+
+        <dt class="col-sm-3">Задача активна</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.active %}
+            <span style="font-size: 0.9rem;">&#9989;</span>
+            {% else %} - {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">Наименование</dt>
+        <dd class="col-sm-9 mb-3">{{ item.name }}</dd>
+
+        <dt class="col-sm-3">Системная задача</dt>
+        <dd class="col-sm-9 mb-3">{{ item.job }}</dd>
+
+        <dt class="col-sm-3">Расписание</dt>
+        <dd class="col-sm-9 mb-3">
+            {% if item.schedule %}
+                {{ item.schedule }}
+            {% else %} - {% endif%}
+        </dd>
+    </dl>
+    <a href="{% url 'user-jobs-update' item.id %}" class="btn btn-sm btn-primary">Изменить</a>
+</div>
+{% endblock content %}
+

@@ -19,8 +19,10 @@ from .models import Warehouse
 from .models import System
 from .models import StockSetting
 from .models import StoreWarehouse
+from .models import UserJob
 
 from .helpers.suppliers import Parser
+from .helpers.scheduler import Scheduler
 
 
 class CreateStoreForm(ModelForm):
@@ -169,3 +171,23 @@ class SportCategorySelectForm(Form):
     choices = [(k, v) for k, v in Parser.get_supplier_categories().items()]
     categories = MultipleChoiceField(label='Категории товаров', choices=choices,
                                      widget=CheckboxSelectMultiple, required=True)
+
+
+class CreateUserJobForm(ModelForm):
+    fr_choices = Scheduler.frequency_choices()
+    frequency = CharField(label='Частота выполнения', widget=Select(choices=fr_choices), required=True)
+
+    class Meta:
+        model = UserJob
+        fields = ['active', 'name', 'job', 'frequency', 'schedule', 'description']
+        widgets = {
+            'schedule': NumberInput(attrs={
+                'value': Scheduler.min_frequency(),
+                'min': Scheduler.min_frequency(),
+                'max': Scheduler.max_frequency(),
+            }),
+            'description': Textarea(attrs={'cols': 50, 'rows': 3}),
+        }
+        labels = {
+            'schedule': 'Значение частоты выполнения',
+        }
