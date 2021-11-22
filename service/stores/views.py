@@ -87,6 +87,7 @@ from .forms import DeleteSelectedStockSettingsForm
 from .forms import CreateStoreWarehouseForm
 from .forms import SportCategorySelectForm
 from .forms import CreateUserJobForm
+from .forms import UpdateUserJobForm
 
 BASE_URL = 'https://stl-market.ru'
 
@@ -2401,7 +2402,10 @@ class UserJobListView(LoginRequiredMixin, ListView):
     # noinspection PyUnresolvedReferences
     def get_queryset(self):
         if self._qs is None:
-            self._qs = self.model.objects.filter(user=self.request.user)
+            qs = self.model.objects.filter(user=self.request.user)
+            for row in qs:
+                setattr(row, 'human_repr', Scheduler.schedule_human_repr(row.schedule))
+            self._qs = qs
         return self._qs
 
     def get_context_data(self, **kwargs):
@@ -2410,6 +2414,65 @@ class UserJobListView(LoginRequiredMixin, ListView):
         context['pages'] = _get_pages_list(context['page_obj'], frequency=1)
         # noinspection PyTypeChecker,PyTypeChecker
         context['title'] = _get_model_list_title(self.model)
+        return context
+
+
+class UserJobCreateView(LoginRequiredMixin, CreateView):
+    model = UserJob
+
+    form_class = CreateUserJobForm
+    # form_class = CreateNewUserJobForm
+
+    template_name = 'stores/job/add.html'
+
+    def get_success_url(self):
+        messages.success(self.request, f'Задача "{self.object.name}" успешно создана')
+        return reverse_lazy('user-jobs-detail', kwargs={'pk': self.object.pk})
+
+    # noinspection PyUnresolvedReferences
+    def form_valid(self, form):
+        form_is_valid = True
+
+        fr_type = form.cleaned_data.get('frequency')
+        fr_val = form.cleaned_data.get('schedule')
+
+        if not Scheduler.is_valid_fr_type(fr_type):
+            form_is_valid = False
+            form.errors['Ошибка в расписании'] = f'указан не валидный тип частоты выполнения {fr_type}'
+
+        if not fr_val:
+            form_is_valid = False
+            form.errors['Ошибка расписания'] = 'значение расписания не заполнено'
+
+        err = Scheduler.validate_fr_val(fr_val)
+        if err:
+            form_is_valid = False
+            form.errors['Ошибка в расписании'] = err
+
+        # check user's existing jobs
+        sys_job = form.instance.job
+        jobs = UserJob.objects.filter(user=self.request.user).filter(job=sys_job)
+        if len(jobs):
+            form_is_valid = False
+            form.errors[
+                'Не уникальный вид задачи'] = f'для текущего пользователя в БД уже есть задача вида "{sys_job.name}"'
+
+        if not form_is_valid:
+            return self.form_invalid(form)
+
+        form.instance.user = self.request.user
+        form.instance.schedule = Scheduler.to_db_schedule(fr_type, fr_val)
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        errors = ''.join(f'{k}: {v}. ' for k, v in form.errors.items())
+        messages.error(self.request, f'Неверно заполнена форма. {errors}')
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Создание задачи по расписанию'
         return context
 
 
@@ -2426,13 +2489,13 @@ class UserJobDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Просмотр задачи по расписанию'
+        context['human_repr'] = Scheduler.schedule_human_repr(context[self.context_object_name].schedule)
         return context
 
 
 class UserJobUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = UserJob
-    form_class = CreateUserJobForm
-    form_class.base_fields.pop('job')  # system job should not be edited in an existing user job
+    form_class = UpdateUserJobForm
 
     template_name = 'stores/job/update.html'
     context_object_name = 'item'
@@ -2451,7 +2514,9 @@ class UserJobUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         fr_type = form.cleaned_data.get('frequency')
         fr_val = form.cleaned_data.get('schedule')
 
-        # todo - validate fr_type
+        if not Scheduler.is_valid_fr_type(fr_type):
+            form_is_valid = False
+            form.errors['Ошибка в расписании'] = f'указан не валидный тип частоты выполнения {fr_type}'
 
         if not fr_val:
             form_is_valid = False
@@ -2465,6 +2530,7 @@ class UserJobUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         if not form_is_valid:
             return self.form_invalid(form)
 
+        form.instance.schedule = Scheduler.to_db_schedule(fr_type, fr_val)
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -2478,6 +2544,15 @@ class UserJobUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
         instance = context[self.context_object_name]
         fr_type, fr_val = Scheduler.from_db_schedule(instance.schedule)
+
+        form = context.get('form')
+        form.initial['schedule'] = str(fr_val)
+        vals = {
+            'frequency': fr_type,
+            'schedule': fr_val,
+        }
+        for k, v in vals.items():
+            form.fields[k].initial = v
 
         return context
 

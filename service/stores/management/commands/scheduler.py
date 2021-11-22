@@ -1,17 +1,7 @@
 from django.core.management.base import BaseCommand
 
-# import os
-# import sys
-# from pathlib import Path
-
-# sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-# file = Path(__file__).resolve()
-# package_root_directory = file.parents[1]
-# sys.path.append(str(package_root_directory))
-# for path in sys.path:
-#     print(f'(scheduler) sys path: {path}')
-
 from ...helpers.scheduler import Scheduler
+# noinspection PyProtectedMember
 from ...helpers.common import _log
 
 

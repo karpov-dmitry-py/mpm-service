@@ -451,7 +451,7 @@ class UserJob(models.Model):
     schedule = models.CharField(verbose_name='Расписание', max_length=500, blank=True, null=False)
     description = models.TextField(verbose_name='Описание', blank=True, null=True)
     job = models.ForeignKey(Job, verbose_name='Задача по расписанию', on_delete=CASCADE,
-                            related_name='user_jobs')
+                            related_name='user_jobs', blank=False, null=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт', related_name='jobs')
 
     def __str__(self):

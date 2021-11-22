@@ -6,11 +6,11 @@
         <form method="post">
             {% csrf_token %}
             <fieldset class="form-group">
-                <h5 class="border-bottom mb-4">Создание учетной системы</h5>
+                <h5 class="border-bottom mb-4 mt-3">Создание задачи по расписанию</h5>
                 {{ form|crispy }}
             </fieldset>
             <div class="form-group mb-4">
-                <button class="btn btn-success" type="submit">Создать учетную систему</button>
+                <button class="btn btn-success" type="submit">Создать задачу</button>
             </div>
         </form>
 </div>

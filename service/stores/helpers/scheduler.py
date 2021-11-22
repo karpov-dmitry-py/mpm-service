@@ -1,4 +1,6 @@
 import os.path
+import time
+
 from crontab import CronTab
 
 from .common import _log
@@ -7,11 +9,13 @@ from .common import _exc
 from .common import time_tracker
 from .api import OzonApi
 from ..models import StoreWarehouse
+from ..models import UserJob
 
 
 class Scheduler:
-    mode = 'dev'
-    # mode = 'prod'
+    # mode = 'dev'
+    mode = 'prod'
+
     update_stock_pattern = 'update stock'
     settings = {
         'dev': {
@@ -29,16 +33,24 @@ class Scheduler:
     }
     active_settings = settings[mode]
 
-    job_min_frequency = 5
+    job_min_frequency = 1
     job_max_frequency = 60
     valid_frequencies = {
-        'min': 'раз в n минут',
-        'max': 'раз в n часов',
+        'min': 'Раз в n минут',
+        'hr': 'Раз в n часов',
     }
 
     @classmethod
     def _default_fr_type(cls):
         return 'min'
+
+    @staticmethod
+    def _is_min(val):
+        return str(val).lower().strip() == 'min'
+
+    @staticmethod
+    def _is_hr(val):
+        return str(val).lower().strip() == 'hr'
 
     @classmethod
     def min_frequency(cls):
@@ -75,62 +87,123 @@ class Scheduler:
             if not wh.store.is_active():
                 continue
 
-            # err = OzonApi().update_stock(wh)
-            err = OzonApi().fake_update_stock(wh)
+            err = OzonApi().update_stock(wh)
+            # err = OzonApi().fake_update_stock(wh)
             if err:
                 _err(err)
 
             # todo - log to job execution log
 
+    def _cron(self):
+        user = self._prop('os_user')
+        return CronTab(user=user)
+
     def _prop(self, prop):
         return self.active_settings[prop]
 
-    def _add_jobs(self):
-        _log('(scheduler) adding jobs to cron ...')
+    def update_job(self, username, db_schedule):
+        cron = self._cron()
+        self._update_job(cron, username, db_schedule)
 
-        user = self._prop('os_user')
-        intepreter_path = self._prop('intepreter_path')
-        command_path = self._prop('command_path')
-        cron_log_path = self._prop('cron_log_path')
+    def drop_job(self, username):
+        cron = self._cron()
+        for job in cron:
+            if job.comment == self._get_update_stock_job_repr(username):
+                cron.remove(job)
+                cron.write()
+                _log(f'deleted a cron job for user: {username}')
 
-        app_users = ("admin",)  # todo - fetch schedule from db
-        self._drop_jobs(user)
-        cron = CronTab(user=user)
+    @classmethod
+    def _get_update_stock_job_repr(cls, username):
+        return f'{cls.update_stock_pattern}: {username}'
 
-        for app_user in app_users:
-            command_args = app_user
+    def _update_job(self, cron, username, db_schedule):
+        """
+        add a new job or update an existing one
+        """
+        action = 'updated'
+        job = None
+        job_repr = self._get_update_stock_job_repr(username)
+
+        for cron_job in cron:
+            if cron_job.comment == job_repr:
+                job = cron_job
+                break
+
+        if job is None:
+            action = 'added'
+            intepreter_path = self._prop('intepreter_path')
+            command_path = self._prop('command_path')
+            cron_log_path = self._prop('cron_log_path')
+            command_args = username
             job = cron.new(command=f'{intepreter_path} {command_path} {command_args} '
-                                   f'>> {cron_log_path} 2>&1', comment=f'{self.update_stock_pattern}: {app_user}')
-            job.minute.every(1)
-            cron.write()
-            _log(f'added a cron job for app user: {app_user}')
+                                   f'>> {cron_log_path} 2>&1', comment=job_repr)
+
+        fr_type, fr_val = self.from_db_schedule(db_schedule)
+        if self._is_min(fr_type):
+            job.minute.every(fr_val)
+        elif self._is_hr(fr_type):
+            job.hour.every(fr_val)
+
+        cron.write()
+        _log(f'{action} a cron job for app user: {username}')
+
+    # noinspection PyUnresolvedReferences
+    def _add_jobs(self):
+        _log('(scheduler) start adding jobs to cron ...')
+        self._drop_jobs()  # drop existing jobs
+
+        app_valid_jobs = ('ozon_stock_update',)
+        user_jobs = UserJob.objects.filter(active=True).filter(job__code__in=app_valid_jobs)
+        if not len(user_jobs):
+            _log('no active user jobs fetched from db (ozon stock update jobs only)')
+            return
+
+        cron = self._cron()
+        for user_job in user_jobs:
+
+            username = user_job.user.username
+            db_schedule = user_job.schedule
+
+            if not self.is_valid_schedule(user_job.schedule):
+                _log(f'skipping invalid db job for user "{username}": {db_schedule}')
+                continue
+
+            self._update_job(cron, username, db_schedule)
+
+        _log('(scheduler) done adding jobs to cron ...')
 
     def run(self):
-        lock_filename = 'lock.file'
+        lock_filename = 'scheduler_lock.file'
         if os.path.exists(lock_filename):
             return
 
         try:
             with open(lock_filename, 'w') as file:
                 file.write(lock_filename)
-                # explicitly start cron system service if this is production
-                if self._is_prod():
-                    os.system('service cron start')
-                _log('ran scheduler successfully')
         except (OSError, Exception) as err:
             err_msg = f'failed to run scheduler: {_exc(err)}'
             _err(err_msg)
             return
 
+        # explicitly start cron system service if this is production
         self._add_jobs()
+        if self._is_prod():
+            os.system('service cron start')
+        _log('ran scheduler successfully')
 
-    def _drop_jobs(self, os_user):
-        cron = CronTab(user=os_user)
+    def _drop_jobs(self):
+        cron = self._cron()
         for job in cron:
             if self.update_stock_pattern in job.comment:
-                _log(f'removing update stock cron job: {job.comment}')
+                _log(f'removing cron job: {job.comment}')
                 cron.remove(job)
                 cron.write()
+
+    @classmethod
+    def is_valid_schedule(cls, val):
+        parts = val.split(' ')
+        return len(parts) > 1 and cls.is_valid_fr_type(parts[0]) and not cls.validate_fr_val(parts[1])
 
     @classmethod
     def is_valid_fr_type(cls, val):
@@ -146,13 +219,20 @@ class Scheduler:
         except (ValueError, TypeError, Exception):
             return f'Значение не является валидным целым числом: {val}'
 
+    @classmethod
+    def schedule_human_repr(cls, val):
+        if not cls.is_valid_schedule(val):
+            return f'Неверный формат расписания: {val}'
+        fr_type, fr_val = cls.from_db_schedule(val)
+        return f'{cls.valid_frequencies.get(fr_type, "")}: {fr_val}'
+
     @staticmethod
     def to_db_schedule(_type, val):
         return f'{_type} {val}'
 
     @classmethod
-    def from_db_schedule(cls, src):
-        parts = src.split(' ')
+    def from_db_schedule(cls, val):
+        parts = val.split(' ')
 
         if len(parts) > 1:
             fr_type, fr_val = parts[0], parts[1]

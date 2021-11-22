@@ -1,4 +1,5 @@
 from django.forms import ModelForm
+from django.forms import ModelChoiceField
 from django.forms import Form
 from django.forms import FileField
 from django.forms import Textarea
@@ -19,6 +20,7 @@ from .models import Warehouse
 from .models import System
 from .models import StockSetting
 from .models import StoreWarehouse
+from .models import Job
 from .models import UserJob
 
 from .helpers.suppliers import Parser
@@ -179,7 +181,8 @@ class CreateUserJobForm(ModelForm):
 
     class Meta:
         model = UserJob
-        fields = ['active', 'name', 'job', 'frequency', 'schedule', 'description']
+        fields = ['active', 'name', 'frequency', 'schedule', 'job', 'description', ]
+
         widgets = {
             'schedule': NumberInput(attrs={
                 'value': Scheduler.min_frequency(),
@@ -189,5 +192,32 @@ class CreateUserJobForm(ModelForm):
             'description': Textarea(attrs={'cols': 50, 'rows': 3}),
         }
         labels = {
-            'schedule': 'Значение частоты выполнения',
+            'job': f'Системная задача по расписанию',
+            'schedule': f'Значение частоты выполнения (от {Scheduler.min_frequency()} до {Scheduler.max_frequency()})',
+        }
+
+    # noinspection PyUnresolvedReferences
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['job'] = ModelChoiceField(queryset=Job.objects.all(), label='Системная задача по расписанию')
+
+
+class UpdateUserJobForm(ModelForm):
+    fr_choices = Scheduler.frequency_choices()
+    frequency = CharField(label='Частота выполнения', widget=Select(choices=fr_choices), required=True)
+
+    class Meta:
+        model = UserJob
+        fields = ['active', 'name', 'frequency', 'schedule', 'description', ]
+
+        widgets = {
+            'schedule': NumberInput(attrs={
+                'value': Scheduler.min_frequency(),
+                'min': Scheduler.min_frequency(),
+                'max': Scheduler.max_frequency(),
+            }),
+            'description': Textarea(attrs={'cols': 50, 'rows': 3}),
+        }
+        labels = {
+            'schedule': f'Значение частоты выполнения (от {Scheduler.min_frequency()} до {Scheduler.max_frequency()})',
         }
