@@ -27,6 +27,7 @@
             {% else %} - {% endif%}
         </dd>
     </dl>
+    <a href="{% url 'user-jobs-run' item.id %}" class="btn btn-sm btn-info">Выполнить сейчас</a>
     <a href="{% url 'user-jobs-update' item.id %}" class="btn btn-sm btn-primary">Изменить</a>
 </div>
 {% endblock content %}

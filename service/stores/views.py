@@ -44,6 +44,8 @@ from .models import StoreWarehouse
 from .models import Log
 from .models import UserJob
 
+from .tasks import update_ozon_stocks
+
 # noinspection PyProtectedMember
 from .helpers.common import _exc
 # noinspection PyProtectedMember
@@ -2391,7 +2393,7 @@ def log_export(request, pk):
     return result
 
 
-# JOB
+# USER JOB
 class UserJobListView(LoginRequiredMixin, ListView):
     template_name = 'stores/job/list.html'
     model = UserJob
@@ -2555,6 +2557,62 @@ class UserJobUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             form.fields[k].initial = v
 
         return context
+
+
+@login_required()
+def get_cron_jobs(request):
+    username = request.user.username
+    jobs_dict = Scheduler().get_user_jobs(username)
+    cron_status_repr = {
+        True: 'да',
+        False: 'нет',
+    }
+    ctx = {
+        'items': jobs_dict.get('jobs', []),
+        'is_cron_running': cron_status_repr[jobs_dict.get('is_cron_running')],
+        'cron_check_error': jobs_dict.get('cron_check_error', ''),
+        'title': 'Cron задачи',
+    }
+    return render(request, 'stores/cron_job/list.html', context=ctx)
+
+
+# noinspection PyUnresolvedReferences
+@login_required()
+def disable_user_jobs(request):
+    redirect_to = reverse_lazy('cron-jobs-list')
+    user = request.user
+
+    # disable db jobs
+    errors = []
+    for job in UserJob.objects.filter(user=user).filter(active=True):
+        job.active = False
+        try:
+            job.save()
+            _log(f'disabled a db job for app user: {user.username}')
+        except (OSError, Exception) as err:
+            err_msg = f'{_exc(err)}'
+            errors.append(err_msg)
+            _log(f'error disabling a db job for app user {user.username}: {err_msg}')
+
+    # just in case - drop all cron jobs
+    Scheduler().drop_user_jobs(user.username)
+
+    if errors:
+        messages.error(request, f'Ошибки выполнения: {", ".join(errors)}')
+        return redirect(redirect_to)
+
+    messages.success(request, 'Выполнено успешно')
+    return redirect(redirect_to)
+
+
+@login_required()
+def run_user_job(request, pk):
+    username = request.user.username
+    _log(f'received request to run job with id {pk} for user {username} ...')
+    update_ozon_stocks(username=username)
+    messages.success(request, 'Задача отправлена на выполнение')
+    redirect_to = reverse_lazy('user-jobs-list')
+    return redirect(redirect_to)
 
 
 # API

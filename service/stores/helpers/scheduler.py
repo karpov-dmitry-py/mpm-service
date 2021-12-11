@@ -1,5 +1,5 @@
 import os.path
-import time
+import datetime
 
 from crontab import CronTab
 
@@ -7,6 +7,8 @@ from .common import _log
 from .common import _err
 from .common import _exc
 from .common import time_tracker
+from .common import os_call
+
 from .api import OzonApi
 from ..models import StoreWarehouse
 from ..models import UserJob
@@ -39,6 +41,25 @@ class Scheduler:
         'min': 'Раз в n минут',
         'hr': 'Раз в n часов',
     }
+
+    def run(self):
+        lock_filename = 'scheduler_lock.file'
+        if os.path.exists(lock_filename):
+            return
+
+        try:
+            with open(lock_filename, 'w') as file:
+                file.write(lock_filename)
+        except (OSError, Exception) as err:
+            err_msg = f'failed to run scheduler: {_exc(err)}'
+            _err(err_msg)
+            return
+
+        # explicitly start cron system service if this is production
+        if self._is_prod():
+            os.system('service cron start')
+        self._add_jobs()
+        _log('ran scheduler successfully')
 
     @classmethod
     def _default_fr_type(cls):
@@ -94,6 +115,47 @@ class Scheduler:
 
             # todo - log to job execution log
 
+    def drop_user_jobs(self, username):
+        cron = self._cron()
+        count = 0
+
+        for job in cron:
+            if username in job.comment:
+                job.remove()
+                cron.write()
+                count += 1
+
+        if count:
+            _log(f'total cron jobs deleted for app user "{username}": {count}')
+
+    def get_user_jobs(self, username):
+        result = {
+            'jobs': self._get_user_jobs(username),
+        }
+        is_cron_running, err = self._is_cron_running()
+        result['is_cron_running'] = is_cron_running
+        if err:
+            result['cron_check_error'] = err
+
+        return result
+
+    def _get_user_jobs(self, username):
+        cron = self._cron()
+        user_jobs = []
+        for job in cron:
+            if username in job.comment:
+                schedule = job.schedule(date_from=datetime.datetime.now())
+                _job = {
+                    'active': job.is_enabled(),
+                    'command': job.command,
+                    'comment': job.comment,
+                    'schedule': str(job.slices),  # any better options?
+                    'next': schedule.get_next(),
+                }
+                user_jobs.append(_job)
+
+        return user_jobs
+
     def _cron(self):
         user = self._prop('os_user')
         return CronTab(user=user)
@@ -108,10 +170,11 @@ class Scheduler:
     def drop_job(self, username):
         cron = self._cron()
         for job in cron:
-            if job.comment == self._get_update_stock_job_repr(username):
+            # if job.comment == self._get_update_stock_job_repr(username):
+            if username in job.comment:
                 cron.remove(job)
                 cron.write()
-                _log(f'deleted a cron job for user: {username}')
+                _log(f'deleted a cron job for app user: {username}')
 
     @classmethod
     def _get_update_stock_job_repr(cls, username):
@@ -173,25 +236,6 @@ class Scheduler:
 
         _log('(scheduler) done adding jobs to cron ...')
 
-    def run(self):
-        lock_filename = 'scheduler_lock.file'
-        if os.path.exists(lock_filename):
-            return
-
-        try:
-            with open(lock_filename, 'w') as file:
-                file.write(lock_filename)
-        except (OSError, Exception) as err:
-            err_msg = f'failed to run scheduler: {_exc(err)}'
-            _err(err_msg)
-            return
-
-        # explicitly start cron system service if this is production
-        self._add_jobs()
-        if self._is_prod():
-            os.system('service cron start')
-        _log('ran scheduler successfully')
-
     def _drop_jobs(self):
         cron = self._cron()
         for job in cron:
@@ -246,3 +290,11 @@ class Scheduler:
             fr_val = cls.min_frequency()
 
         return fr_type, fr_val
+
+    @staticmethod
+    def _is_cron_running():
+        cmd = 'service cron status'
+        status, err = os_call(cmd)
+        if err:
+            return None, err
+        return status == 0, None

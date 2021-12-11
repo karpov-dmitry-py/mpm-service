@@ -106,11 +106,17 @@ urlpatterns = [
     path('logs/<int:pk>/detail/', views.LogDetailView.as_view(), name='logs-detail'),
     path('logs/<int:pk>/export/', views.log_export, name='logs-export'),
 
-    # job
+
+    # user job
     path('jobs/', views.UserJobListView.as_view(), name='user-jobs-list'),
     path('jobs/add/', views.UserJobCreateView.as_view(), name='user-jobs-add'),
     path('jobs/<int:pk>/detail/', views.UserJobDetailView.as_view(), name='user-jobs-detail'),
     path('jobs/<int:pk>/update/', views.UserJobUpdateView.as_view(), name='user-jobs-update'),
+    path('jobs/<int:pk>/run/', views.run_user_job, name='user-jobs-run'),
+
+    # cron jobs
+    path('jobs/cron/list', views.get_cron_jobs, name='cron-jobs-list'),
+    path('jobs/cron/delete', views.disable_user_jobs, name='cron-jobs-delete-all'),
 
     # API
     # help page

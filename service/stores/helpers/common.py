@@ -171,6 +171,13 @@ def get_file_response(src_path, target_filename, content_type, delete_after=Fals
         return None, err_msg
 
 
+def os_call(cmd):
+    try:
+        return os.system(str(cmd)), None
+    except (OSError, Exception) as err:
+        return None, f'error: {_exc(err)}'
+
+
 if __name__ == '__main__':
     email = 'sales@company.com'
     valid = is_valid_email(email)

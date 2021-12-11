@@ -1,0 +1,52 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid" style="width: 100%;">
+    {% if items %}
+        <a class="btn btn-sm btn-danger mb-1 mt-3" href="{% url 'cron-jobs-delete-all' %}">Удалить все мои cron задачи</a>
+    {% endif %}
+    <h5 class="border-bottom mb-3 mt-3">
+        Cron задачи
+        <span class="text-muted small">(всего: {{ items | length }})</span>
+        {% if cron_check_error %}
+            <div class="p-3 mb-2 bg-danger text-white">Ошибка проверки статуса службы cron: {{ cron_check_error }}</div>
+        {% else %}
+            <span class="text-muted small">, cron служба активна: {{ is_cron_running }}</span>
+        {% endif %}
+
+    </h5>
+    <table class="table table-hover small">
+        <thead class="thead-dark">
+        <tr>
+            <th>№</th>
+            <th>Активна</th>
+            <th>Команда в кроне</th>
+            <th>Комментарий команды в кроне</th>
+            <th>Расписание в кроне</th>
+            <th>Следующий запуск (по данным крона)</th>
+
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>
+                    {% if item.active %}
+                    <span style="font-size: 0.8rem;">&#9989;</span>
+                    {% else %} - {% endif %}
+                </td>
+                <td>
+                    <pre class="pre-scrollable" style="max-width: 60rem;">{{ item.command}}</pre>
+                </td>
+                <td>
+                    <pre class="pre-scrollable" style="max-width: 10rem;">{{ item.comment}}</pre>
+                </td>
+                <td>{{ item.schedule }}</td>
+                <td>{{ item.next }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

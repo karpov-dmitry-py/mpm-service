@@ -8,4 +8,5 @@ django-filter==2.4.0
 lxml==4.6.3
 beautifulsoup4==4.10.0
 python-crontab==2.6.0
+croniter==1.1.0
 

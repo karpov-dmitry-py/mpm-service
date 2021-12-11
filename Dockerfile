@@ -28,6 +28,7 @@ COPY service /home/$usr/workdir
 # CRON
 # RUN mkdir /etc/cron.d
 USER root
+RUN chown $usr:$grp /home/$usr/workdir/tasks/
 RUN echo $usr > /etc/cron.allow && echo "" >> /etc/cron.allow
 RUN chmod gu+rw /var/run && chmod gu+s /usr/sbin/cron
 RUN chmod -R 666 /etc/cron.d

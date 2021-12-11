@@ -2,7 +2,7 @@
 {% load static %}
 {% block content %}
 <div class="container-fluid" style="width: 100%;">
-    <a class="btn btn-success mb-1 mt-3" href="{% url 'user-jobs-add' %}">Создать задачу</a>
+    <a class="btn btn-sm btn-success mb-1 mt-3" href="{% url 'user-jobs-add' %}">Создать задачу</a>
     <h5 class="border-bottom mb-1 mt-2">
         Задачи по расписанию
         <span class="text-muted small">(всего: {{ items_count }})</span>
@@ -19,7 +19,7 @@
             <th>Наименование</th>
             <th>Системная задача</th>
             <th>Расписание</th>
-            <th class="actions">Действия</th>
+            <th class="actions-center">Действия</th>
         </tr>
         </thead>
         <tbody>
@@ -38,7 +38,8 @@
                 <td>{{ item.job.name }}</td>
 
                 <td>{{ item.human_repr }}</td>
-                <td class="actions pr-0">
+                <td class="actions-center pr-0">
+                    <a class="btn btn-info btn-sm" href="{% url 'user-jobs-run' item.id %}">Выполнить сейчас</a>
                     <a class="btn btn-primary btn-sm" href="{% url 'user-jobs-update' item.id %}">Изменить</a>
                 </td>
             </tr>
