@@ -1,14 +1,10 @@
-import logging
+# noinspection PyProtectedMember
+import os
 import django
 
-import sys
-sys.path.append("..")
-
-from .helpers.scheduler import Scheduler
+from stores.helpers.common import _log
 # noinspection PyProtectedMember
-from .helpers.common import _log
-# noinspection PyProtectedMember
-from .helpers.common import _exc
+from stores.helpers.common import _exc
 
 try:
     from uwsgidecorators import spool
@@ -19,23 +15,26 @@ except (ImportError, Exception):
 
         return func_wrapper
 
-django.setup()
-logger = logging.getLogger(__name__)
-
 try:
     import uwsgi
 
-
-    def my_spooler(env):
-        return uwsgi.SPOOL_OK
-
-
-    uwsgi.spooler = my_spooler
 except (ImportError, Exception) as err:
     _log(f'failed to import uwsgi: {_exc(err)}')
 
 
+os.environ['DJANGO_SETTINGS_MODULE'] = 'service.settings'
+django.setup()
+
+# noinspection PyBroadException
 @spool
 def update_ozon_stocks(arguments):
+    fnc = 'update_ozon_stocks'
     username = arguments.get('username', '')
-    Scheduler().update_ozon_stocks(username)
+    _log(f'calling "{fnc}" with username "{username}" ...')
+    try:
+        from stores.helpers.scheduler import Scheduler
+        Scheduler().update_ozon_stocks(username)
+        return uwsgi.SPOOL_OK
+    except (ImportError, Exception) as err:
+        _log(f'failed to call "{fnc}" with username "{username}": {_exc(err)}')
+        return uwsgi.SPOOL_RETRY

@@ -16,6 +16,7 @@ from .common import new_uuid
 from .common import time_tracker
 from .common import to_float
 from .common import get_file_response
+from .common import as_str
 
 from .xls_processer import XlsProcesser
 
@@ -1434,7 +1435,7 @@ class OzonApi:
         _log(f'FAKE starting updating stock for store warehouse "{wh.name}" ...')
 
     def update_stock(self, wh):
-        _log(f'starting updating stock for store warehouse "{wh.name}" ...')
+        _log(f'starting updating stock for store warehouse "{as_str(wh.name)}" ...')
 
         store = wh.store
         err = self._set_auth_headers(store)

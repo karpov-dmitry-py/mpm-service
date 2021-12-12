@@ -178,7 +178,17 @@ def os_call(cmd):
         return None, f'error: {_exc(err)}'
 
 
+def as_str(src):
+    return src.encode('utf-16le', 'ignore').decode('utf-16le')
+
+
+def prepare_spooler_args(**kwargs):
+    args = {}
+    for name, value in kwargs.items():
+        args[name.encode('utf-8')] = str(value).encode('utf-8')
+    return args
+
+
 if __name__ == '__main__':
-    email = 'sales@company.com'
-    valid = is_valid_email(email)
-    _log(valid)
+    src = 'привет'
+    _log(as_str(src))

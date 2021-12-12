@@ -60,6 +60,7 @@ from .helpers.common import get_email_error
 from .helpers.common import get_supplier_warehouse_type
 from .helpers.common import get_supplier_error
 from .helpers.common import is_valid_supplier_choice
+from .helpers.common import prepare_spooler_args
 
 from .helpers.suppliers import Parser
 from .helpers.scheduler import Scheduler
@@ -2609,7 +2610,11 @@ def disable_user_jobs(request):
 def run_user_job(request, pk):
     username = request.user.username
     _log(f'received request to run job with id {pk} for user {username} ...')
-    update_ozon_stocks(username=username)
+
+    args = prepare_spooler_args(worker=Scheduler(), username=username)
+    update_ozon_stocks.spool(args)
+    # update_ozon_stocks(args)
+
     messages.success(request, 'Задача отправлена на выполнение')
     redirect_to = reverse_lazy('user-jobs-list')
     return redirect(redirect_to)

@@ -1,5 +1,11 @@
 FROM python:3.8
 
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+# ENV LANGUAGE en_US.UTF-8
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING utf-8
+
 RUN apt-get update && \
     apt-get install -y apt-transport-https && \
     apt-get install -y cron
