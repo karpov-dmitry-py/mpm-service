@@ -43,3 +43,7 @@
 .current-page-link {
     background-color: #87CEEB;
 }
+
+.hidden {
+    display: 'none';
+}

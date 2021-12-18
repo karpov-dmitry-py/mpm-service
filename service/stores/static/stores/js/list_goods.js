@@ -10,6 +10,9 @@ btnUpdateCategory.addEventListener('click', updateGoodProperty);
 const btnApplyFilters = document.querySelector('#apply-filters');
 btnApplyFilters.addEventListener('click', collectFilters);
 
+const btnFilterAll = document.querySelector('.filter-all-btn');
+btnFilterAll.addEventListener('click', toggleFilterAll);
+
 function updateGoodProperty(e) {
     const checkBoxes = document.querySelectorAll('.item-checkbox');
     let checkedItems = [];
@@ -196,11 +199,37 @@ function collectFiltersByType (sourceClass, destinationID) {
 
 function collectFilters(e) {
     // e.preventDefault();
-//    collectFiltersByType('brand-filter-value', 'brands_filter');
     collectFiltersByType('brand-filter-value', 'brands');
-//    collectFiltersByType('category-filter-value', 'categories_filter');
     collectFiltersByType('category-filter-value', 'cats');
 }
 
 
+function toggleFilterAll(e) {
+    const filtersAllInputs = document.querySelectorAll('.filter-all-val');
+    let val = false;
+    filtersAllInputs.forEach(function (item) {
+        val = !item.checked;   
+        item.checked = !item.checked;
+    });
+
+    // filtersAllInput.checked = !filtersAllInput.checked;
+    // </input><input type="text" class="hidden query-params">
+
+    const sep = ':';
+    const btn = e.target;
+    const goodsCount = btn.innerText.split(sep)[1];
+    const labels = {
+        true: 'Снять выделение. Выбрано товаров',
+        false: 'Выбрать все товары',
+    }
+  
+    const btnStyles = {
+        true: 'btn-info',
+        false: 'btn-light',
+    }
+
+    btn.innerText = `${labels[val]}${sep} ${goodsCount}`;
+    btn.classList.remove(btnStyles[!val])
+    btn.classList.add(btnStyles[val])
+}
 

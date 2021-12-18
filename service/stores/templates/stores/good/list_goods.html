@@ -7,8 +7,10 @@
 <div class="container-fluid">
     <div style="display: none;" id="brands_filter_source">{{ brands_filter_source }}</div>
     <a class="btn btn-sm btn-success mb-3" style="margin-top: 1rem;" href="{% url 'goods-add' %}">Создать товар</a>
-    <a class="btn btn-sm btn-light mb-3" style="margin-top: 1rem;" href="{% url 'goods-batch-upload' %}">Загрузить из файла</a>
-    <a class="btn btn-sm btn-light mb-3" style="margin-top: 1rem;" href="{% url 'goods-export' %}?{{ page_filter }}">Выгрузить в файл</a>
+    <a class="btn btn-sm btn-light mb-3" style="margin-top: 1rem;" href="{% url 'goods-batch-upload' %}">Загрузить из
+        файла</a>
+    <a class="btn btn-sm btn-light mb-3" style="margin-top: 1rem;" href="{% url 'goods-export' %}?{{ page_filter }}">Выгрузить
+        в файл</a>
     <h5 class="border-bottom mb-2">Товары
         <span class="text-muted small">
             (всего: {{ items_count }}, с учетом фильтров: {{ filtered_items_count }})
@@ -19,16 +21,17 @@
 
         <div class="container-fluid" style="width: 100%;">
             <div class="row">
-                <div class="col-10 mb-2" style="padding-left: 0rem;">
+                <div class="col-8 mb-2" style="padding-left: 0rem;">
                     <table>
                         <tr>
-<!--                            BRANDS FILTER LIST -->
+                            <!--                            BRANDS FILTER LIST -->
                             <td>
                                 <div>
                                     <a href="#" data-toggle="dropdown" class="dropdown-toggle btn btn-sm btn-light">
                                         Фильтр по брендам<b class="caret"></b>
                                     </a>
-                                    <ul style="height: 0px;" class="smaller dropdown-menu list-group-flush" id="brand-filter-list" name="brand-filter-list">
+                                    <ul style="height: 0px;" class="smaller dropdown-menu list-group-flush"
+                                        id="brand-filter-list" name="brand-filter-list">
                                         <li class="list-group-item">
                                             <input type="checkbox" value="111" class="form-check-input" id="brand_1">
                                             <label class="form-check-label" for="brand_1">
@@ -38,13 +41,15 @@
                                     </ul>
                                 </div>
                             </td>
-<!--                            CATEGORIES FILTER LIST -->
+                            <!--                            CATEGORIES FILTER LIST -->
                             <td>
                                 <div>
-                                    <a style="margin-left: 10px;" data-toggle="dropdown" class="dropdown-toggle btn btn-sm btn-light">
+                                    <a style="margin-left: 10px;" data-toggle="dropdown"
+                                       class="dropdown-toggle btn btn-sm btn-light">
                                         Фильтр по категориям<b class="caret"></b>
                                     </a>
-                                    <ul style="height: 0px;" class="smaller dropdown-menu list-group-flush" id="category-filter-list" name="category-filter-list">
+                                    <ul style="height: 0px;" class="smaller dropdown-menu list-group-flush"
+                                        id="category-filter-list" name="category-filter-list">
                                         <li class="list-group-item">
                                             <input type="checkbox" value="2" class="form-check-input" id="category_1">
                                             <label class="form-check-label" for="category_1">
@@ -55,31 +60,48 @@
                                 </div>
                             </td>
                             <td>
-                            <div>
-<!--                        FILTERS FORM-->
-                            <form class="form-inline" method="get" style="mb-0">
-                                <input type="text" style="display: none;" name="brands" id="brands" class="form-control mr-sm-2">
-                                <input type="text" style="display: none;" name="cats" id="cats" class="form-control mr-sm-2">
-                                <button id="apply-filters" type="submit" class="ml-2 btn btn-sm btn-light">Применить фильтры</button>
-                            </form>
-                            </div>
+                                <div>
+                                    <!--                        FILTERS FORM-->
+                                    <form class="form-inline" method="get" style="mb-0">
+                                        <input type="text" style="display: none;" name="brands" id="brands"
+                                               class="form-control mr-sm-2">
+                                        <input type="text" style="display: none;" name="cats" id="cats"
+                                               class="form-control mr-sm-2">
+                                        <input type="checkbox" style="display: none;" name="filter-all" id="filter-all"
+                                               class="form-control mr-sm-2 filter-all">
+                                        <button id="apply-filters" type="submit" class="ml-2 btn btn-sm btn-light">
+                                            Применить фильтры
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     </table>
 
                 </div>
-                <div class="col-2">
-                                <a class="btn btn-sm btn-light dropdown-toggle" href="#"
-                                   id="navbarDropdown" role="button"
-                                   data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    Действия с выделенными товарами
-                                </a>
-                                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-                                    <a class="dropdown-item btn btn-sm" data-toggle="modal" data-target="#brandModal" href="#">Установить
-                                        бренд</a>
-                                    <a class="dropdown-item btn btn-sm" data-toggle="modal" data-target="#categoryModal"
-                                       href="#">Установить категорию</a>
-                                </div>
+                <div class="col-4 pr-0" style="text-align: right;">
+                    <ul class="list-inline">
+                        <li class="list-inline-item">
+                            <span class="btn btn-sm btn-light filter-all-btn" href="#">
+                                Выбрать все товары: {{ filtered_items_count }}
+                            </span>
+                        </li>
+                        <li class="list-inline-item">
+                            <span class="btn btn-sm btn-light" id="navbarDropdown" role="button"
+                               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Действия с выделенными товарами
+                            </span>
+                            <span class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <a class="dropdown-item btn btn-sm" data-toggle="modal" data-target="#brandModal"
+                                   href="#">Установить
+                                    бренд</a>
+                                <a class="dropdown-item btn btn-sm" data-toggle="modal" data-target="#categoryModal"
+                                   href="#">Установить категорию</a>
+                            </span>
+                        </li>
+                    </ul>
+                    <div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -115,43 +137,43 @@
 
                 <td>
                     {% if item.brand %}
-                        <a href="{% url 'brands-detail' item.brand.id %}">{{ item.brand }}</a>
+                    <a href="{% url 'brands-detail' item.brand.id %}">{{ item.brand }}</a>
                     {% else %} - {% endif %}
                 </td>
 
                 <td>
                     {% if item.category %}
-                        <a href="{% url 'categories-update' item.category.id %}">{{ item.category.name }}</a>
+                    <a href="{% url 'categories-update' item.category.id %}">{{ item.category.name }}</a>
                     {% else %} - {% endif %}
                 </td>
 
                 <!--calculated stock - store warehouse -->
                 {% if stocks|get_item:item.sku %}
-                    {% with stocks=stocks|get_item:item.sku %}
-                        <td class="stock">
-                            {% for store, stock in stocks.items %}
-                                <dl class="row mb-0">
-                                    <dd class="col-sm-6 mb-0 mt-1">
-                                        <a href="{% url 'stores-detail' store.id %}">{{ store.name }}</a>
-                                    </dd>
-                                    <dd class="mb-0 col-sm-6 mt-1">
-                                        <ul class="ul list-unstyled">
-                                            {% for row in stock %}
-                                                <li class="mt-0 mb-0 stock">
-                                                    <a href="{% url 'store-warehouses-detail' row.wh.id %}">
-                                                        {{ row.wh.name }}
-                                                    </a>
-                                                    : {{ row.amount }}
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    </dd>
-                                </dl>
-                            {% endfor %}
-                        </td>
-                    {% endwith %}
+                {% with stocks=stocks|get_item:item.sku %}
+                <td class="stock">
+                    {% for store, stock in stocks.items %}
+                    <dl class="row mb-0">
+                        <dd class="col-sm-6 mb-0 mt-1">
+                            <a href="{% url 'stores-detail' store.id %}">{{ store.name }}</a>
+                        </dd>
+                        <dd class="mb-0 col-sm-6 mt-1">
+                            <ul class="ul list-unstyled">
+                                {% for row in stock %}
+                                <li class="mt-0 mb-0 stock">
+                                    <a href="{% url 'store-warehouses-detail' row.wh.id %}">
+                                        {{ row.wh.name }}
+                                    </a>
+                                    : {{ row.amount }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </dd>
+                    </dl>
+                    {% endfor %}
+                </td>
+                {% endwith %}
                 {% else %}
-                    <td>-</td>
+                <td>-</td>
                 {% endif %}
                 <td style="text-align: center; padding-right: 0rem; width: 12rem;">
                     <a class="btn btn-primary btn-sm" href="{% url 'goods-update' item.id %}">Изменить</a>
@@ -181,6 +203,8 @@
                         <fieldset class="form-group">
                             {{ batch_update_brand_form|crispy }}
                         </fieldset>
+                        <input type="checkbox" class="hidden filter-all-val">
+                        <input type="text" class="hidden query-params">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light" data-dismiss="modal">Отмена</button>
@@ -210,6 +234,8 @@
                         <fieldset class="form-group">
                             {{ batch_update_category_form|crispy }}
                         </fieldset>
+                        <input type="checkbox" class="hidden filter-all-val">
+                        <input type="text" class="hidden query-params">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light" data-dismiss="modal">Отмена</button>
