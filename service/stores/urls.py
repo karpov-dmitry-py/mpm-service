@@ -33,12 +33,16 @@ urlpatterns = [
     path('goods/add/', views.GoodCreateView.as_view(), name='goods-add'),
     path('goods/<int:pk>/update/', views.GoodUpdateView.as_view(), name='goods-update'),
     path('goods/<int:pk>/delete/', views.GoodDeleteView.as_view(), name='goods-delete'),
+
     path('goods/batch-update-brand/', views.batch_update_brand, name='goods-batch-update-brand'),
     path('goods/batch-update-category/', views.batch_update_category, name='goods-batch-update-category'),
+    path('goods/batch-delete-goods/', views.batch_delete_goods, name='goods-batch-delete'),
+
     path('goods/batch-upload/', views.batch_goods_upload, name='goods-batch-upload'),
     path('goods/batch-upload-success-file/<str:path>', views.batch_goods_upload_success_file,
          name='goods-batch-upload-success-file'),
     path('goods/export/', views.export_goods, name='goods-export'),
+
     # tmp utils for goods
     path('goods/generate/<int:count>', views.gen_goods, name='goods-generate'),
     path('goods/drop_test_goods/', views.drop_test_goods, name='drop-test-goods'),

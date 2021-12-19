@@ -7,8 +7,14 @@ btnUpdateBrand.addEventListener('click', updateGoodProperty);
 const btnUpdateCategory = document.querySelector('.batch-update-category');
 btnUpdateCategory.addEventListener('click', updateGoodProperty);
 
+const btnBatchDelete = document.querySelector('.batch-delete-goods');
+btnBatchDelete.addEventListener('click', updateGoodProperty);
+
 const btnApplyFilters = document.querySelector('#apply-filters');
 btnApplyFilters.addEventListener('click', collectFilters);
+
+const btnFilterAll = document.querySelector('.filter-all-btn');
+btnFilterAll.addEventListener('click', toggleFilterAll);
 
 function updateGoodProperty(e) {
     const checkBoxes = document.querySelectorAll('.item-checkbox');
@@ -30,9 +36,16 @@ function updateGoodProperty(e) {
 }
 
 function toggleCheckboxes(e) {
+    toggleCheckboxesWithVal(e.target.checked, false);
+}
+
+function toggleCheckboxesWithVal(is_checked, setDisabled) {
     const checkBoxes = document.querySelectorAll('.item-checkbox');
     checkBoxes.forEach( function (item) {
-        item.checked = e.target.checked;
+        item.checked = is_checked;
+        if (setDisabled) {
+            item.disabled = is_checked;
+        }
     });
 }
 
@@ -175,10 +188,8 @@ function setFilters() {
 function onLoad(e) {
     setFilters();
     prepareCategoryBatchUpdateList();
+    setQueryParams();
 }
-
-// categories_filter
-
 
 function collectFiltersByType (sourceClass, destinationID) {
     sourceClass = `.${sourceClass}`;
@@ -196,11 +207,56 @@ function collectFiltersByType (sourceClass, destinationID) {
 
 function collectFilters(e) {
     // e.preventDefault();
-//    collectFiltersByType('brand-filter-value', 'brands_filter');
     collectFiltersByType('brand-filter-value', 'brands');
-//    collectFiltersByType('category-filter-value', 'categories_filter');
     collectFiltersByType('category-filter-value', 'cats');
 }
 
 
+function toggleFilterAll(e) {
+    const filtersAllInputs = document.querySelectorAll('.filter-all-val');
+    let val = false;
+    filtersAllInputs.forEach(function (item) {
+        val = !item.checked;   
+        item.checked = val;
+        item.value = val;
+    });
 
+    const sep = ':';
+    const btn = e.target;
+    const goodsCount = btn.innerText.split(sep)[1];
+    const labels = {
+        true: 'Снять выделение. Выбрано товаров',
+        false: 'Выбрать все товары',
+    }
+  
+    const btnStyles = {
+        true: 'btn-info',
+        false: 'btn-light',
+    }
+
+    btn.innerText = `${labels[val]}${sep} ${goodsCount}`;
+    btn.classList.remove(btnStyles[!val]);
+    btn.classList.add(btnStyles[val]);
+
+    toggleCheckboxesWithVal(val, true);
+    mainCheckbox.checked = val;
+    mainCheckbox.disabled = val;
+}
+
+function getQueryParams() {
+    return new URLSearchParams(window.location.search);
+}
+
+
+function setQueryParams() {
+    const params = getQueryParams();
+    payload = {
+        brands: params.get('brands'),
+        cats: params.get('cats'),
+    }
+    json = JSON.stringify(payload);
+    const receivers = document.querySelectorAll('.query-params');
+    receivers.forEach(function(item) {
+        item.value = json;
+    });
+}

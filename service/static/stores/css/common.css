@@ -1,5 +1,5 @@
 .stock {
-    min-width: 200px;
+    min-width: 300px;
 }
 
 .narrow {
@@ -30,6 +30,11 @@
     width: 17rem;
 }
 
+.actions-center {
+    text-align: center;
+    width: 17rem;
+}
+
 .page-link {
     font-size: 0.8rem;
     padding: 0.3rem 0.4rem;
@@ -37,4 +42,8 @@
 
 .current-page-link {
     background-color: #87CEEB;
+}
+
+.hidden {
+    display: none;
 }

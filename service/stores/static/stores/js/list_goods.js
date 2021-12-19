@@ -7,6 +7,9 @@ btnUpdateBrand.addEventListener('click', updateGoodProperty);
 const btnUpdateCategory = document.querySelector('.batch-update-category');
 btnUpdateCategory.addEventListener('click', updateGoodProperty);
 
+const btnBatchDelete = document.querySelector('.batch-delete-goods');
+btnBatchDelete.addEventListener('click', updateGoodProperty);
+
 const btnApplyFilters = document.querySelector('#apply-filters');
 btnApplyFilters.addEventListener('click', collectFilters);
 
@@ -33,9 +36,16 @@ function updateGoodProperty(e) {
 }
 
 function toggleCheckboxes(e) {
+    toggleCheckboxesWithVal(e.target.checked, false);
+}
+
+function toggleCheckboxesWithVal(is_checked, setDisabled) {
     const checkBoxes = document.querySelectorAll('.item-checkbox');
     checkBoxes.forEach( function (item) {
-        item.checked = e.target.checked;
+        item.checked = is_checked;
+        if (setDisabled) {
+            item.disabled = is_checked;
+        }
     });
 }
 
@@ -178,10 +188,8 @@ function setFilters() {
 function onLoad(e) {
     setFilters();
     prepareCategoryBatchUpdateList();
+    setQueryParams();
 }
-
-// categories_filter
-
 
 function collectFiltersByType (sourceClass, destinationID) {
     sourceClass = `.${sourceClass}`;
@@ -209,11 +217,9 @@ function toggleFilterAll(e) {
     let val = false;
     filtersAllInputs.forEach(function (item) {
         val = !item.checked;   
-        item.checked = !item.checked;
+        item.checked = val;
+        item.value = val;
     });
-
-    // filtersAllInput.checked = !filtersAllInput.checked;
-    // </input><input type="text" class="hidden query-params">
 
     const sep = ':';
     const btn = e.target;
@@ -229,7 +235,28 @@ function toggleFilterAll(e) {
     }
 
     btn.innerText = `${labels[val]}${sep} ${goodsCount}`;
-    btn.classList.remove(btnStyles[!val])
-    btn.classList.add(btnStyles[val])
+    btn.classList.remove(btnStyles[!val]);
+    btn.classList.add(btnStyles[val]);
+
+    toggleCheckboxesWithVal(val, true);
+    mainCheckbox.checked = val;
+    mainCheckbox.disabled = val;
 }
 
+function getQueryParams() {
+    return new URLSearchParams(window.location.search);
+}
+
+
+function setQueryParams() {
+    const params = getQueryParams();
+    payload = {
+        brands: params.get('brands'),
+        cats: params.get('cats'),
+    }
+    json = JSON.stringify(payload);
+    const receivers = document.querySelectorAll('.query-params');
+    receivers.forEach(function(item) {
+        item.value = json;
+    });
+}

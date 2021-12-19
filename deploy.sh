@@ -1,6 +1,6 @@
  #!/bin/bash
 
-/bin/bash ./build_only.sh
+#/bin/bash ./build_only.sh
 
 echo ">>>> saving docker image to a tar archive ..."
 /usr/bin/docker image save -o mpm_service.tar mpm_service_app

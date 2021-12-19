@@ -221,3 +221,7 @@ class UpdateUserJobForm(ModelForm):
         labels = {
             'schedule': f'Значение частоты выполнения (от {Scheduler.min_frequency()} до {Scheduler.max_frequency()})',
         }
+
+
+class BatchDeleteGoodsForm(Form):
+    pass

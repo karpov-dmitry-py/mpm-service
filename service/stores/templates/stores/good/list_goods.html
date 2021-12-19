@@ -67,8 +67,6 @@
                                                class="form-control mr-sm-2">
                                         <input type="text" style="display: none;" name="cats" id="cats"
                                                class="form-control mr-sm-2">
-                                        <input type="checkbox" style="display: none;" name="filter-all" id="filter-all"
-                                               class="form-control mr-sm-2 filter-all">
                                         <button id="apply-filters" type="submit" class="ml-2 btn btn-sm btn-light">
                                             Применить фильтры
                                         </button>
@@ -89,14 +87,15 @@
                         <li class="list-inline-item">
                             <span class="btn btn-sm btn-light" id="navbarDropdown" role="button"
                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                Действия с выделенными товарами
+                                Действия с выбранными товарами
                             </span>
                             <span class="dropdown-menu" aria-labelledby="navbarDropdown">
                                 <a class="dropdown-item btn btn-sm" data-toggle="modal" data-target="#brandModal"
-                                   href="#">Установить
-                                    бренд</a>
+                                   href="#">Установить бренд</a>
                                 <a class="dropdown-item btn btn-sm" data-toggle="modal" data-target="#categoryModal"
                                    href="#">Установить категорию</a>
+                                <a class="dropdown-item btn btn-sm" data-toggle="modal" data-target="#batchDeleteModal"
+                                   href="#"><span class="text-danger">Удалить с подтверждением</span></a>
                             </span>
                         </li>
                     </ul>
@@ -203,8 +202,8 @@
                         <fieldset class="form-group">
                             {{ batch_update_brand_form|crispy }}
                         </fieldset>
-                        <input type="checkbox" class="hidden filter-all-val">
-                        <input type="text" class="hidden query-params">
+                        <input type="checkbox" class="hidden filter-all-val" name="filter-all-brands">
+                        <input type="text" class="hidden query-params" name="query-params-brands">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light" data-dismiss="modal">Отмена</button>
@@ -234,8 +233,8 @@
                         <fieldset class="form-group">
                             {{ batch_update_category_form|crispy }}
                         </fieldset>
-                        <input type="checkbox" class="hidden filter-all-val">
-                        <input type="text" class="hidden query-params">
+                        <input type="checkbox" class="hidden filter-all-val" name="filter-all-cats">
+                        <input type="text" class="hidden query-params" name="query-params-cats">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light" data-dismiss="modal">Отмена</button>
@@ -248,6 +247,44 @@
         </div>
     </div>
     <!-- batch update category popup } -->
+
+    <!-- batch delete popup { -->
+    <div class="modal fade" id="batchDeleteModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger" id="batchDeleteModalabel"><strong>Удаление выбранных товаров</strong></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body mt-0 pt-0">
+                    <form id="batch-delete-goods" method="post" action="{% url 'goods-batch-delete' %}">
+                        {% csrf_token %}
+                        <fieldset class="form-group">
+                            {{ batch_delete_goods_form|crispy }}
+                        </fieldset>
+
+                        <span class="mb-4">
+                            Подтверждаете удаление всех выбранных товаров?
+                        </span>
+
+                        <input type="checkbox" class="hidden filter-all-val" name="filter-all-batch-delete">
+                        <input type="text" class="hidden query-params" name="query-params-batch-delete">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-dismiss="modal">Отмена</button>
+                    <button type="submit" name="batch-delete-goods" class="btn btn-danger batch-delete-goods">
+                        Да, Удалить выбранные товары!
+                    </button>
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- batch delete popup } -->
+
+
     <div id="categories_list" style="display: none;">{{ categories_list }}</div>
     <div id="categories_filter_source" style="display: none;">{{ categories_filter_source }}</div>
 </div>

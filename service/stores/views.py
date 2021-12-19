@@ -91,6 +91,7 @@ from .forms import CreateStoreWarehouseForm
 from .forms import SportCategorySelectForm
 from .forms import CreateUserJobForm
 from .forms import UpdateUserJobForm
+from .forms import BatchDeleteGoodsForm
 
 BASE_URL = 'https://stl-market.ru'
 
@@ -103,32 +104,45 @@ Scheduler().run()
 def batch_update_brand(request):
     user = request.user
     redirect_to = f'{reverse_lazy("goods-list")}'
+    not_found_err = 'Не выделены товары для изменения.'
     form = BatchUpdateGoodsBrandForm(user, request.POST)
+
     if form.is_valid():
         try:
             brand = form.cleaned_data['brand']
             goods_ids = request.POST['checked-goods-list']
-            goods_ids = json.loads(goods_ids)
-            goods_ids = map(lambda item: int(item), goods_ids)
-            goods_ids = set(goods_ids)
-            if not len(goods_ids):
-                messages.error(request, 'Не выделены товары для изменения.')
+            goods_ids = _parse_ints_from_post_form(goods_ids)
+
+            global_filter_is_used = _str_to_bool(request.POST.get('filter-all-brands'))
+            query_params = json.loads(request.POST.get('query-params-brands', str(dict())))
+
+            if not global_filter_is_used and not len(goods_ids):
+                messages.error(request, not_found_err)
+                return redirect(redirect_to)
+
+            if global_filter_is_used:
+                qs = _goods_qs_with_filters(user, query_params.get('brands'), query_params.get('cats'))
+            else:
+                qs = _qs_by_user(Good, user).filter(pk__in=goods_ids)
+
+            if not len(qs):
+                messages.error(request, not_found_err)
                 return redirect(redirect_to)
 
             # noinspection PyUnresolvedReferences
-            goods = Good.objects.filter(pk__in=goods_ids)
             saved_ids = []
-            for good in goods:
+            for good in qs:
                 if good.user != user:
                     continue
                 good.brand = brand
                 good.save()
                 saved_ids.append(good.pk)
-            brand = brand or ''
-            messages.success(request, f'Установлен бренд "{brand}" для единиц номенклатуры: {len(saved_ids)}')
+
+            messages.success(request, f'Установлен бренд "{brand}" для товаров: {len(saved_ids)}')
             return redirect(redirect_to)
+
         except Exception as err:
-            err_msg = f'Не удалось записать данные в БД. {_exc(err)}'
+            err_msg = f'Не удалось записать данные в БД: {_exc(err)}'
             messages.error(request, err_msg)
             return redirect(redirect_to)
 
@@ -141,31 +155,95 @@ def batch_update_brand(request):
 def batch_update_category(request):
     user = request.user
     redirect_to = f'{reverse_lazy("goods-list")}'
+    not_found_err = 'Не выделены товары для изменения.'
     form = BatchUpdateGoodsCategoryForm(user, request.POST)
+
     if form.is_valid():
         try:
             category = form.cleaned_data['category']
             goods_ids = request.POST['checked-goods-list']
-            goods_ids = json.loads(goods_ids)
-            goods_ids = map(lambda item: int(item), goods_ids)
-            goods_ids = set(goods_ids)
-            if not len(goods_ids):
-                messages.error(request, 'Не выделены товары для изменения.')
+            goods_ids = _parse_ints_from_post_form(goods_ids)
+
+            global_filter_is_used = _str_to_bool(request.POST.get('filter-all-cats'))
+            query_params = json.loads(request.POST.get('query-params-cats', str(dict())))
+
+            if not global_filter_is_used and not len(goods_ids):
+                messages.error(request, not_found_err)
                 return redirect(redirect_to)
+
+            if global_filter_is_used:
+                qs = _goods_qs_with_filters(user, query_params.get('brands'), query_params.get('cats'))
+            else:
+                qs = _qs_by_user(Good, user).filter(pk__in=goods_ids)
+
+            if not len(qs):
+                messages.error(request, not_found_err)
+                return redirect(redirect_to)
+
             # noinspection PyUnresolvedReferences
-            goods = Good.objects.filter(pk__in=goods_ids)
             saved_ids = []
-            for good in goods:
+            for good in qs:
                 if good.user != user:
                     continue
                 good.category = category
                 good.save()
                 saved_ids.append(good.pk)
-            category = category or ''
-            messages.success(request, f'Установлена категория "{category}" для единиц номенклатуры: {len(saved_ids)}')
+
+            messages.success(request, f'Установлена категория "{category}" для товаров: {len(saved_ids)}')
             return redirect(redirect_to)
+
         except Exception as err:
-            err_msg = f'Не удалось записать данные в БД. {_exc(err)}'
+            err_msg = f'Не удалось записать данные в БД: {_exc(err)}'
+            messages.error(request, err_msg)
+            return redirect(redirect_to)
+
+    messages.error(request, f'Форма заполнена неверно: {form.errors.as_data()}')
+    return redirect(redirect_to)
+
+
+@require_POST
+@login_required()
+def batch_delete_goods(request):
+    user = request.user
+    redirect_to = f'{reverse_lazy("goods-list")}'
+    not_found_err = 'Не выделены товары для удаления.'
+    form = BatchDeleteGoodsForm(request.POST)
+
+    if form.is_valid():
+        try:
+            goods_ids = request.POST['checked-goods-list']
+            goods_ids = _parse_ints_from_post_form(goods_ids)
+
+            global_filter_is_used = _str_to_bool(request.POST.get('filter-all-batch-delete'))
+            query_params = json.loads(request.POST.get('query-params-batch-delete', str(dict())))
+
+            if not global_filter_is_used and not len(goods_ids):
+                messages.error(request, not_found_err)
+                return redirect(redirect_to)
+
+            if global_filter_is_used:
+                qs = _goods_qs_with_filters(user, query_params.get('brands'), query_params.get('cats'))
+            else:
+                qs = _qs_by_user(Good, user).filter(pk__in=goods_ids)
+
+            if not len(qs):
+                messages.error(request, not_found_err)
+                return redirect(redirect_to)
+
+            # noinspection PyUnresolvedReferences
+            processed_ids = []
+            for good in qs:
+                if good.user != user:
+                    continue
+                pk = good.pk
+                good.delete()
+                processed_ids.append(pk)
+
+            messages.success(request, f'Удалены товаров: {len(processed_ids)}')
+            return redirect(redirect_to)
+
+        except Exception as err:
+            err_msg = f'Не удалось записать данные в БД: {_exc(err)}'
             messages.error(request, err_msg)
             return redirect(redirect_to)
 
@@ -400,121 +478,6 @@ def drop_stock(request):
             _log(f'deleted stock row # {deleted_count}')
     messages.success(request, f'Удалено тестовых записей об остатках: {deleted_count}')
     return redirect('stock-list')
-
-
-# utils
-def _qs_filtered_by_user(model, user, limit=None):
-    if limit is None:
-        qs = model.objects.filter(user=user)
-    else:
-        qs = model.objects.filter(user=user)[:limit]
-    return qs
-
-
-def _filter_qs(qs, user):
-    return qs.filter(user=user).order_by('id')
-
-
-def _filter_user_brands(context, request):
-    # noinspection PyUnresolvedReferences,PyTypeChecker
-    qs = _qs_filtered_by_user(model=GoodsBrand, user=request.user)
-    context['form'].fields['brand'].queryset = qs
-
-
-def _csv_to_list(csv_string):
-    items = [int(_id) if _id.isnumeric() else None for _id in csv_string.split(',')]
-    return items
-
-
-def _get_supplier_warehouse_type_id():
-    name = get_supplier_warehouse_type()
-    # noinspection PyUnresolvedReferences
-    rows = WarehouseType.objects.filter(name__iexact=name)
-    if not len(rows):
-        return
-    return rows[0].pk
-
-
-def _special_attrs():
-    _dict = {
-        'Покупки.Yandex.Market': [
-            'store_api_url',
-        ]
-    }
-    return _dict
-
-
-def _get_pages_list(page_obj, frequency=10):
-    return [page_num for page_num in range(1, page_obj.paginator.num_pages + 1)
-            if page_num == 1 or not page_num % frequency or page_num == page_obj.paginator.num_pages]
-
-
-def _get_model_list_title(model):
-    # noinspection PyProtectedMember
-    return model._meta.verbose_name_plural
-
-
-def _get_store_api_url(store_id):
-    return f'{BASE_URL}/{API.get_api_full_path()}/stores/{store_id}'
-
-
-def get_stocks_by_store_api_url():
-    return f'{API.get_api_full_path()}/stores/<int:store_pk>/stocks'
-
-
-def get_store_by_id(store_id, user):
-    err_msg = f'неверный id магазина: {store_id}'
-    if not isinstance(store_id, int):
-        return None, err_msg
-    # noinspection PyUnresolvedReferences
-    rows = Store.objects.filter(user=user).filter(id=store_id)
-    if not len(rows):
-        return None, err_msg
-
-    store = rows[0]
-    if not store.is_active():
-        return None, f'Магазин {store.name} не активен, настройки доступны только для активных магазинов.'
-
-    return store, None
-
-
-def get_store_warehouse_by_id(wh_id, user):
-    err_msg = f'неверный id склада магазина: {wh_id}'
-    if not isinstance(wh_id, int):
-        return None, err_msg
-    # noinspection PyUnresolvedReferences
-    rows = StoreWarehouse.objects.filter(user=user).filter(id=wh_id)
-    if not len(rows):
-        return None, f'Не найден склад магазина с id {wh_id} для текущего пользователя'
-
-    wh = rows[0]
-
-    # check whether store is active
-    if not wh.store.is_active():
-        return None, f'Магазин склада ("{wh.store.name}") не активен, настройки доступны только для активных магазинов.'
-
-    return wh, None
-
-
-# noinspection PyUnresolvedReferences
-def get_store_warehouse_stock_settings(warehouse):
-    if warehouse is None:
-        return
-    rows = StockSetting.objects.filter(user=warehouse.user).filter(warehouse=warehouse)
-    return rows
-
-
-def is_stock_settings_priority_used(priority, wh, skip_setting_id=None):
-    rows = get_store_warehouse_stock_settings(warehouse=wh)
-    if skip_setting_id:
-        is_used = any(row.priority == priority for row in rows if row.id != skip_setting_id)
-    else:
-        is_used = any(row.priority == priority for row in rows)
-    return is_used
-
-
-def _json(obj):
-    return json.dumps(obj, ensure_ascii=False)
 
 
 # STORE
@@ -1068,33 +1031,11 @@ class GoodListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         if self._request_qs is None:
             full_queryset = self._get_queryset_by_user()
-            queryset = None
-            params = self.request.GET
-
-            # brands
-            brands = params.get('brands')
-            brands = brands or None
-            if brands:
-                brands = _csv_to_list(brands)
-                if None in brands:
-                    queryset = full_queryset.filter(brand_id__in=brands) | full_queryset.filter(brand__isnull=True)
-                else:
-                    queryset = full_queryset.filter(brand_id__in=brands)
-
-            # categories
-            categories = params.get('cats')
-            categories = categories or None
-            if categories:
-                if queryset is None:
-                    queryset = full_queryset
-                categories = _csv_to_list(categories)
-                if None in categories:
-                    queryset = queryset.filter(category_id__in=categories) | queryset.filter(category__isnull=True)
-                else:
-                    queryset = queryset.filter(category_id__in=categories)
-
-            if queryset is None:
-                queryset = full_queryset
+            queryset = _goods_qs_with_filters(
+                self.request.user,
+                self.request.GET.get('brands'),
+                self.request.GET.get('cats'),
+                full_queryset)
             self._request_qs = queryset
 
         return self._request_qs
@@ -1114,7 +1055,7 @@ class GoodListView(LoginRequiredMixin, ListView):
 
         # data for filters
         # noinspection PyTypeChecker
-        brands = _qs_filtered_by_user(GoodsBrand, user)
+        brands = _qs_by_user(GoodsBrand, user)
         brands = [{'id': item.pk, 'name': item.name, 'checked': False} for item in brands]
         brands.insert(0, {'id': None, 'name': 'Пустой бренд', 'checked': False})
 
@@ -1670,7 +1611,7 @@ class StockListView(LoginRequiredMixin, ListView):
         context['title'] = 'Остатки товаров'
 
         # warehouse
-        wh_rows = _qs_filtered_by_user(Warehouse, user)
+        wh_rows = _qs_by_user(Warehouse, user)
         whs = {row.id: {'type': row.kind.name, 'name': row.name} for row in wh_rows}
         context['whs'] = whs
 
@@ -2100,7 +2041,7 @@ def stock_settings_batch_delete(request):
 
 # noinspection PyTypeChecker
 def get_brands_by_user(user):
-    rows = _qs_filtered_by_user(model=GoodsBrand, user=user)
+    rows = _qs_by_user(model=GoodsBrand, user=user)
     items = []
     for row in rows:
         _row = {
@@ -2113,7 +2054,7 @@ def get_brands_by_user(user):
 
 # noinspection PyTypeChecker
 def get_warehouses_by_user(user):
-    rows = _qs_filtered_by_user(model=Warehouse, user=user)
+    rows = _qs_by_user(model=Warehouse, user=user)
     rows = rows.filter(active=True)
     items = []
     for row in rows:
@@ -2128,7 +2069,7 @@ def get_warehouses_by_user(user):
 @require_GET
 @login_required()
 def get_user_goods(request):
-    rows = _qs_filtered_by_user(Good, request.user)
+    rows = _qs_by_user(Good, request.user)
     if not len(rows):
         return JsonResponse(data=None, status=404, safe=False)
     items = [{'sku': row.sku, 'name': row.name, } for row in rows]
@@ -2708,3 +2649,164 @@ def check_suppliers_offers(request, categories):
 
     ctx['title'] = 'Сверка предложений поставщиков'
     return render(request, 'stores/misc/suppliers/offers/list.html', context=ctx)
+
+
+# utils
+def _parse_ints_from_post_form(raw):
+    goods_ids = json.loads(raw)
+    goods_ids = map(lambda item: int(item), goods_ids)
+    goods_ids = set(goods_ids)
+    return goods_ids
+
+
+def _qs_by_user(model, user, limit=None):
+    if limit is None:
+        qs = model.objects.filter(user=user)
+    else:
+        qs = model.objects.filter(user=user)[:limit]
+    return qs
+
+
+def _goods_qs_with_filters(user, brands, categories, full_queryset=None):
+    if full_queryset is None:
+        full_queryset = _qs_by_user(Good, user)
+    queryset = None
+
+    # brands
+    brands = brands or None
+    if brands:
+        brands = _csv_to_list(brands)
+        if None in brands:
+            queryset = full_queryset.filter(brand_id__in=brands) | full_queryset.filter(brand__isnull=True)
+        else:
+            queryset = full_queryset.filter(brand_id__in=brands)
+
+    # categories
+    categories = categories or None
+    if categories:
+        if queryset is None:
+            queryset = full_queryset
+        categories = _csv_to_list(categories)
+        if None in categories:
+            queryset = queryset.filter(category_id__in=categories) | queryset.filter(category__isnull=True)
+        else:
+            queryset = queryset.filter(category_id__in=categories)
+
+    if queryset is None:
+        queryset = full_queryset
+
+    return queryset
+
+
+def _filter_qs(qs, user):
+    return qs.filter(user=user).order_by('id')
+
+
+def _filter_user_brands(context, request):
+    # noinspection PyUnresolvedReferences,PyTypeChecker
+    qs = _qs_by_user(model=GoodsBrand, user=request.user)
+    context['form'].fields['brand'].queryset = qs
+
+
+def _csv_to_list(csv_string):
+    items = [int(_id) if _id.isnumeric() else None for _id in csv_string.split(',')]
+    return items
+
+
+def _get_supplier_warehouse_type_id():
+    name = get_supplier_warehouse_type()
+    # noinspection PyUnresolvedReferences
+    rows = WarehouseType.objects.filter(name__iexact=name)
+    if not len(rows):
+        return
+    return rows[0].pk
+
+
+def _special_attrs():
+    _dict = {
+        'Покупки.Yandex.Market': [
+            'store_api_url',
+        ]
+    }
+    return _dict
+
+
+def _get_pages_list(page_obj, frequency=10):
+    return [page_num for page_num in range(1, page_obj.paginator.num_pages + 1)
+            if page_num == 1 or not page_num % frequency or page_num == page_obj.paginator.num_pages]
+
+
+def _get_model_list_title(model):
+    # noinspection PyProtectedMember
+    return model._meta.verbose_name_plural
+
+
+def _get_store_api_url(store_id):
+    return f'{BASE_URL}/{API.get_api_full_path()}/stores/{store_id}'
+
+
+def get_stocks_by_store_api_url():
+    return f'{API.get_api_full_path()}/stores/<int:store_pk>/stocks'
+
+
+def get_store_by_id(store_id, user):
+    err_msg = f'неверный id магазина: {store_id}'
+    if not isinstance(store_id, int):
+        return None, err_msg
+    # noinspection PyUnresolvedReferences
+    rows = Store.objects.filter(user=user).filter(id=store_id)
+    if not len(rows):
+        return None, err_msg
+
+    store = rows[0]
+    if not store.is_active():
+        return None, f'Магазин {store.name} не активен, настройки доступны только для активных магазинов.'
+
+    return store, None
+
+
+def get_store_warehouse_by_id(wh_id, user):
+    err_msg = f'неверный id склада магазина: {wh_id}'
+    if not isinstance(wh_id, int):
+        return None, err_msg
+    # noinspection PyUnresolvedReferences
+    rows = StoreWarehouse.objects.filter(user=user).filter(id=wh_id)
+    if not len(rows):
+        return None, f'Не найден склад магазина с id {wh_id} для текущего пользователя'
+
+    wh = rows[0]
+
+    # check whether store is active
+    if not wh.store.is_active():
+        return None, f'Магазин склада ("{wh.store.name}") не активен, настройки доступны только для активных магазинов.'
+
+    return wh, None
+
+
+# noinspection PyUnresolvedReferences
+def get_store_warehouse_stock_settings(warehouse):
+    if warehouse is None:
+        return
+    rows = StockSetting.objects.filter(user=warehouse.user).filter(warehouse=warehouse)
+    return rows
+
+
+def is_stock_settings_priority_used(priority, wh, skip_setting_id=None):
+    rows = get_store_warehouse_stock_settings(warehouse=wh)
+    if skip_setting_id:
+        is_used = any(row.priority == priority for row in rows if row.id != skip_setting_id)
+    else:
+        is_used = any(row.priority == priority for row in rows)
+    return is_used
+
+
+def _json(obj):
+    return json.dumps(obj, ensure_ascii=False)
+
+
+def _str_to_bool(src):
+    rules = {
+        'true': True,
+        'false': False,
+    }
+    return rules.get(src, False)
