@@ -61,6 +61,7 @@ from .helpers.common import get_supplier_warehouse_type
 from .helpers.common import get_supplier_error
 from .helpers.common import is_valid_supplier_choice
 from .helpers.common import prepare_spooler_args
+from .helpers.common import is_int
 
 from .helpers.suppliers import Parser
 from .helpers.scheduler import Scheduler
@@ -2150,9 +2151,13 @@ class StoreWarehouseCreateView(LoginRequiredMixin, CreateView):
         # validation
         form_is_valid = True
 
+        code = form.cleaned_data.get('code')
+        if not is_int(code):
+            form_is_valid = False
+            form.errors['Не валидный код склада'] = f'Код склада {code} не является целым числом'
+
         qs = self._store.store_warehouses.all()
         if qs:
-            code = form.cleaned_data.get('code')
             if code:
                 existing_rows = qs.filter(code__iexact=code)
                 if len(existing_rows):
@@ -2218,9 +2223,14 @@ class StoreWarehouseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVi
         # validation
         form_is_valid = True
 
+        code = form.cleaned_data.get('code')
+        if not is_int(code):
+            form_is_valid = False
+            form.errors['Не валидный код склада'] = f'Код склада {code} не является целым числом'
+
         qs = form.instance.store.store_warehouses.all().exclude(id=form.instance.id)
         if qs:
-            code = form.cleaned_data.get('code')
+
             if code:
                 existing_rows = qs.filter(code__iexact=code)
                 if len(existing_rows):

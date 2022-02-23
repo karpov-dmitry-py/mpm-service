@@ -189,6 +189,15 @@ def prepare_spooler_args(**kwargs):
     return args
 
 
+# types
+def is_int(val):
+    try:
+        i = int(val)
+        return True
+    except ValueError:
+        return False
+
+
 if __name__ == '__main__':
     src = 'привет'
     _log(as_str(src))

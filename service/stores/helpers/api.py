@@ -1114,7 +1114,7 @@ class YandexApi:
         payload validation
         """
         # check wh id
-        wh_id_attrs = ('partnerWarehouseId', 'warehouseId',)
+        wh_id_attrs = ('warehouseId',)
         if not any(attr in payload for attr in wh_id_attrs):
             return None, None, 'no warehouse id found in payload'
 
@@ -1122,20 +1122,19 @@ class YandexApi:
             return None, None, 'no valid warehouse id found in payload'
 
         # get wh id
-        wh_id = payload.get(wh_id_attrs[0])
         yandex_wh_id = payload.get(wh_id_attrs[1])
 
         if yandex_wh_id is None:
             return None, None, 'no valid yandex native warehouse id found in payload'
 
         # check whether wh id is in db
-        qs = StoreWarehouse.objects.filter(code=str(wh_id))
+        qs = StoreWarehouse.objects.filter(code=str(yandex_wh_id))
         if not qs:
-            return None, None, f'no warehouse with id "{wh_id}" found in database'
+            return None, None, f'no warehouse with id "{yandex_wh_id}" found in database'
 
         wh = qs[0]
         if wh.store != store:
-            return None, None, f'no warehouse with id "{wh_id}" found for store with id "{store_pk}" in database'
+            return None, None, f'no warehouse with id "{yandex_wh_id}" found for store with id "{store_pk}" in database'
 
         # check skus list
         skus = 'skus'
