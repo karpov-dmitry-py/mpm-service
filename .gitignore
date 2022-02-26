@@ -133,3 +133,5 @@ dmypy.json
 .idea/
 *.tar
 *.file
+cron.log
+scheduler_lock

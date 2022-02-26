@@ -24,7 +24,7 @@ class Scheduler:
             'os_user': 'dkarpov',
             'intepreter_path': '/home/dkarpov/projects/self/mpm-service/venv/bin/python',
             'command_path': '/home/dkarpov/projects/self/mpm-service/service/manage.py scheduler',
-            'cron_log_path': '/home/dkarpov/projects/self/mpm-service/service/stores/cron.log',
+            'cron_log_path': '/home/dkarpov/projects/self/mpm-service/service/cron.log',
         },
         'prod': {
             'os_user': 'dockeruser',

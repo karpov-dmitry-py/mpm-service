@@ -1040,7 +1040,7 @@ class YandexApi:
             return response
 
         # parse warehouse
-        wh, yandex_wh_id, err = self._get_wh_from_stock_update_request(payload, store)
+        wh, err = self._get_wh_from_stock_update_request(payload, store)
         if err:
             resp_payload, response = _handle_invalid_request(err)
             log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
@@ -1058,7 +1058,7 @@ class YandexApi:
         for sku in skus:
             row = {
                 'sku': sku,
-                'warehouseId': yandex_wh_id,
+                'warehouseId': wh.code,
                 'items': [
                     {
                         'type': self.stock_type,
@@ -1112,46 +1112,39 @@ class YandexApi:
     def _get_wh_from_stock_update_request(payload, store):
         """
         payload validation
+        returns a warehouse or an error
         """
-        # check wh id
-        wh_id_attrs = ('warehouseId',)
-        if not any(attr in payload for attr in wh_id_attrs):
-            return None, None, 'no warehouse id found in payload'
-
-        if all(not payload.get(attr) for attr in wh_id_attrs):
-            return None, None, 'no valid warehouse id found in payload'
-
-        # get wh id
-        yandex_wh_id = payload.get(wh_id_attrs[1])
+        wh_id_attr = 'warehouseId'
+        yandex_wh_id = payload.get(wh_id_attr)
 
         if yandex_wh_id is None:
-            return None, None, 'no valid yandex native warehouse id found in payload'
+            return None, 'no yandex warehouse id found in payload'
 
         # check whether wh id is in db
         qs = StoreWarehouse.objects.filter(code=str(yandex_wh_id))
         if not qs:
-            return None, None, f'no warehouse with id "{yandex_wh_id}" found in database'
+            return None, f'no warehouse with id "{yandex_wh_id}" found in db'
 
         wh = qs[0]
         if wh.store != store:
-            return None, None, f'no warehouse with id "{yandex_wh_id}" found for store with id "{store_pk}" in database'
+            return None, f'no warehouse with id "{yandex_wh_id}" found for store with id "{store.id}" in db'
 
         # check skus list
         skus = 'skus'
         if skus not in payload:
-            return None, None, f'no "{skus}" list found in payload'
+            return None, f'no "{skus}" list found in payload'
 
         skus_vals = payload.get(skus)
         if type(skus_vals) not in (list, tuple):
-            return None, None, f'invalid type of "{skus}" found in payload, must be iterable'
+            return None, f'invalid type of "{skus}" found in payload, must be iterable'
 
         if not skus_vals:
-            return None, None, f'empty "{skus}" list found in payload'
+            return None, f'empty "{skus}" list found in payload'
 
         if all(not item for item in skus_vals):
-            return None, None, f'all of skus are empty in "{skus}" in payload'
+            return None, f'all of skus are empty in "{skus}" in payload'
 
-        return wh, yandex_wh_id, None
+        return wh, None
 
 
 # class for communication with ozon via api
