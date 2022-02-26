@@ -110,7 +110,6 @@ urlpatterns = [
     path('logs/<int:pk>/detail/', views.LogDetailView.as_view(), name='logs-detail'),
     path('logs/<int:pk>/export/', views.log_export, name='logs-export'),
 
-
     # user job
     path('jobs/', views.UserJobListView.as_view(), name='user-jobs-list'),
     path('jobs/add/', views.UserJobCreateView.as_view(), name='user-jobs-add'),
@@ -138,7 +137,10 @@ urlpatterns = [
     path(f'{api_full_path}/stock/', views.api_update_stock, name='api-update-stock'),
 
     # yandex
-    path(f'{views.get_stocks_by_store_api_url()}', views.api_yandex_update_stock, name='api-yandex-update-stock'),
+    path(f'{views.get_yandex_store_update_stocks_api_url()}', views.api_yandex_store_update_stock,
+         name='api-yandex-update-stock'),
+    path(f'{views.get_yandex_store_confirm_cart()}', views.api_yandex_store_confirm_cart,
+         name='api-yandex-confirm-cart'),
 
     # misc
     path('misc/suppliers/offers/check', views.process_categories_choice, name='suppliers-offers-check'),

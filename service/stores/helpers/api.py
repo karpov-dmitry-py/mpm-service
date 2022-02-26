@@ -1084,6 +1084,9 @@ class YandexApi:
 
         return response
 
+    def confirm_cart(self, request, store_pk):
+        return JsonResponse({"store_pk": store_pk, "action": "confirm cart"})
+
     @staticmethod
     def _make_response(data, status=200):
         return JsonResponse(

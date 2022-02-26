@@ -517,8 +517,8 @@ def add_store(request):
             marketplace = form.cleaned_data['marketplace']
             form_data = dict(form.data)
 
-            # TODO - use better condition
-            if marketplace.name == 'Покупки.Yandex.Market':
+            # TODO - use stronger condition
+            if 'yandex' in marketplace.name.lower():
                 attr_name = 'store_api_url'
                 store_api_url = _get_store_api_url(store_id)
                 form_data[attr_name] = store_api_url
@@ -539,8 +539,10 @@ def add_store(request):
 
             messages.success(request, f'Магазин "{form.instance.name}" успешно добавлен.')
             return redirect('stores-detail', pk=store_id)
+
         messages.error(request, f'Форма заполнена неверно: {form.errors.as_data()}')
         return redirect('stores-add')
+
     else:
         form = CreateStoreForm()
         props = defaultdict(list)
@@ -2613,8 +2615,14 @@ def api_update_stock(request):
 
 @csrf_exempt
 @require_POST
-def api_yandex_update_stock(request, store_pk):
+def api_yandex_store_update_stock(request, store_pk):
     return YandexApi().update_stock(request, store_pk)
+
+
+@csrf_exempt
+@require_POST
+def api_yandex_store_confirm_cart(request, store_pk):
+    return YandexApi().confirm_cart(request, store_pk)
 
 
 # misc (other)
@@ -2755,8 +2763,16 @@ def _get_store_api_url(store_id):
     return f'{BASE_URL}/{API.get_api_full_path()}/stores/{store_id}'
 
 
-def get_stocks_by_store_api_url():
-    return f'{API.get_api_full_path()}/stores/<int:store_pk>/stocks'
+def get_yandex_store_api_url_template():
+    return f'{API.get_api_full_path()}/stores/<int:store_pk>'
+
+
+def get_yandex_store_update_stocks_api_url():
+    return f'{get_yandex_store_api_url_template()}/stocks'
+
+
+def get_yandex_store_confirm_cart():
+    return f'{get_yandex_store_api_url_template()}/cart'
 
 
 def get_store_by_id(store_id, user):
