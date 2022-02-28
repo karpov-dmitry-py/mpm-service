@@ -189,6 +189,11 @@ def prepare_spooler_args(**kwargs):
     return args
 
 
+def is_iterable(obj):
+    types = (list, tuple, set)
+    return type(obj) in types
+
+
 # types
 def is_int(val):
     try:

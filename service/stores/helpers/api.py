@@ -17,6 +17,8 @@ from .common import time_tracker
 from .common import to_float
 from .common import get_file_response
 from .common import as_str
+from .common import is_iterable
+from .common import is_int
 
 from .xls_processer import XlsProcesser
 
@@ -35,52 +37,6 @@ from ..models import StoreWarehouse
 from ..models import System
 from ..models import Warehouse
 from ..models import now
-
-
-# utils
-def _parse_json(src):
-    try:
-        return json.loads(src), None
-    except (json.JSONDecodeError, Exception) as err:
-        err_msg = f'failed to parse payload as json. {_exc(err)}'
-        _err(err_msg)
-        return None, err_msg
-
-
-def _parse_header(request, header):
-    full_header = f'HTTP_{header.upper()}'
-    val = request.META.get(full_header)
-    if val is None or val == '':
-        return None, f'"{header}" header not found or is empty in request'
-    return val, None
-
-
-def _handle_invalid_request(reason, status=400):
-    data = {
-        'invalid_request': True,
-        'reason': reason,
-    }
-    response = JsonResponse(
-        data=data,
-        status=status,
-        json_dumps_params={
-            'ensure_ascii': False,
-        })
-    return \
-        _get_response_decoded_body(response), \
-        response
-
-
-def _get_response_decoded_body(response):
-    return response.content.decode(encoding='utf-8')
-
-
-# noinspection PyUnresolvedReferences
-def _get_marketplace_by_name(name):
-    rows = Marketplace.objects.filter(name__icontains=name).order_by('id')
-    if not rows:
-        return
-    return rows[0]
 
 
 # class for api handling
@@ -551,7 +507,7 @@ class API:
             return self._system_request_err(err)['response']
 
         # check if items obj is iterable
-        if not self._is_iterable(items):
+        if not is_iterable(items):
             err = f'wrong type of "{key}", must be an array'
             return self._system_request_err(err)['response']
 
@@ -627,7 +583,7 @@ class API:
                 continue
 
             # check if stocks obj is iterable
-            if not self._is_iterable(stocks):
+            if not is_iterable(stocks):
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
@@ -738,11 +694,6 @@ class API:
             status = 400
         self._prepare_dict(stats)
         return JsonResponse(data=stats, status=status, safe=False)
-
-    @staticmethod
-    def _is_iterable(obj):
-        types = (list, tuple, set)
-        return type(obj) in types
 
     def _create_good(self, src: Dict[Any, str], db_data: Dict[str, dict], user: Any):
         """
@@ -982,14 +933,20 @@ class Logger:
 
 # class for communication with yandex market via api
 class YandexApi:
+    # general
     stock_type = 'FIT'
     auth_header = 'Authorization'
-    marketplace_name = 'yandex'
+    forbidden_status_code = 403
+
+    # confirm cart payload keys
+    cart_key = 'cart'
+    items_key = 'items'
+    offer_id_key = 'offerId'
+    count_key_id = 'count'
 
     def __init__(self):
-        pass
+        self.marketplace = _get_marketplace_by_name('yandex')
 
-    # noinspection PyUnresolvedReferences
     @time_tracker('yandex_update_stock')
     def update_stock(self, request, store_pk):
         logger = Logger()
@@ -998,19 +955,18 @@ class YandexApi:
         log = {
             'start_time': start_time,
             'request': request.body.decode(),
-            'marketplace': _get_marketplace_by_name(self.marketplace_name),
+            'marketplace': self.marketplace
         }
-        qs = Store.objects.filter(id=store_pk)
-        if not qs:
+
+        store, err = _get_store_by_id(store_pk)
+        if err:
             err = f'no store with id "{store_pk}" found in database'
             resp_payload, response = _handle_invalid_request(err)
             log['response'], log['response_status'], log['error'] = resp_payload, status_code, err
             logger.log(log)
             return response
 
-        store = qs[0]
         log['store'] = store
-
         user = store.user
         log['user'] = user
 
@@ -1049,11 +1005,12 @@ class YandexApi:
 
         log['warehouse'] = wh
         skus = payload.get('skus')
-        stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
 
-        stock = {sku: stocks[sku][0]['amount'] if sku in stocks else 0 for sku in skus}  # all skus are in this dict
-        skus_stock = []
+        stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
+        stock = _append_skus_to_stocks(skus=skus, stocks=stocks)
+
         _now = now()
+        skus_stock = []
 
         for sku in skus:
             row = {
@@ -1085,7 +1042,141 @@ class YandexApi:
         return response
 
     def confirm_cart(self, request, store_pk):
-        return JsonResponse({"store_pk": store_pk, "action": "confirm cart"})
+        store, err = _get_store_by_id(store_pk)
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        # parse auth header
+        auth_header_val, err = _parse_header(request, self.auth_header)
+        if err:
+            _, response = _handle_invalid_request(err, self.forbidden_status_code)
+            return response
+
+        # validate auth header
+        err = self._validate_auth_header_val(store, auth_header_val)
+        if err:
+            resp_payload, response = _handle_invalid_request(err, self.forbidden_status_code)
+            return response
+
+        payload, err = _parse_json(request.body)
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        result, err = self._parse_confirm_cart_payload(payload, store)
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        wh = result.get('wh')
+        skus = result.get('skus')
+        resp = result.get('resp')
+
+        stocks = StockManager().calculate_stock_for_skus(
+            user=store.user,
+            skus=skus,
+            store_wh_id=wh.id,
+            aggregate_by_store=False)
+
+        if not len(stocks):
+            resp[self.cart_key][self.items_key] = []
+            return JsonResponse(resp)
+
+        items = resp.get(self.cart_key, {}).get(self.items_key, [])
+        stocks = _append_skus_to_stocks(skus=skus, stocks=stocks)
+        for item in items:
+            requested_count = item.get(self.count_key_id)
+            available_count = stocks.get(item.get(self.offer_id_key))
+            item[self.count_key_id] = min(requested_count, available_count)
+
+        return JsonResponse(resp)
+
+    def _parse_confirm_cart_payload(self, payload, store):
+        feed_id_key = 'feedId'
+        wh_id_key = 'warehouseId'
+        count_key = 'count'
+        delivery_key = 'delivery'
+
+        cart = payload.get(self.cart_key)
+        if not cart:
+            return None, f'"{self.cart_key}" object is empty or missing in payload'
+
+        if not isinstance(cart, dict):
+            return None, f'"{self.cart_key}" must be an object'
+
+        items = cart.get(self.items_key)
+        if not items:
+            return None, f'"{self.items_key}" object is empty or missing in payload'
+
+        if not is_iterable(items):
+            return None, f'"{self.items_key}" must be a list/array'
+
+        if not len(items):
+            return None, f'"{self.items_key}" list is empty'
+
+        rows = []
+        db_wh_ids = {wh.code: wh for wh in _get_store_warehouses(store)}
+        wh_ids = set()
+        skus = set()
+        wh_id = None
+
+        for item_number, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                return None, f'item # {item_number} is not an object'
+
+            # feed_id
+            feed_id = item.get(feed_id_key)
+            if not feed_id:
+                return None, f'"{feed_id_key}" is empty or missing in item # {item_number}'
+
+            # sku
+            sku = item.get(self.offer_id_key)
+            if not sku:
+                return None, f'"{self.offer_id_key}" is empty or missing in item # {item_number}'
+
+            skus.add(sku)
+
+            # wh
+            wh_id = item.get(wh_id_key)
+            if not wh_id:
+                return None, f'"{wh_id_key}" is empty or missing in item # {item_number}'
+
+            wh_ids.add(wh_id)
+            if len(wh_ids) > 1:
+                return None, f'payload contains multiple warehouse ids (starting from "{wh_id_key}" value ' \
+                             f'in item # {item_number})'
+
+            wh_id = str(wh_id)
+            if wh_id not in db_wh_ids:
+                return None, f'{wh_id} for store with id {store.id} not found in db (item # {item_number})'
+
+            # count
+            count = item.get(count_key)
+            if not count:
+                return None, f'"{count_key}" is empty/zero/missing in item # {item_number}'
+
+            if not is_int(count):
+                return None, f'"{count_key}" is not an integer value in item # {item_number}'
+
+            if count < 0:
+                return None, f'"{count_key}" is not a positive integer value in item # {item_number}'
+
+            row = {
+                feed_id_key: feed_id,
+                self.offer_id_key: sku,
+                count_key: count,
+                delivery_key: True,
+            }
+
+            rows.append(row)
+
+        result = {
+            'wh': db_wh_ids.get(wh_id),
+            'skus': skus,
+            'resp': {self.cart_key: {self.items_key: rows}}
+        }
+        return result, None
 
     @staticmethod
     def _make_response(data, status=200):
@@ -1469,3 +1560,66 @@ class OzonApi:
 
         if len(self._errors):
             return '. '.join(self._errors)
+
+
+# utils
+def _parse_json(src):
+    try:
+        return json.loads(src), None
+    except (json.JSONDecodeError, Exception) as err:
+        err_msg = f'failed to parse payload as json. {_exc(err)}'
+        _err(err_msg)
+        return None, err_msg
+
+
+# noinspection PyUnresolvedReferences
+def _get_store_by_id(store_id):
+    qs = Store.objects.filter(id=store_id)
+    if qs:
+        return qs[0], None
+
+    return None, f'no store with id "{store_id}" found in db'
+
+
+def _get_store_warehouses(store):
+    return store.store_warehouses.all()
+
+
+def _parse_header(request, header):
+    full_header = f'HTTP_{header.upper()}'
+    val = request.META.get(full_header)
+    if val is None or val == '':
+        return None, f'"{header}" header not found or is empty in request'
+    return val, None
+
+
+def _handle_invalid_request(reason, status=400):
+    data = {
+        'invalid_request': True,
+        'reason': reason,
+    }
+    response = JsonResponse(
+        data=data,
+        status=status,
+        json_dumps_params={
+            'ensure_ascii': False,
+        })
+    return \
+        _get_response_decoded_body(response), \
+        response
+
+
+# noinspection PyUnresolvedReferences
+def _get_marketplace_by_name(name):
+    rows = Marketplace.objects.filter(name__icontains=name).order_by('id')
+    if rows:
+        return rows[0]
+
+
+def _get_response_decoded_body(response):
+    return response.content.decode(encoding='utf-8')
+
+
+def _append_skus_to_stocks(skus, stocks):
+    return {sku: stocks[sku][0]['amount'] if sku in stocks else 0 for sku in
+            skus}  # append all sku keys to the resulting dict

@@ -8,8 +8,6 @@ from django.db.models import SET_NULL
 from django.utils import timezone
 
 from .helpers.common import new_uuid
-# noinspection PyProtectedMember
-from .helpers.common import _log
 
 ACTIVE_STORE_STATUS = 'подключен'
 
@@ -52,6 +50,7 @@ class StoreType(models.Model):
 class Marketplace(models.Model):
     name = models.CharField(verbose_name='Название', max_length=100)
     api_url = models.CharField(verbose_name='API URL', max_length=500)
+    code = models.CharField(verbose_name='Код', max_length=200, blank=False)
     description = models.TextField(verbose_name='Описание', max_length=500, null=True, blank=True)
 
     def __str__(self):
@@ -488,3 +487,78 @@ class UserJobLog(models.Model):
         verbose_name = 'Лог периодической задачи пользователя'
         verbose_name_plural = 'Логи периодических задач пользователей'
         ordering = ['-start_date']
+
+
+class OrderStatus(models.Model):
+    name = models.CharField(verbose_name='Наименование', max_length=200)
+    code = models.CharField(verbose_name='Код', max_length=200, blank=False)
+    description = models.TextField(verbose_name='Описание', null=True, blank=True)
+
+    def __str__(self):
+        return f'({self.code}) {self.name}'
+
+    class Meta:
+        db_table = 'order_statuses'
+        verbose_name = 'Статус заказа покупателя'
+        verbose_name_plural = 'Статусы заказов покупателей'
+        ordering = ['id']
+
+
+class OrderMarketplaceStatus(models.Model):
+    name = models.CharField(verbose_name='Наименование', max_length=200)
+    code = models.CharField(verbose_name='Код', max_length=200, blank=False)
+    marketplace = models.ForeignKey(Marketplace, verbose_name='Маркетплейс', on_delete=CASCADE, related_name='statuses')
+    status = models.ForeignKey(OrderStatus, verbose_name='Системный статус', on_delete=CASCADE,
+                               related_name='marketplace_statuses')
+    description = models.TextField(verbose_name='Описание', null=True, blank=True)
+
+    def __str__(self):
+        return f'({self.code}) {self.name}'
+
+    class Meta:
+        db_table = 'order_marketplace_statuses'
+        verbose_name = 'Статус заказа покупателя в маркетплейсе'
+        verbose_name_plural = 'Статусы заказов покупателей в маркетплейсах'
+        ordering = ['id']
+
+
+class Order(models.Model):
+    created_at = models.DateTimeField(verbose_name='Дата создания', blank=True)
+    updated_at = models.DateTimeField(verbose_name='Дата изменения', blank=True)
+    marketplace_id = models.CharField(verbose_name='Номер заказа в маркетплейсе', max_length=200, blank=False)
+    system_id = models.CharField(verbose_name='Номер заказа в учетной системе', max_length=200, blank=False)
+    status = models.ForeignKey(OrderStatus, verbose_name='Статус', on_delete=CASCADE, related_name='orders', blank=True)
+    marketplace = models.ForeignKey(Marketplace, verbose_name='Маркетплейс', on_delete=CASCADE, related_name='orders')
+    store = models.ForeignKey(Store, verbose_name='Магазин', on_delete=CASCADE, related_name='orders')
+    store_warehouse = models.ForeignKey(StoreWarehouse, verbose_name='Склад магазина', on_delete=CASCADE,
+                                        related_name='orders')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт', related_name='orders')
+
+    description = models.TextField(verbose_name='Комментарий', null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.marketplace.name} {self.marketplace_id} {self.created_at} {self.status.name}'
+
+    def save(self, *args, **kwargs):
+        _now = now()
+        if not self.pk:
+            self.date_created = _now
+        self.date_updated = _now
+        return super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'order_marketplace_statuses'
+        verbose_name = 'Статус заказа покупателя в маркетплейсе'
+        verbose_name_plural = 'Статусы заказов покупателей в маркетплейсах'
+        ordering = ['id']
+
+# - marketplace_id
+# - 1c_id
+# - created_at (datetime)
+# - status_id
+# - store_id
+# - store_warehouse_id
+# - region (строка)
+# - goods_total
+# - subsidy_total
+# - total
