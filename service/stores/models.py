@@ -524,41 +524,37 @@ class OrderMarketplaceStatus(models.Model):
 
 class Order(models.Model):
     created_at = models.DateTimeField(verbose_name='Дата создания', blank=True)
-    updated_at = models.DateTimeField(verbose_name='Дата изменения', blank=True)
-    marketplace_id = models.CharField(verbose_name='Номер заказа в маркетплейсе', max_length=200, blank=False)
-    system_id = models.CharField(verbose_name='Номер заказа в учетной системе', max_length=200, blank=False)
-    status = models.ForeignKey(OrderStatus, verbose_name='Статус', on_delete=CASCADE, related_name='orders', blank=True)
+    updated_at = models.DateTimeField(verbose_name='Дата изменения', blank=True, null=True)
     marketplace = models.ForeignKey(Marketplace, verbose_name='Маркетплейс', on_delete=CASCADE, related_name='orders')
+    marketplace_id = models.CharField(verbose_name='Номер заказа в маркетплейсе', max_length=100, blank=True)
+    system_id = models.CharField(verbose_name='Номер заказа в учетной системе', max_length=100, blank=True, null=True)
+    status = models.ForeignKey(OrderStatus, verbose_name='Статус', on_delete=CASCADE, related_name='orders', blank=True,
+                               null=True)
     store = models.ForeignKey(Store, verbose_name='Магазин', on_delete=CASCADE, related_name='orders')
     store_warehouse = models.ForeignKey(StoreWarehouse, verbose_name='Склад магазина', on_delete=CASCADE,
-                                        related_name='orders')
+                                        related_name='orders', blank=True, null=True)
+    region = models.CharField(verbose_name='Регион', max_length=100, blank=True, null=True)
+    items_total = models.FloatField(verbose_name='Сумма товаров', blank=True, null=True)
+    subsidy_total = models.FloatField(verbose_name='Сумма компенсации от маркетплейса', blank=True, null=True)
+    total = models.FloatField(verbose_name='Общая сумма', blank=True, null=True)
+    comment = models.TextField(verbose_name='Комментарий', blank=True, null=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт', related_name='orders')
 
-    description = models.TextField(verbose_name='Комментарий', null=True, blank=True)
-
     def __str__(self):
-        return f'{self.marketplace.name} {self.marketplace_id} {self.created_at} {self.status.name}'
+        return f'{self.marketplace.name} {self.marketplace_id} {self.created_at} {self.status.name} {self.total}'
 
     def save(self, *args, **kwargs):
         _now = now()
+
         if not self.pk:
             self.date_created = _now
-        self.date_updated = _now
+        if self.pk:
+            self.date_updated = _now
+
         return super().save(*args, **kwargs)
 
     class Meta:
-        db_table = 'order_marketplace_statuses'
-        verbose_name = 'Статус заказа покупателя в маркетплейсе'
-        verbose_name_plural = 'Статусы заказов покупателей в маркетплейсах'
+        db_table = 'orders'
+        verbose_name = 'Заказ покупателя'
+        verbose_name_plural = 'Заказы покупателей'
         ordering = ['id']
-
-# - marketplace_id
-# - 1c_id
-# - created_at (datetime)
-# - status_id
-# - store_id
-# - store_warehouse_id
-# - region (строка)
-# - goods_total
-# - subsidy_total
-# - total

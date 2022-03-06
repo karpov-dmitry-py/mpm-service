@@ -22,7 +22,6 @@ RUN chown $usr:$grp /home/$usr/
 
 # EXPOSE 8001
 
-
 # copy app dir, install dependencies and run entry_point bash script
 USER $usr
 RUN mkdir -p /home/$usr/workdir
@@ -42,6 +41,6 @@ RUN chmod -R 666 /home/$usr/workdir/cron.log
 
 USER $usr
 RUN pip install --user -r /home/$usr/workdir/requirements.txt
-CMD cron -L 15
+# CMD cron -L 15
 CMD tail -f /home/$usr/workdir/cron.log
 ENTRYPOINT /home/dockeruser/.local/bin/uwsgi /home/$usr/workdir/uwsgi.ini
