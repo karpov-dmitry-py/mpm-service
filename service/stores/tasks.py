@@ -17,13 +17,13 @@ except (ImportError, Exception):
 
 try:
     import uwsgi
-
 except (ImportError, Exception) as err:
-    _log(f'failed to import uwsgi: {_exc(err)}')
-
+    # _log(f'failed to import uwsgi: {_exc(err)}')
+    pass
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'service.settings'
 django.setup()
+
 
 # noinspection PyBroadException
 @spool

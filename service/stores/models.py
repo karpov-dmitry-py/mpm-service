@@ -50,7 +50,7 @@ class StoreType(models.Model):
 class Marketplace(models.Model):
     name = models.CharField(verbose_name='Название', max_length=100)
     api_url = models.CharField(verbose_name='API URL', max_length=500)
-    code = models.CharField(verbose_name='Код', max_length=200, blank=False)
+    code = models.CharField(verbose_name='Код', max_length=200, blank=True, null=True)
     description = models.TextField(verbose_name='Описание', max_length=500, null=True, blank=True)
 
     def __str__(self):
@@ -513,7 +513,7 @@ class OrderMarketplaceStatus(models.Model):
     description = models.TextField(verbose_name='Описание', null=True, blank=True)
 
     def __str__(self):
-        return f'({self.code}) {self.name}'
+        return f'({self.marketplace} - {self.code}) {self.name}'
 
     class Meta:
         db_table = 'order_marketplace_statuses'
@@ -526,8 +526,9 @@ class Order(models.Model):
     created_at = models.DateTimeField(verbose_name='Дата создания', blank=True)
     updated_at = models.DateTimeField(verbose_name='Дата изменения', blank=True, null=True)
     marketplace = models.ForeignKey(Marketplace, verbose_name='Маркетплейс', on_delete=CASCADE, related_name='orders')
-    marketplace_id = models.CharField(verbose_name='Номер заказа в маркетплейсе', max_length=100, blank=True)
-    system_id = models.CharField(verbose_name='Номер заказа в учетной системе', max_length=100, blank=True, null=True)
+    order_marketplace_id = models.CharField(verbose_name='Номер заказа в маркетплейсе', max_length=100, blank=True)
+    order_acc_system_id = models.CharField(verbose_name='Номер заказа в учетной системе', max_length=100, blank=True,
+                                           null=True)
     status = models.ForeignKey(OrderStatus, verbose_name='Статус', on_delete=CASCADE, related_name='orders', blank=True,
                                null=True)
     store = models.ForeignKey(Store, verbose_name='Магазин', on_delete=CASCADE, related_name='orders')
@@ -541,7 +542,8 @@ class Order(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт', related_name='orders')
 
     def __str__(self):
-        return f'{self.marketplace.name} {self.marketplace_id} {self.created_at} {self.status.name} {self.total}'
+        return f'({self.marketplace.name}/{self.order_marketplace_id}) ' \
+               f'{self.created_at} {self.status.name} {self.total}'
 
     def save(self, *args, **kwargs):
         _now = now()
@@ -558,3 +560,36 @@ class Order(models.Model):
         verbose_name = 'Заказ покупателя'
         verbose_name_plural = 'Заказы покупателей'
         ordering = ['id']
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, verbose_name='Заказ', on_delete=CASCADE, related_name='items')
+    good = models.ForeignKey(Good, verbose_name='Товар', on_delete=CASCADE, related_name='order_items')
+    count = models.IntegerField(verbose_name='Количество', blank=True)
+    price = models.FloatField(verbose_name='Цена', blank=True)
+
+    # noinspection PyUnresolvedReferences
+    def __str__(self):
+        return f'(Заказ {self.order.id}) {self.good.sku} {self.good.name} {self.count} *  {self.price}'
+
+    class Meta:
+        db_table = 'order_items'
+        verbose_name = 'Строка заказа покупателя'
+        verbose_name_plural = 'Строки заказов покупателей'
+        ordering = ['id']
+
+
+class OrderShipment(models.Model):
+    order = models.ForeignKey(Order, verbose_name='Заказ', on_delete=CASCADE, related_name='shipments')
+    shipment_id = models.CharField(verbose_name='Идентификатор грузового места', max_length=100, blank=True, null=True)
+    shipment_date = models.DateTimeField(verbose_name='Требуемая дата отгрузки места в доставку', blank=True, null=True)
+
+    # noinspection PyUnresolvedReferences
+    def __str__(self):
+        return f'(Заказ {self.order.id}) {self.shipment_id} {self.shipment_date}'
+
+    class Meta:
+        db_table = 'order_shipments'
+        verbose_name = 'Грузовые места заказа покупателя'
+        verbose_name_plural = 'Грузовые места заказов покупателя'
+        ordering = ['shipment_id']
