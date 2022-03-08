@@ -2625,6 +2625,12 @@ def api_yandex_store_confirm_cart(request, store_pk):
     return YandexApi().confirm_cart(request, store_pk)
 
 
+@csrf_exempt
+@require_POST
+def api_yandex_store_accept_order(request, store_pk):
+    return YandexApi().accept_order(request, store_pk)
+
+
 # misc (other)
 @require_http_methods(['GET', 'POST'])
 @login_required()
@@ -2773,6 +2779,14 @@ def get_yandex_store_update_stocks_api_url():
 
 def get_yandex_store_confirm_cart():
     return f'{get_yandex_store_api_url_template()}/cart'
+
+
+def get_yandex_store_order_url_template():
+    return f'{get_yandex_store_api_url_template()}/order'
+
+
+def get_yandex_store_accept_order():
+    return f'{get_yandex_store_order_url_template()}/accept'
 
 
 def get_store_by_id(store_id, user):

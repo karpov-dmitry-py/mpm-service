@@ -141,6 +141,8 @@ urlpatterns = [
          name='api-yandex-update-stock'),
     path(f'{views.get_yandex_store_confirm_cart()}', views.api_yandex_store_confirm_cart,
          name='api-yandex-confirm-cart'),
+    path(f'{views.get_yandex_store_accept_order()}', views.api_yandex_store_accept_order,
+         name='api-yandex-accept-order'),
 
     # misc
     path('misc/suppliers/offers/check', views.process_categories_choice, name='suppliers-offers-check'),

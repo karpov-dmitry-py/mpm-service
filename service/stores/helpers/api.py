@@ -1047,24 +1047,16 @@ class YandexApi:
             _, response = _handle_invalid_request(err)
             return response
 
-        # parse auth header
-        auth_header_val, err = _parse_header(request, self.auth_header)
-        if err:
-            _, response = _handle_invalid_request(err, self.forbidden_status_code)
-            return response
-
-        # validate auth header
-        err = self._validate_auth_header_val(store, auth_header_val)
-        if err:
-            resp_payload, response = _handle_invalid_request(err, self.forbidden_status_code)
-            return response
+        err_resp = self._validate_auth_header(request, store)
+        if err_resp:
+            return err_resp
 
         payload, err = _parse_json(request.body)
         if err:
             _, response = _handle_invalid_request(err)
             return response
 
-        result, err = self._parse_confirm_cart_payload(payload, store)
+        result, err = self._parse_payload_confirm_cart(payload, store)
         if err:
             _, response = _handle_invalid_request(err)
             return response
@@ -1092,7 +1084,29 @@ class YandexApi:
 
         return JsonResponse(resp)
 
-    def _parse_confirm_cart_payload(self, payload, store):
+    def accept_order(self, request, store_pk):
+        store, err = _get_store_by_id(store_pk)
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        err_resp = self._validate_auth_header(request, store)
+        if err_resp:
+            return err_resp
+
+        payload, err = _parse_json(request.body)
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        result, err = self._parse_payload_accept_order(payload, store)
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        return JsonResponse(data={'ok': True})
+
+    def _parse_payload_confirm_cart(self, payload, store):
         feed_id_key = 'feedId'
         wh_id_key = 'warehouseId'
         count_key = 'count'
@@ -1177,6 +1191,128 @@ class YandexApi:
             'resp': {self.cart_key: {self.items_key: rows}}
         }
         return result, None
+
+    def _parse_payload_accept_order(self, payload, store):
+
+        # fake
+
+        # delivery
+        # shipments
+        # id
+        # shipmentDate
+        # shipmentTime
+
+        # region
+        # name
+
+        # items
+
+        order_key = 'order'
+        feed_id_key = 'feedId'
+        wh_id_key = 'warehouseId'
+        count_key = 'count'
+        delivery_key = 'delivery'
+
+        order = payload.get(order_key)
+        if not order:
+            return None, f'"{order_key}" object is empty or missing in payload'
+
+        if not isinstance(order, dict):
+            return None, f'"{self.cart_key}" must be an object'
+
+        items = order.get(self.items_key)
+        if not items:
+            return None, f'"{self.items_key}" object is empty or missing in payload'
+
+        if not is_iterable(items):
+            return None, f'"{self.items_key}" must be a list/array'
+
+        if not len(items):
+            return None, f'"{self.items_key}" list is empty'
+
+        rows = []
+        db_wh_ids = {wh.code: wh for wh in _get_store_warehouses(store)}
+        wh_ids = set()
+        skus = set()
+        wh_id = None
+
+        for item_number, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                return None, f'item # {item_number} is not an object'
+
+            # feed_id
+            feed_id = item.get(feed_id_key)
+            if not feed_id:
+                return None, f'"{feed_id_key}" is empty or missing in item # {item_number}'
+
+            # sku
+            sku = item.get(self.offer_id_key)
+            if not sku:
+                return None, f'"{self.offer_id_key}" is empty or missing in item # {item_number}'
+
+            skus.add(sku)
+
+            # wh
+            wh_id = item.get(wh_id_key)
+            if not wh_id:
+                return None, f'"{wh_id_key}" is empty or missing in item # {item_number}'
+
+            wh_ids.add(wh_id)
+            if len(wh_ids) > 1:
+                return None, f'payload contains multiple warehouse ids (starting from "{wh_id_key}" value ' \
+                             f'in item # {item_number})'
+
+            wh_id = str(wh_id)
+            if wh_id not in db_wh_ids:
+                return None, f'{wh_id} for store with id {store.id} not found in db (item # {item_number})'
+
+            # count
+            count = item.get(count_key)
+            if not count:
+                return None, f'"{count_key}" is empty/zero/missing in item # {item_number}'
+
+            if not is_int(count):
+                return None, f'"{count_key}" is not an integer value in item # {item_number}'
+
+            if count < 0:
+                return None, f'"{count_key}" is not a positive integer value in item # {item_number}'
+
+            row = {
+                feed_id_key: feed_id,
+                self.offer_id_key: sku,
+                count_key: count,
+                delivery_key: True,
+            }
+
+            rows.append(row)
+
+        result = {
+            'wh': db_wh_ids.get(wh_id),
+            'skus': skus,
+            'resp': {self.cart_key: {self.items_key: rows}},
+            'is_fake': False, # todo
+            'items': [], # todo
+            'shipments': [], # todo
+            ''
+            ''
+
+
+        }
+
+        return result, None
+
+    def _validate_auth_header(self, request, store):
+        # parse auth header
+        auth_header_val, err = _parse_header(request, self.auth_header)
+        if err:
+            _, response = _handle_invalid_request(err, self.forbidden_status_code)
+            return response
+
+        # validate auth header
+        err = self._validate_auth_header_val(store, auth_header_val)
+        if err:
+            resp_payload, response = _handle_invalid_request(err, self.forbidden_status_code)
+            return response
 
     @staticmethod
     def _make_response(data, status=200):
