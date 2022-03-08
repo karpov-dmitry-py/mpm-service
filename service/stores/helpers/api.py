@@ -21,6 +21,7 @@ from .common import is_iterable
 from .common import is_int
 
 from .xls_processer import XlsProcesser
+from .qs import get_user_qs
 
 from .managers import StockManager
 from .managers import _get_user_qs
@@ -1124,7 +1125,7 @@ class YandexApi:
             return None, f'"{self.items_key}" object is empty or missing in payload'
 
         if not is_iterable(items):
-            return None, f'"{self.items_key}" must be a list/array'
+            return None, f'"{self.items_key}" must be a list'
 
         if not len(items):
             return None, f'"{self.items_key}" list is empty'
@@ -1194,8 +1195,6 @@ class YandexApi:
 
     def _parse_payload_accept_order(self, payload, store):
 
-        # fake
-
         # delivery
         # shipments
         # id
@@ -1205,33 +1204,42 @@ class YandexApi:
         # region
         # name
 
-        # items
-
         order_key = 'order'
-        feed_id_key = 'feedId'
+        order_id_key = 'id'
+        is_fake_key = 'fake'
+        delivery_key = 'delivery'
         wh_id_key = 'warehouseId'
         count_key = 'count'
-        delivery_key = 'delivery'
 
         order = payload.get(order_key)
         if not order:
             return None, f'"{order_key}" object is empty or missing in payload'
 
         if not isinstance(order, dict):
-            return None, f'"{self.cart_key}" must be an object'
+            return None, f'"{order_key}" must be an object'
+
+        is_fake = self._is_fake(order, is_fake_key)
+        if is_fake:
+            return {is_fake_key: is_fake}, None
+
+        # id
+        order_id = payload.get(order_id_key)
+        if not order_id:
+            return None, f'"{order_id_key}" object is empty or missing in payload'
 
         items = order.get(self.items_key)
         if not items:
             return None, f'"{self.items_key}" object is empty or missing in payload'
 
         if not is_iterable(items):
-            return None, f'"{self.items_key}" must be a list/array'
+            return None, f'"{self.items_key}" must be a list'
 
         if not len(items):
             return None, f'"{self.items_key}" list is empty'
 
         rows = []
         db_wh_ids = {wh.code: wh for wh in _get_store_warehouses(store)}
+        db_skus = {item.sku: item for item in get_user_qs(Good, store.user)}  # todo - filter by requested skus only
         wh_ids = set()
         skus = set()
         wh_id = None
@@ -1239,11 +1247,6 @@ class YandexApi:
         for item_number, item in enumerate(items, start=1):
             if not isinstance(item, dict):
                 return None, f'item # {item_number} is not an object'
-
-            # feed_id
-            feed_id = item.get(feed_id_key)
-            if not feed_id:
-                return None, f'"{feed_id_key}" is empty or missing in item # {item_number}'
 
             # sku
             sku = item.get(self.offer_id_key)
@@ -1278,28 +1281,32 @@ class YandexApi:
                 return None, f'"{count_key}" is not a positive integer value in item # {item_number}'
 
             row = {
-                feed_id_key: feed_id,
                 self.offer_id_key: sku,
                 count_key: count,
-                delivery_key: True,
+
             }
 
             rows.append(row)
+
+        # todo - check sku
 
         result = {
             'wh': db_wh_ids.get(wh_id),
             'skus': skus,
             'resp': {self.cart_key: {self.items_key: rows}},
-            'is_fake': False, # todo
-            'items': [], # todo
-            'shipments': [], # todo
-            ''
-            ''
-
-
+            'is_fake': False,  # todo
+            'items': [],  # todo
+            'shipments': [],  # todo
         }
 
         return result, None
+
+    @staticmethod
+    def _is_fake(_dict, key):
+        try:
+            return bool(_dict.get(key))
+        except (TypeError, ValueError, Exception):
+            return False
 
     def _validate_auth_header(self, request, store):
         # parse auth header
@@ -1724,8 +1731,8 @@ def _get_store_warehouses(store):
 def _parse_header(request, header):
     full_header = f'HTTP_{header.upper()}'
     val = request.META.get(full_header)
-    if val is None or val == '':
-        return None, f'"{header}" header not found or is empty in request'
+    if not val:
+        return None, f'"{header}" header is missing or is empty in request'
     return val, None
 
 
