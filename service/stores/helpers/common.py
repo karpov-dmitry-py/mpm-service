@@ -203,6 +203,14 @@ def is_int(val):
         return False
 
 
+def is_float(val):
+    try:
+        f = float(val)
+        return True
+    except ValueError:
+        return False
+
+
 if __name__ == '__main__':
     src = 'привет'
     _log(as_str(src))

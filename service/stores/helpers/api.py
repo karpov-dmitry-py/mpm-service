@@ -19,6 +19,7 @@ from .common import get_file_response
 from .common import as_str
 from .common import is_iterable
 from .common import is_int
+from .common import is_float
 
 from .xls_processer import XlsProcesser
 from .qs import get_user_qs
@@ -1194,22 +1195,21 @@ class YandexApi:
         return result, None
 
     def _parse_payload_accept_order(self, payload, store):
-
-        # delivery
-        # shipments
-        # id
-        # shipmentDate
-        # shipmentTime
-
-        # region
-        # name
-
         order_key = 'order'
         order_id_key = 'id'
         is_fake_key = 'fake'
+
         delivery_key = 'delivery'
+        shipments_key = 'shipments'
+        shipment_id_key = 'id'
+        shipment_date_key = 'shipmentDate'
+
+        region_key = 'region'
+        region_name_key = 'name'
+
         wh_id_key = 'warehouseId'
         count_key = 'count'
+        price_key = 'price'
 
         order = payload.get(order_key)
         if not order:
@@ -1218,12 +1218,12 @@ class YandexApi:
         if not isinstance(order, dict):
             return None, f'"{order_key}" must be an object'
 
-        is_fake = self._is_fake(order, is_fake_key)
-        if is_fake:
-            return {is_fake_key: is_fake}, None
+        is_fake_order = self._is_fake_order(order, is_fake_key)
+        if is_fake_order:
+            return {is_fake_key: is_fake_order}, None
 
         # id
-        order_id = payload.get(order_id_key)
+        order_id = order.get(order_id_key)
         if not order_id:
             return None, f'"{order_id_key}" object is empty or missing in payload'
 
@@ -1239,7 +1239,7 @@ class YandexApi:
 
         rows = []
         db_wh_ids = {wh.code: wh for wh in _get_store_warehouses(store)}
-        db_skus = {item.sku: item for item in get_user_qs(Good, store.user)}  # todo - filter by requested skus only
+
         wh_ids = set()
         skus = set()
         wh_id = None
@@ -1271,38 +1271,41 @@ class YandexApi:
 
             # count
             count = item.get(count_key)
-            if not count:
-                return None, f'"{count_key}" is empty/zero/missing in item # {item_number}'
-
-            if not is_int(count):
-                return None, f'"{count_key}" is not an integer value in item # {item_number}'
-
-            if count < 0:
+            if (not count) or (not is_int(count)) or count < 0:
                 return None, f'"{count_key}" is not a positive integer value in item # {item_number}'
+
+            # price
+            price = item.get(price_key)
+            if (not price) or (not is_float(price)) or price < 0:
+                return None, f'"{price_key}" is not a positive float value in item # {item_number}'
 
             row = {
                 self.offer_id_key: sku,
                 count_key: count,
-
+                price_key: price,
             }
 
             rows.append(row)
 
-        # todo - check sku
+        skus_qs = get_user_qs(Good, store.user).filter(sku__in=skus)
+        db_skus = {item.sku: item for item in skus_qs}
+        diff = skus.difference(db_skus.keys())
+        if diff:
+            return {'not_found_skus': diff}
 
         result = {
+            'order_id': id,
             'wh': db_wh_ids.get(wh_id),
             'skus': skus,
-            'resp': {self.cart_key: {self.items_key: rows}},
-            'is_fake': False,  # todo
-            'items': [],  # todo
+            'items': rows,
             'shipments': [],  # todo
+            'region': '',  # todo
         }
 
         return result, None
 
     @staticmethod
-    def _is_fake(_dict, key):
+    def _is_fake_order(_dict, key):
         try:
             return bool(_dict.get(key))
         except (TypeError, ValueError, Exception):
