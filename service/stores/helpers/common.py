@@ -120,6 +120,13 @@ def to_float(val):
         return None
 
 
+def str_to_datetime(val, format):
+    try:
+        return datetime.datetime.strptime(val, format), None
+    except (ValueError, Exception) as e:
+        return None, str(e)
+
+
 @contextmanager
 def time_tracker(action):
     start = time.time()

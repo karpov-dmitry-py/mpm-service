@@ -20,6 +20,7 @@ from .common import as_str
 from .common import is_iterable
 from .common import is_int
 from .common import is_float
+from .common import str_to_datetime
 
 from .xls_processer import XlsProcesser
 from .qs import get_user_qs
@@ -943,12 +944,10 @@ class YandexApi:
     # confirm cart payload keys
     cart_key = 'cart'
     order_key = 'order'
-
     is_fake_key = 'fake'
     items_key = 'items'
     offer_id_key = 'offerId'
     count_key_id = 'count'
-
     order_accepted_key = 'accepted'
     order_reason_key = 'reason'
 
@@ -1109,20 +1108,17 @@ class YandexApi:
 
         result, err = self._parse_payload_accept_order(payload, store)
 
-        # fake order check
-        if result.get(self.is_fake_key):
-            return _json_response(
-                data={
-                    self.order_key: {
-                        self.order_accepted_key: False,
-                        self.order_reason_key: "FAKE_ORDER",
-                    }
-                }
-            )
-
+        # err check
         if err:
             _, response = _handle_invalid_request(err)
             return response
+
+        # fake order check
+        if result.get(self.is_fake_key):
+            return self._fake_order_response()
+
+        # todo - check whether order exists in db
+        # todo - request order full data from market
 
         return JsonResponse(data={'ok': True})
 
@@ -1228,6 +1224,7 @@ class YandexApi:
         count_key = 'count'
         price_key = 'price'
 
+        # order
         order = payload.get(order_key)
         if not order:
             return None, f'"{order_key}" object is empty or missing in payload'
@@ -1238,6 +1235,46 @@ class YandexApi:
         is_fake_order = self._is_fake_order(order)
         if is_fake_order:
             return {self.is_fake_key: is_fake_order}, None
+
+        # shipments
+        delivery = order.get(delivery_key)
+        if not delivery:
+            return None, f'"{order_id_key}" object is empty or missing in payload'
+
+        shipments = delivery.get(shipments_key)
+        if not shipments:
+            return None, f'"{shipments_key}" object is empty or missing in payload'
+
+        if not is_iterable(shipments):
+            return None, f'"{shipments_key}" must be a list'
+
+        if not len(shipments):
+            return None, f'"{shipments_key}" list is empty'
+
+        shipment_rows = []
+        shp_date_format = '%d-%m-%Y'
+        for shp_index, shipment in enumerate(shipments, start=1):
+            shp_id = shipment.get(shipment_id_key)
+            if not shp_id:
+                return None, f'"{shipment_id_key}" object is empty or missing in payload in item # {shp_index} ' \
+                             f'of "{shipments_key}"'
+
+            shp_date, err = str_to_datetime(shipment.get(shipment_date_key), shp_date_format)
+            if err:
+                return None, f'invalid shipping date format (not "{shp_date_format}") in item # {shp_index} ' \
+                             f'of "{shipments_key}"'
+
+            shp_row = {'id': shp_id, 'date': shp_date}
+            shipment_rows.append(shp_row)
+
+        # region
+        region = delivery.get(region_key)
+        if not region:
+            return None, f'"{region_key}" object is empty or missing in payload'
+
+        region_name = region.get(region_name_key)
+        if not region_name:
+            return None, f'"{region_name_key}" object is empty or missing in payload'
 
         # id
         order_id = order.get(order_id_key)
@@ -1311,12 +1348,12 @@ class YandexApi:
             return None, f'unknown skus found in payload: {", ".join(diff)}'
 
         result = {
-            'order_id': id,
+            'order_id': order_id,
             'wh': db_wh_ids.get(wh_id),
             'skus': skus,
             'items': rows,
-            'shipments': [],  # todo
-            'region': '',  # todo
+            'shipments': shipment_rows,
+            'region': region_name,
         }
 
         return result, None
@@ -1326,6 +1363,16 @@ class YandexApi:
             return bool(_dict.get(self.is_fake_key))
         except (TypeError, ValueError, Exception):
             return False
+
+    def _fake_order_response(self):
+        return _json_response(
+            data={
+                self.order_key: {
+                    self.order_accepted_key: False,
+                    self.order_reason_key: "FAKE_ORDER",
+                }
+            }
+        )
 
     def _validate_auth_header(self, request, store):
         # parse auth header
