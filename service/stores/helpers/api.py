@@ -942,9 +942,15 @@ class YandexApi:
 
     # confirm cart payload keys
     cart_key = 'cart'
+    order_key = 'order'
+
+    is_fake_key = 'fake'
     items_key = 'items'
     offer_id_key = 'offerId'
     count_key_id = 'count'
+
+    order_accepted_key = 'accepted'
+    order_reason_key = 'reason'
 
     def __init__(self):
         self.marketplace = _get_marketplace_by_name('yandex')
@@ -1102,6 +1108,18 @@ class YandexApi:
             return response
 
         result, err = self._parse_payload_accept_order(payload, store)
+
+        # fake order check
+        if result.get(self.is_fake_key):
+            return _json_response(
+                data={
+                    self.order_key: {
+                        self.order_accepted_key: False,
+                        self.order_reason_key: "FAKE_ORDER",
+                    }
+                }
+            )
+
         if err:
             _, response = _handle_invalid_request(err)
             return response
@@ -1197,7 +1215,6 @@ class YandexApi:
     def _parse_payload_accept_order(self, payload, store):
         order_key = 'order'
         order_id_key = 'id'
-        is_fake_key = 'fake'
 
         delivery_key = 'delivery'
         shipments_key = 'shipments'
@@ -1218,9 +1235,9 @@ class YandexApi:
         if not isinstance(order, dict):
             return None, f'"{order_key}" must be an object'
 
-        is_fake_order = self._is_fake_order(order, is_fake_key)
+        is_fake_order = self._is_fake_order(order)
         if is_fake_order:
-            return {is_fake_key: is_fake_order}, None
+            return {self.is_fake_key: is_fake_order}, None
 
         # id
         order_id = order.get(order_id_key)
@@ -1291,7 +1308,7 @@ class YandexApi:
         db_skus = {item.sku: item for item in skus_qs}
         diff = skus.difference(db_skus.keys())
         if diff:
-            return {'not_found_skus': diff}
+            return None, f'unknown skus found in payload: {", ".join(diff)}'
 
         result = {
             'order_id': id,
@@ -1304,10 +1321,9 @@ class YandexApi:
 
         return result, None
 
-    @staticmethod
-    def _is_fake_order(_dict, key):
+    def _is_fake_order(self, _dict):
         try:
-            return bool(_dict.get(key))
+            return bool(_dict.get(self.is_fake_key))
         except (TypeError, ValueError, Exception):
             return False
 
@@ -1769,3 +1785,12 @@ def _get_response_decoded_body(response):
 def _append_skus_to_stocks(skus, stocks):
     return {sku: stocks[sku][0]['amount'] if sku in stocks else 0 for sku in
             skus}  # append all sku keys to the resulting dict
+
+
+def _json_response(data, status=200):
+    return JsonResponse(
+        data=data,
+        status=status,
+        json_dumps_params={
+            'ensure_ascii': False,
+        })
