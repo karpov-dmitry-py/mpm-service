@@ -950,6 +950,8 @@ class YandexApi:
     count_key_id = 'count'
     order_accepted_key = 'accepted'
     order_reason_key = 'reason'
+    skus_key = 'skus'
+    sku_key = 'sku'
 
     def __init__(self):
         self.marketplace = _get_marketplace_by_name('yandex')
@@ -1117,6 +1119,27 @@ class YandexApi:
         if result.get(self.is_fake_key):
             return self._fake_order_response()
 
+        skus = result.get(self.sku_key)
+        wh = result.get('wh')
+        rows = result.get('rows')
+        shipments = result.get('shipments')
+        region = result.get('rehion')
+
+        stocks = StockManager().calculate_stock_for_skus(
+            user=store.user,
+            skus=skus,
+            store_wh_id=wh.id,
+            aggregate_by_store=False)
+
+        lacks = []
+        for row in rows:
+            sku = row.get(self.sku_key)
+            sku_stock = stocks.get(sku, 0)
+            requested_stock = rows.get(sku, {}).get('count')
+            lack = requested_stock - sku_stock
+            if lack:
+                lacks.append({'sku': sku, 'lack': lack})
+
         # todo - check whether order exists in db
         # todo - request order full data from market
 
@@ -1193,7 +1216,6 @@ class YandexApi:
                 return None, f'"{count_key}" is not a positive integer value in item # {item_number}'
 
             row = {
-                feed_id_key: feed_id,
                 self.offer_id_key: sku,
                 count_key: count,
                 delivery_key: True,
@@ -1291,7 +1313,7 @@ class YandexApi:
         if not len(items):
             return None, f'"{self.items_key}" list is empty'
 
-        rows = []
+        rows = dict()
         db_wh_ids = {wh.code: wh for wh in _get_store_warehouses(store)}
 
         wh_ids = set()
@@ -1334,12 +1356,12 @@ class YandexApi:
                 return None, f'"{price_key}" is not a positive float value in item # {item_number}'
 
             row = {
-                self.offer_id_key: sku,
+                self.sku_key: sku,
                 count_key: count,
                 price_key: price,
             }
 
-            rows.append(row)
+            rows[sku] = row
 
         skus_qs = get_user_qs(Good, store.user).filter(sku__in=skus)
         db_skus = {item.sku: item for item in skus_qs}
@@ -1350,7 +1372,7 @@ class YandexApi:
         result = {
             'order_id': order_id,
             'wh': db_wh_ids.get(wh_id),
-            'skus': skus,
+            self.skus_key: skus,
             'items': rows,
             'shipments': shipment_rows,
             'region': region_name,
