@@ -542,8 +542,8 @@ class Order(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=CASCADE, verbose_name='Аккаунт', related_name='orders')
 
     def __str__(self):
-        return f'({self.marketplace.name}/{self.order_marketplace_id}) ' \
-               f'{self.created_at} {self.status.name} {self.total}'
+        return f'(id: {self.pk}, {self.marketplace}/{self.order_marketplace_id}) ' \
+               f'{self.created_at} {self.total}'
 
     def save(self, *args, **kwargs):
         _now = now()

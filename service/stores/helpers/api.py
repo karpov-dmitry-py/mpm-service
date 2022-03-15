@@ -41,6 +41,8 @@ from ..models import System
 from ..models import Warehouse
 from ..models import now
 
+from ..service.order import OrderService
+
 
 # class for api handling
 class API:
@@ -950,8 +952,19 @@ class YandexApi:
     count_key_id = 'count'
     order_accepted_key = 'accepted'
     order_reason_key = 'reason'
+    order_actual_reason_key = 'actual_reason'
+    stock_lack_key = 'stock_lack'
     skus_key = 'skus'
     sku_key = 'sku'
+
+    # order not accepted reasons
+    main_enum_order_reason = 'OUT_OF_DATE'
+    fake_order_reason = 'FAKE_ORDER'
+    stock_lack_reason = 'STOCK_LACK'
+    db_err_save_order_reason = 'ORDER_SAVING_DB_ERROR'
+
+    # order accepted keys
+    order_inner_id_key = 'id'
 
     def __init__(self):
         self.marketplace = _get_marketplace_by_name('yandex')
@@ -1117,33 +1130,53 @@ class YandexApi:
 
         # fake order check
         if result.get(self.is_fake_key):
-            return self._fake_order_response()
+            return self._accept_order_negative_response(actual_reason=self.fake_order_reason)
 
-        skus = result.get(self.sku_key)
+        order_markertplace_id = result.get('order_id')
         wh = result.get('wh')
-        rows = result.get('rows')
-        shipments = result.get('shipments')
-        region = result.get('rehion')
+        skus = result.get(self.skus_key)
+        rows = result.get('items')
 
         stocks = StockManager().calculate_stock_for_skus(
             user=store.user,
             skus=skus,
             store_wh_id=wh.id,
             aggregate_by_store=False)
+        stocks = _append_skus_to_stocks(skus, stocks)
 
         lacks = []
-        for row in rows:
+        for row in rows.values():
             sku = row.get(self.sku_key)
             sku_stock = stocks.get(sku, 0)
-            requested_stock = rows.get(sku, {}).get('count')
+            requested_stock = row.get('count')
             lack = requested_stock - sku_stock
-            if lack:
+            if lack > 0:
                 lacks.append({'sku': sku, 'lack': lack})
 
-        # todo - check whether order exists in db
-        # todo - request order full data from market
+        if lacks:
+            return self._accept_order_negative_response(actual_reason=self.stock_lack_reason, stock_lack=lacks)
 
-        return JsonResponse(data={'ok': True})
+        order_data = {
+            'marketplace': store.marketplace,
+            'order_marketplace_id': order_markertplace_id,
+            'store': store,
+            'store_warehouse': wh,
+            'region': result.get('region'),
+            'user': store.user,
+        }
+        order_id, err = OrderService().create(
+            data=order_data,
+            items=rows,
+            shipments=result.get('shipments'),
+        )
+
+        if err:
+            return self._accept_order_negative_response(actual_reason=self.db_err_save_order_reason)
+
+        return self._accept_order_positive_response(order_inner_id=order_id)
+
+        # todo - check whether order with current id already exists in db
+        # todo - request order full data from market and update db order
 
     def _parse_payload_confirm_cart(self, payload, store):
         feed_id_key = 'feedId'
@@ -1369,6 +1402,7 @@ class YandexApi:
         if diff:
             return None, f'unknown skus found in payload: {", ".join(diff)}'
 
+        self._map_order_rows_to_db_instances(rows, db_skus)
         result = {
             'order_id': order_id,
             'wh': db_wh_ids.get(wh_id),
@@ -1380,21 +1414,42 @@ class YandexApi:
 
         return result, None
 
+    @staticmethod
+    def _map_order_rows_to_db_instances(rows, db_skus):
+        for sku, row in rows.items():
+            row['good'] = db_skus.get(sku)
+
     def _is_fake_order(self, _dict):
         try:
             return bool(_dict.get(self.is_fake_key))
         except (TypeError, ValueError, Exception):
             return False
 
-    def _fake_order_response(self):
-        return _json_response(
-            data={
-                self.order_key: {
-                    self.order_accepted_key: False,
-                    self.order_reason_key: "FAKE_ORDER",
-                }
-            }
-        )
+    def _accept_order_negative_response(self, actual_reason=None, stock_lack=None):
+        resp = {
+            self.order_accepted_key: False,
+            self.order_reason_key: self.main_enum_order_reason
+        }
+
+        if stock_lack:
+            resp[self.stock_lack_key] = stock_lack
+
+        if actual_reason:
+            resp[self.order_actual_reason_key] = actual_reason
+
+        payload = {self.order_key: resp}
+
+        return _json_response(data=payload)
+
+    def _accept_order_positive_response(self, order_inner_id):
+        resp = {
+            self.order_accepted_key: True,
+            self.order_inner_id_key: order_inner_id
+        }
+
+        payload = {self.order_key: resp}
+
+        return _json_response(data=payload)
 
     def _validate_auth_header(self, request, store):
         # parse auth header

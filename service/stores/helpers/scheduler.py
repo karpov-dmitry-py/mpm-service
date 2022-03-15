@@ -15,8 +15,8 @@ from ..models import UserJob
 
 
 class Scheduler:
-    mode = 'dev'
-    # mode = 'prod'
+    # mode = 'dev'
+    mode = 'prod'
 
     update_stock_pattern = 'update stock'
     settings = {
