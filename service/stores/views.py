@@ -44,6 +44,11 @@ from .models import StoreWarehouse
 from .models import Log
 from .models import UserJob
 
+from .models import Order
+from .models import OrderShipment
+from .models import OrderItem
+from .models import OrderShipment
+
 from .tasks import update_ozon_stocks
 
 # noinspection PyProtectedMember
@@ -2345,6 +2350,45 @@ def log_export(request, pk):
         messages.error(request, err)
         return redirect(redirect_to)
     return result
+
+
+# ORDER
+class OrderListView(LoginRequiredMixin, ListView):
+    template_name = 'stores/order/list.html'
+    model = Order
+    context_object_name = 'items'
+    _qs = None
+    paginate_by = 50
+
+    # noinspection PyUnresolvedReferences
+    def get_queryset(self):
+        if self._qs is None:
+            self._qs = self.model.objects.filter(user=self.request.user)
+        return self._qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['items_count'] = self._qs.count()
+        context['pages'] = _get_pages_list(context['page_obj'], frequency=1)
+        # noinspection PyTypeChecker,PyTypeChecker
+        context['title'] = _get_model_list_title(self.model)
+        return context
+
+
+class OrderDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = Order
+    fields = ['__all__']
+    context_object_name = 'item'
+    template_name = 'stores/order/detail.html'
+
+    def test_func(self):
+        obj = self.get_object()
+        return obj.user == self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Заказ покупателя'
+        return context
 
 
 # USER JOB

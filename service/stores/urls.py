@@ -121,6 +121,10 @@ urlpatterns = [
     path('jobs/cron/list', views.get_cron_jobs, name='cron-jobs-list'),
     path('jobs/cron/delete', views.disable_user_jobs, name='cron-jobs-delete-all'),
 
+    # orders
+    path('orders/', views.OrderListView.as_view(), name='orders-list'),
+    path('orders/<int:pk>/detail/', views.OrderDetailView.as_view(), name='orders-detail'),
+
     # API
     # help page
     path(f'{api_full_path}/help/', views.api_help, name='api-help'),

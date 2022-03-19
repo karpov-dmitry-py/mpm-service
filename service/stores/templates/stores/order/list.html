@@ -1,0 +1,115 @@
+{% extends 'users/base.html' %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'stores/css/common.css' %}">
+<div class="container-fluid" style="width: 100%;">
+<h5 class="border-bottom mb-3 mt-3">
+    Заказы покупателей
+    <span class="text-muted small">(всего: {{ items_count }})</span>
+</h5>
+
+{% include "../reusables/pagination.html" %}
+
+<table class="table table-hover small">
+    <thead class="thead-dark">
+    <tr>
+        <th>№</th>
+        <th>Дата</th>
+        <th>Номер</th>
+        <th>Номер в маркетплейсе</th>
+        <th>Номер 1С</th>
+        <th>Маркетплейс</th>
+        <th>Магазин</th>
+        <th>Склад магазина</th>
+        <th>Статус</th>
+        <th>Регион</th>
+        <th>Сумма (товары)</th>
+        <th>Сумма (компенсация)</th>
+        <th>Итого</th>
+        <th>Комментарий</th>
+        <th class="pl-0">Действия</th>
+    </tr>
+    </thead>
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        {{ item.created_at|date:"d.m.Y H:i:s (e)" }}
+                    </td>
+                    <td>
+                        <a href="{% url 'orders-detail' item.id %}">
+                            {{ item.id }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if item.order_marketplace_id %}
+                            {{ item.order_marketplace_id }}
+                        {% else %} - {% endif%}
+                    </td>
+                    <td>
+                        {% if item.order_acc_system_id %}
+                            {{ item.order_acc_system_id }}
+                        {% else %} - {% endif%}
+                    </td>
+                    <td>
+                        {{ item.marketplace.name }}
+                    </td>
+                    <td>
+                        {% if item.store %}
+                            <a href="{% url 'stores-detail' item.store.id %}">
+                                {{ item.store.name }}
+                            </a>
+                        {% else %} - {% endif %}
+                    </td>
+                    <td>
+                        {% if item.store_warehouse %}
+                            <a href="{% url 'store-warehouses-detail' item.store_warehouse.id %}">
+                                {{ item.store_warehouse.name }}
+                            </a>
+                        {% else %} - {% endif%}
+                    </td>
+                    <td>
+                        {% if item.status %}
+                            {{ item.status }}
+                        {% else %} - {% endif%}
+                    </td>
+                    <td>
+                        {% if item.region %}
+                            {{ item.region }}
+                        {% else %} - {% endif%}
+                    </td>
+                    <td>
+                        {{ item.items_total }}
+                    </td>
+                    <td>
+                        {{ item.subsidy_total }}
+                    </td>
+                    <td>
+                        {{ item.items_total }}
+                    </td>
+                    <td>
+                        {% if item.comment %}
+                            <span title="{{ item.comment }}">
+                                {{ item.comment|truncatechars:50 }}
+                            </span>
+                        {% else %} - {% endif %}
+                    </td>
+                    <td>
+                        <div class="row">
+                            <span class="mr-3 ml-1">
+                                <a href="{% url 'logs-detail' item.id %}">
+                                    Детальнее
+                                </a>
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+</table>
+
+{% include "../reusables/pagination.html" %}
+
+</div>
+{% endblock content %}
