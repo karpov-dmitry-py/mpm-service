@@ -26,7 +26,7 @@ from .xls_processer import XlsProcesser
 from .qs import get_user_qs
 
 from .managers import StockManager
-from .managers import _get_user_qs
+from .managers import user_qs
 
 from ..models import Good
 from ..models import GoodsBrand
@@ -882,7 +882,7 @@ class Logger:
 
     @staticmethod
     def _get_goods_qs_by_skus(skus, user):
-        qs = _get_user_qs(Good, user).filter(sku__in=skus)
+        qs = user_qs(Good, user).filter(sku__in=skus)
         _dict = {item.sku: item for item in qs}
         return _dict
 
@@ -968,6 +968,7 @@ class YandexApi:
 
     def __init__(self):
         self.marketplace = _get_marketplace_by_name('yandex')
+        self._order_service = OrderService()
 
     @time_tracker('yandex_update_stock')
     def update_stock(self, request, store_pk):
@@ -1164,7 +1165,7 @@ class YandexApi:
             'region': result.get('region'),
             'user': store.user,
         }
-        order_id, err = OrderService().create(
+        order_id, err = self._order_service.create(
             data=order_data,
             items=rows,
             shipments=result.get('shipments'),
@@ -1175,7 +1176,6 @@ class YandexApi:
 
         return self._accept_order_positive_response(order_inner_id=order_id)
 
-        # todo - check whether order with current id already exists in db
         # todo - request order full data from market and update db order
 
     def _parse_payload_confirm_cart(self, payload, store):

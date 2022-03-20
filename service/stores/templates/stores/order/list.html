@@ -14,7 +14,7 @@
     <thead class="thead-dark">
     <tr>
         <th>№</th>
-        <th>Дата</th>
+        <th>Дата создания</th>
         <th>Номер</th>
         <th>Номер в маркетплейсе</th>
         <th>Номер 1С</th>
@@ -25,7 +25,7 @@
         <th>Регион</th>
         <th>Сумма (товары)</th>
         <th>Сумма (компенсация)</th>
-        <th>Итого</th>
+        <th>Сумма (итого)</th>
         <th>Комментарий</th>
         <th class="pl-0">Действия</th>
     </tr>
@@ -43,9 +43,7 @@
                         </a>
                     </td>
                     <td>
-                        {% if item.order_marketplace_id %}
-                            {{ item.order_marketplace_id }}
-                        {% else %} - {% endif%}
+                        {{ item.order_marketplace_id }}
                     </td>
                     <td>
                         {% if item.order_acc_system_id %}
@@ -56,11 +54,9 @@
                         {{ item.marketplace.name }}
                     </td>
                     <td>
-                        {% if item.store %}
-                            <a href="{% url 'stores-detail' item.store.id %}">
-                                {{ item.store.name }}
-                            </a>
-                        {% else %} - {% endif %}
+                        <a href="{% url 'stores-detail' item.store.id %}">
+                            {{ item.store.name }}
+                        </a>
                     </td>
                     <td>
                         {% if item.store_warehouse %}
@@ -71,7 +67,7 @@
                     </td>
                     <td>
                         {% if item.status %}
-                            {{ item.status }}
+                            {{ item.status.name }}
                         {% else %} - {% endif%}
                     </td>
                     <td>
@@ -80,25 +76,25 @@
                         {% else %} - {% endif%}
                     </td>
                     <td>
-                        {{ item.items_total }}
+                        {{ item.items_total|floatformat:2 }}
                     </td>
                     <td>
-                        {{ item.subsidy_total }}
+                        {{ item.subsidy_total|floatformat:2 }}
                     </td>
                     <td>
-                        {{ item.items_total }}
+                        {{ item.total|floatformat:2 }}
                     </td>
                     <td>
                         {% if item.comment %}
                             <span title="{{ item.comment }}">
-                                {{ item.comment|truncatechars:50 }}
+                                {{ item.comment|truncatechars:15 }}
                             </span>
                         {% else %} - {% endif %}
                     </td>
                     <td>
                         <div class="row">
                             <span class="mr-3 ml-1">
-                                <a href="{% url 'logs-detail' item.id %}">
+                                <a href="{% url 'orders-detail' item.id %}">
                                     Детальнее
                                 </a>
                             </span>

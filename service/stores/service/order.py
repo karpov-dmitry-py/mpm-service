@@ -4,6 +4,8 @@ from ..models import Order
 from ..models import OrderItem
 from ..models import OrderShipment
 
+from ..helpers.managers import user_qs
+
 
 class OrderService:
 
@@ -26,10 +28,16 @@ class OrderService:
             created_at=datetime.datetime.now()
         )
 
-        try:
-            order.save()
-        except (OSError, Exception) as e:
-            return None, f'failed to save order: {str(e)}'
+        existing_order, err = self._get_order(order)
+        if err:
+            return None, err
+
+        if existing_order:
+            order = self._update_order(existing_order=existing_order, new_order=order)
+
+        order, err = self._save_order(order)
+        if err:
+            return None, err
 
         # items
         err = self._save_items(order, items)
@@ -44,7 +52,42 @@ class OrderService:
         return order.pk, None
 
     @staticmethod
+    def _save_order(order):
+        try:
+            order.save()
+            return order, None
+        except (OSError, Exception) as e:
+            return None, f'failed to save order {order.order_marketplace_id}: {str(e)}'
+
+    @staticmethod
+    def _get_order(order):
+        try:
+            orders = user_qs(Order, order.user). \
+                filter(marketplace=order.marketplace). \
+                filter(order_marketplace_id=order.order_marketplace_id). \
+                order_by('-created_at')
+            if orders:
+                return orders[0], None
+        except (OSError, Exception) as e:
+            return None, f'failed to fetch order "{order.order_marketplace_id}" from db: {str(e)}'
+
+    @staticmethod
+    def _update_order(existing_order, new_order):
+        attrs = ('store', 'store_warehouse', 'region', 'items_total', 'subsidy_total', 'total', 'comment')
+        for attr in attrs:
+            if getattr(existing_order, attr) != getattr(new_order, attr):
+                setattr(existing_order, attr, getattr(new_order, attr))
+
+        return existing_order
+
+    @staticmethod
     def _save_items(order, items):
+        if order.id:
+            try:
+                order.items.all().delete()
+            except (OSError, Exception) as e:
+                return None, f'failed to delete old items for order "{order.order_marketplace_id}": {str(e)}'
+
         for sku, item in items.items():
             order_item = OrderItem(
                 order=order,
@@ -60,6 +103,12 @@ class OrderService:
 
     @staticmethod
     def _save_shipments(order, shipments):
+        if order.id:
+            try:
+                order.items.all().delete()
+            except (OSError, Exception) as e:
+                return None, f'failed to delete old shipments for order "{order.order_marketplace_id}": {str(e)}'
+
         for i, item in enumerate(shipments, start=1):
             shp_item = OrderShipment(
                 order=order,

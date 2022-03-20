@@ -547,11 +547,10 @@ class Order(models.Model):
 
     def save(self, *args, **kwargs):
         _now = now()
-
         if not self.pk:
-            self.date_created = _now
+            self.created_at = _now
         if self.pk:
-            self.date_updated = _now
+            self.updated_at = _now
 
         return super().save(*args, **kwargs)
 

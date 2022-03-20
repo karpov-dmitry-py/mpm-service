@@ -144,14 +144,14 @@ class StockManager:
     # noinspection PyTypeChecker
     @staticmethod
     def get_user_stock_goods(user):
-        rows = _get_user_qs(Stock, user).filter(amount__gt=0).order_by('good')
+        rows = user_qs(Stock, user).filter(amount__gt=0).order_by('good')
         good_ids = rows.values_list('good', flat=True).distinct()
-        good_rows = _get_user_qs(Good, user).filter(pk__in=good_ids)
+        good_rows = user_qs(Good, user).filter(pk__in=good_ids)
         return good_rows
 
     # noinspection PyTypeChecker
     def get_user_stock(self, user, skus=None):
-        qs = _get_user_qs(Stock, user).filter(amount__gt=0)
+        qs = user_qs(Stock, user).filter(amount__gt=0)
         if skus:
             qs = qs.filter(good__sku__in=skus)
         qs = qs.order_by('good')
@@ -212,11 +212,11 @@ class StockManager:
     @staticmethod
     def get_user_stock_sync(user):
         # noinspection PyUnresolvedReferences,PyTypeChecker
-        whs = _get_user_qs(Warehouse, user)
+        whs = user_qs(Warehouse, user)
         whs_dict = _get_dict_by_attr_from_items(whs, 'id')
 
         # noinspection PyTypeChecker
-        rows = _get_user_qs(Stock, user).order_by('good')
+        rows = user_qs(Stock, user).order_by('good')
         goods = rows.values_list('good').distinct()
         items = []
         for good_id in goods:
@@ -249,11 +249,11 @@ class StockManager:
     @staticmethod
     def get_user_stock_dict(user):
         # noinspection PyUnresolvedReferences,PyTypeChecker
-        whs = _get_user_qs(Warehouse, user)
+        whs = user_qs(Warehouse, user)
         whs_dict = _get_dict_by_attr_from_items(whs, 'id')
 
         # noinspection PyTypeChecker
-        rows = _get_user_qs(Stock, user).order_by('good')
+        rows = user_qs(Stock, user).order_by('good')
         goods = rows.values_list('good').distinct()
         items = []
         for good_id in goods:
@@ -365,21 +365,21 @@ class StockManager:
         attr = 'id'
         # wh
         # noinspection PyTypeChecker
-        whs = _get_user_qs(Warehouse, user)
+        whs = user_qs(Warehouse, user)
         wh_ids = _get_attr_list_from_items(whs, attr)
         # wh_dict = _get_dict_by_attr_from_items(whs, attr)
 
         # noinspection PyTypeChecker
-        brands = _get_user_qs(GoodsBrand, user)
+        brands = user_qs(GoodsBrand, user)
         brand_ids = _get_attr_list_from_items(brands, attr)
         # brand_dict = _get_dict_by_attr_from_items(brands, attr)
 
-        cats = _get_user_qs(GoodsCategory, user)
+        cats = user_qs(GoodsCategory, user)
         cat_ids = _get_attr_list_from_items(cats, attr)
         # cat_dict = _get_dict_by_attr_from_items(cats, attr)
         #
         attr = 'sku'
-        goods = _get_user_qs(Good, user)
+        goods = user_qs(Good, user)
         good_ids = _get_attr_list_from_items(goods, attr)
         # good_dict = _get_dict_by_attr_from_items(goods, attr)
 
@@ -485,7 +485,7 @@ class StockManager:
     # noinspection PyUnusedLocal,PyTypeChecker
     def calculate_stock_for_skus(self, user, skus, store_wh_id=None, aggregate_by_store=True):
         result = dict()
-        whs = _get_user_qs(StoreWarehouse, user).order_by('id')
+        whs = user_qs(StoreWarehouse, user).order_by('id')
         if store_wh_id:
             whs = whs.filter(id=store_wh_id)
 
@@ -822,7 +822,7 @@ def get_stock_include_types():
     return items
 
 
-def _get_user_qs(model, user):
+def user_qs(model, user):
     qs = model.objects.filter(user=user)
     return qs
 

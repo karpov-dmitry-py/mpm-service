@@ -8,3 +8,6 @@ echo ">>>> stopping and removing existing docker containers ..."
 
 echo ">>>> creating and starting new docker containers ..."
 /bin/bash ./service_up.sh
+
+
+
