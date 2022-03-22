@@ -80,7 +80,7 @@
 
     </dl>
 
-    <!--    detailed rows-->
+    <!--    items-->
     {% if item.items.all %}
         <h6 class="mb-3 mt-4">Состав заказа <span class="text-muted small">(всего строк: {{ item.items.all | length }})</span></h6>
         <table class="table table-hover small">
@@ -110,6 +110,32 @@
             <tbody>
         </table>
     {% endif %}
+
+    <!--    shipments-->
+    {% with shipments=item.shipments.all %}
+        {% if shipments %}
+            <h6 class="mb-3 mt-5">Грузовые места <span class="text-muted small">(всего строк: {{ shipments.all | length }})</span></h6>
+            <table class="table table-hover small">
+                <thead>
+                <tr>
+                    <th scope="col">№</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Требуемая дата отгрузки</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in shipments %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ row.shipment_id }}</td>
+                        <td>{{ row.shipment_date|date:"d.m.Y" }}</td>
+                    </tr>
+                {% endfor %}
+                <tbody>
+            </table>
+        {% endif %}
+    {% endwith %}
+
 </div>
 {% endblock content %}
 

@@ -99,13 +99,14 @@ class OrderService:
             try:
                 order_item.save()
             except (OSError, Exception) as e:
-                return None, f'failed to save order item with sku "{sku}": {str(e)}'
+                return None, f'failed to save order item with sku "{sku}" ' \
+                             f'for order "{order.order_marketplace_id}": {str(e)}'
 
     @staticmethod
     def _save_shipments(order, shipments):
         if order.id:
             try:
-                order.items.all().delete()
+                order.shipments.all().delete()
             except (OSError, Exception) as e:
                 return None, f'failed to delete old shipments for order "{order.order_marketplace_id}": {str(e)}'
 
@@ -119,7 +120,7 @@ class OrderService:
             try:
                 shp_item.save()
             except (OSError, Exception) as e:
-                return None, f'failed to save order shipment # {i}: {str(e)}'
+                return None, f'failed to save order shipment # {i} for order "{order.order_marketplace_id}": {str(e)}'
 
     @staticmethod
     def _get_items_total(items):

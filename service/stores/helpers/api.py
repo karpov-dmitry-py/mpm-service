@@ -1172,7 +1172,7 @@ class YandexApi:
         )
 
         if err:
-            return self._accept_order_negative_response(actual_reason=self.db_err_save_order_reason)
+            return self._accept_order_negative_response(actual_reason=f'{self.db_err_save_order_reason}: {err}')
 
         return self._accept_order_positive_response(order_inner_id=order_id)
 
