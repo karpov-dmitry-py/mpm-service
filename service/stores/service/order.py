@@ -1,19 +1,24 @@
 import datetime
+import pytz
 
 from ..models import Order
 from ..models import OrderItem
 from ..models import OrderShipment
-
 from ..helpers.managers import user_qs
+from .order_status import OrderStatusService
 
 
 class OrderService:
 
+    def __init__(self):
+        self._status_service = OrderStatusService()
+
     def create(self, data, items, shipments):
         # order
         items_total = self._get_items_total(items)
-        subsidy_total = self._get_subsidy_total(items)
+        subsidy_total = self._get_subsidy_total()
         total = items_total + subsidy_total
+        status = self._status_service.get_status('created')
 
         order = Order(
             marketplace=data.get('marketplace'),
@@ -21,17 +26,18 @@ class OrderService:
             store=data.get('store'),
             store_warehouse=data.get('store_warehouse'),
             region=data.get('region'),
+            status=status,
             items_total=items_total,
             subsidy_total=subsidy_total,
             total=total,
             user=data.get('user'),
-            created_at=datetime.datetime.now()
+            created_at=datetime.datetime.now(tz=pytz.UTC),
         )
 
         existing_order, err = self._get_order(order)
+
         if err:
             return None, err
-
         if existing_order:
             order = self._update_order(existing_order=existing_order, new_order=order)
 
@@ -49,7 +55,19 @@ class OrderService:
         if err:
             return None, err
 
-        return order.pk, None
+        return order, None
+
+    def update(self, order_id):
+        pass
+
+    def update_status(self, order_id, status_id):
+        pass
+
+    def get_total(self, order_id):
+        pass
+
+    def delete(self, order_id):
+        pass
 
     @staticmethod
     def _save_order(order):
@@ -68,12 +86,13 @@ class OrderService:
                 order_by('-created_at')
             if orders:
                 return orders[0], None
+            return None, None
         except (OSError, Exception) as e:
             return None, f'failed to fetch order "{order.order_marketplace_id}" from db: {str(e)}'
 
     @staticmethod
     def _update_order(existing_order, new_order):
-        attrs = ('store', 'store_warehouse', 'region', 'items_total', 'subsidy_total', 'total', 'comment')
+        attrs = ('store', 'store_warehouse', 'status', 'region', 'items_total', 'subsidy_total', 'total', 'comment')
         for attr in attrs:
             if getattr(existing_order, attr) != getattr(new_order, attr):
                 setattr(existing_order, attr, getattr(new_order, attr))
@@ -131,17 +150,5 @@ class OrderService:
         return total
 
     @staticmethod
-    def _get_subsidy_total(items):
+    def _get_subsidy_total():
         return 0
-
-    def update(self, order_id):
-        pass
-
-    def update_status(self, order_id, status_id):
-        pass
-
-    def get_total(self, order_id):
-        pass
-
-    def delete(self, order_id):
-        pass

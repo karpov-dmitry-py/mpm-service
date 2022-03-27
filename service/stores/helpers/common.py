@@ -7,7 +7,10 @@ import time
 import uuid
 from contextlib import contextmanager
 
+import pytz
 from django.http import FileResponse
+from django.conf import settings
+from django.utils import timezone
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -120,9 +123,22 @@ def to_float(val):
         return None
 
 
-def str_to_datetime(val, format):
+def project_tz():
+    if settings.USE_TZ:
+        return timezone.get_default_timezone()
+    return pytz.UTC
+
+
+def now_with_project_tz():
+    return datetime.datetime.now(tz=project_tz())
+
+
+def str_to_datetime(val, pattern, convert_to_project_tz=True):
     try:
-        return datetime.datetime.strptime(val, format), None
+        dt = datetime.datetime.strptime(val, pattern).astimezone()
+        if convert_to_project_tz:
+            return dt.astimezone(project_tz()), None
+        return dt, None
     except (ValueError, Exception) as e:
         return None, str(e)
 

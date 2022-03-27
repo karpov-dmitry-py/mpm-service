@@ -5,6 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 from typing import Dict, Any
+import after_response
 
 import requests
 from django.http import JsonResponse
@@ -13,7 +14,6 @@ from .common import _err
 from .common import _exc
 from .common import _log
 from .common import new_uuid
-from .common import time_tracker
 from .common import to_float
 from .common import get_file_response
 from .common import as_str
@@ -969,8 +969,42 @@ class YandexApi:
     def __init__(self):
         self.marketplace = _get_marketplace_by_name('yandex')
         self._order_service = OrderService()
+        self._api_base_url = 'https://api.partner.market.yandex.ru/v2'
+        self._session = requests.Session()
+        self._ok_statuses = (200, 201, 204, 301, 302, 304,)
 
-    @time_tracker('yandex_update_stock')
+    def _set_auth_headers(self, store):
+        headers = {
+            'oauth_token': None,
+            'oauth_client_id': None,
+        }
+
+        for k in headers:
+            headers[k] = store.get_prop(prop_name=k)
+
+        missing_headers = [k for k, v in headers.items() if v is None]
+        if len(missing_headers):
+            return f'В карточке магазина "{store.name}" введены не все обязательные поля для работы с ' \
+                   f'api маркетплейса: {", ".join(missing_headers)}'
+
+        header_dict = {
+            'Authorization': f'OAuth oauth_token={headers.get("oauth_token")}, '
+                             f'oauth_client_id={headers.get("oauth_client_id")}'
+        }
+
+        self._session.headers.update(header_dict)
+
+    def _resp_ok(self, status):
+        return status in self._ok_statuses
+
+    def _get(self, url):
+        response = self._session.get(url)
+        status = response.status_code
+        if self._resp_ok(status):
+            return response.json(), None
+
+        return None, f'({status}) {response.text}'
+
     def update_stock(self, request, store_pk):
         logger = Logger()
         status_code = 400
@@ -1165,7 +1199,7 @@ class YandexApi:
             'region': result.get('region'),
             'user': store.user,
         }
-        order_id, err = self._order_service.create(
+        order, err = self._order_service.create(
             data=order_data,
             items=rows,
             shipments=result.get('shipments'),
@@ -1174,9 +1208,38 @@ class YandexApi:
         if err:
             return self._accept_order_negative_response(actual_reason=f'{self.db_err_save_order_reason}: {err}')
 
-        return self._accept_order_positive_response(order_inner_id=order_id)
+        _ = self._market_post_create_order.after_response(order)
 
-        # todo - request order full data from market and update db order
+        return self._accept_order_positive_response(order_inner_id=order.id)
+
+    def post_create_order(self, order):
+        _log(f'starting updating new order # {order.order_marketplace_id} from market ...')
+
+        store = order.store
+        err = self._set_auth_headers(store)
+        if err:
+            return err
+
+        result_key = 'result'
+        items_key = 'items'
+        sku_key = 'offer_id'
+
+        target_url, err = self._get_order_update_target_url(store, order.order_marketplace_id)
+        if err:
+            return err
+
+        base_err = f'В ответе от api маркетплейса ({target_url})'
+        key_not_found_err = f'{base_err} не найдено значение по ключу'
+
+        resp_payload, err = self._get(target_url)
+        # resp_payload, err =
+        if err:
+            return err
+
+        # todo
+        result = resp_payload.get(result_key)
+        if result is None:
+            return f'{key_not_found_err} "{result_key}"'
 
     def _parse_payload_confirm_cart(self, payload, store):
         feed_id_key = 'feedId'
@@ -1464,6 +1527,14 @@ class YandexApi:
             resp_payload, response = _handle_invalid_request(err, self.forbidden_status_code)
             return response
 
+    def _get_order_update_target_url(self, store, order_marketplace_id):
+        campaign_id_prop_name = 'campaignId'
+        campaign_id = store.get_prop(prop_name=campaign_id_prop_name)
+        if not campaign_id:
+            return None, f'В карточке магазина "{store.name}" не заполнено поле "{campaign_id_prop_name}" ' \
+                         f'для работы c api маркетплейса'
+        return f'{self._api_base_url}/campaigns/{campaign_id}/orders/{order_marketplace_id}.json', None
+
     @staticmethod
     def _make_response(data, status=200):
         return JsonResponse(
@@ -1526,6 +1597,16 @@ class YandexApi:
 
         return wh, None
 
+    @staticmethod
+    @after_response.enable
+    def _market_post_create_order(order):
+        err = YandexApi().post_create_order(order)
+        if err:
+            _log(err)
+
+
+# /campaigns/{campaignId}/orders/{orderId}.json
+
 
 # class for communication with ozon via api
 class OzonApi:
@@ -1559,7 +1640,7 @@ class OzonApi:
 
         return None, status, response.text
 
-    def _get_seller_stock(self, store, ):
+    def _get_seller_stock(self, store):
         store_type = store.store_type.name.lower().strip()
         stocks = dict()
         skipped_skus = dict()

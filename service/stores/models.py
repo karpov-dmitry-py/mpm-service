@@ -1,24 +1,13 @@
-from datetime import datetime
-
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import CASCADE
 from django.db.models import SET_NULL
-from django.utils import timezone
 
 from .helpers.common import new_uuid
+from .helpers.common import now_with_project_tz as now
 
 ACTIVE_STORE_STATUS = 'подключен'
-
-
-def now():
-    if settings.USE_TZ:
-        tz = timezone.get_default_timezone()
-        _now = datetime.now(tz=tz)
-        return _now
-    else:
-        return datetime.now()
 
 
 class StoreStatus(models.Model):

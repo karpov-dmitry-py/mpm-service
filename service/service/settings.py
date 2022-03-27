@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'stores.apps.StoresConfig',
     'django_filters',
+    'after_response',
 ]
 
 MIDDLEWARE = [
