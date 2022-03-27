@@ -1199,6 +1199,7 @@ class YandexApi:
             'region': result.get('region'),
             'user': store.user,
         }
+
         order, err = self._order_service.create(
             data=order_data,
             items=rows,
@@ -1220,10 +1221,6 @@ class YandexApi:
         if err:
             return err
 
-        result_key = 'result'
-        items_key = 'items'
-        sku_key = 'offer_id'
-
         target_url, err = self._get_order_update_target_url(store, order.order_marketplace_id)
         if err:
             return err
@@ -1231,15 +1228,42 @@ class YandexApi:
         base_err = f'В ответе от api маркетплейса ({target_url})'
         key_not_found_err = f'{base_err} не найдено значение по ключу'
 
-        resp_payload, err = self._get(target_url)
-        # resp_payload, err =
+        testing = True
+        if testing:
+            with open('market_update_order_fake_data.json') as file:
+                payload, err = json.load(file), None
+        else:
+            payload, err = self._get(target_url)
+
         if err:
             return err
 
-        # todo
-        result = resp_payload.get(result_key)
-        if result is None:
-            return f'{key_not_found_err} "{result_key}"'
+        result, err = self._parse_payload_update_order(payload, store)
+        if err:
+            return err
+
+            # fake order check
+        if result.get(self.is_fake_key):
+            return
+
+        rows = result.get('items')
+        order_data = {
+            'marketplace': store.marketplace,
+            'order_marketplace_id': order.order_marketplace_id,
+            'store': store,
+            'store_warehouse': order.store_warehouse,
+            'region': result.get('region'),
+            'user': store.user,
+        }
+
+        order, err = self._order_service.create(
+            data=order_data,
+            items=rows,
+            shipments=result.get('shipments'),
+        )
+
+        if err:
+            return err
 
     def _parse_payload_confirm_cart(self, payload, store):
         feed_id_key = 'feedId'
@@ -1339,6 +1363,156 @@ class YandexApi:
         region_name_key = 'name'
 
         wh_id_key = 'warehouseId'
+        count_key = 'count'
+        price_key = 'price'
+
+        # order
+        order = payload.get(order_key)
+        if not order:
+            return None, f'"{order_key}" object is empty or missing in payload'
+
+        if not isinstance(order, dict):
+            return None, f'"{order_key}" must be an object'
+
+        is_fake_order = self._is_fake_order(order)
+        if is_fake_order:
+            return {self.is_fake_key: is_fake_order}, None
+
+        # shipments
+        delivery = order.get(delivery_key)
+        if not delivery:
+            return None, f'"{order_id_key}" object is empty or missing in payload'
+
+        shipments = delivery.get(shipments_key)
+        if not shipments:
+            return None, f'"{shipments_key}" object is empty or missing in payload'
+
+        if not is_iterable(shipments):
+            return None, f'"{shipments_key}" must be a list'
+
+        if not len(shipments):
+            return None, f'"{shipments_key}" list is empty'
+
+        shipment_rows = []
+        shp_date_format = '%d-%m-%Y'
+        for shp_index, shipment in enumerate(shipments, start=1):
+            shp_id = shipment.get(shipment_id_key)
+            if not shp_id:
+                return None, f'"{shipment_id_key}" object is empty or missing in payload in item # {shp_index} ' \
+                             f'of "{shipments_key}"'
+
+            shp_date, err = str_to_datetime(shipment.get(shipment_date_key), shp_date_format)
+            if err:
+                return None, f'invalid shipping date format (not "{shp_date_format}") in item # {shp_index} ' \
+                             f'of "{shipments_key}"'
+
+            shp_row = {'id': shp_id, 'date': shp_date}
+            shipment_rows.append(shp_row)
+
+        # region
+        region = delivery.get(region_key)
+        if not region:
+            return None, f'"{region_key}" object is empty or missing in payload'
+
+        region_name = region.get(region_name_key)
+        if not region_name:
+            return None, f'"{region_name_key}" object is empty or missing in payload'
+
+        # id
+        order_id = order.get(order_id_key)
+        if not order_id:
+            return None, f'"{order_id_key}" object is empty or missing in payload'
+
+        items = order.get(self.items_key)
+        if not items:
+            return None, f'"{self.items_key}" object is empty or missing in payload'
+
+        if not is_iterable(items):
+            return None, f'"{self.items_key}" must be a list'
+
+        if not len(items):
+            return None, f'"{self.items_key}" list is empty'
+
+        rows = dict()
+        db_wh_ids = {wh.code: wh for wh in _get_store_warehouses(store)}
+
+        wh_ids = set()
+        skus = set()
+        wh_id = None
+
+        for item_number, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                return None, f'item # {item_number} is not an object'
+
+            # sku
+            sku = item.get(self.offer_id_key)
+            if not sku:
+                return None, f'"{self.offer_id_key}" is empty or missing in item # {item_number}'
+
+            skus.add(sku)
+
+            # wh
+            wh_id = item.get(wh_id_key)
+            if not wh_id:
+                return None, f'"{wh_id_key}" is empty or missing in item # {item_number}'
+
+            wh_ids.add(wh_id)
+            if len(wh_ids) > 1:
+                return None, f'payload contains multiple warehouse ids (starting from "{wh_id_key}" value ' \
+                             f'in item # {item_number})'
+
+            wh_id = str(wh_id)
+            if wh_id not in db_wh_ids:
+                return None, f'{wh_id} for store with id {store.id} not found in db (item # {item_number})'
+
+            # count
+            count = item.get(count_key)
+            if (not count) or (not is_int(count)) or count < 0:
+                return None, f'"{count_key}" is not a positive integer value in item # {item_number}'
+
+            # price
+            price = item.get(price_key)
+            if (not price) or (not is_float(price)) or price < 0:
+                return None, f'"{price_key}" is not a positive float value in item # {item_number}'
+
+            row = {
+                self.sku_key: sku,
+                count_key: count,
+                price_key: price,
+            }
+
+            rows[sku] = row
+
+        skus_qs = get_user_qs(Good, store.user).filter(sku__in=skus)
+        db_skus = {item.sku: item for item in skus_qs}
+        diff = skus.difference(db_skus.keys())
+        if diff:
+            return None, f'unknown skus found in payload: {", ".join(diff)}'
+
+        self._map_order_rows_to_db_instances(rows, db_skus)
+        result = {
+            'order_id': order_id,
+            'wh': db_wh_ids.get(wh_id),
+            self.skus_key: skus,
+            'items': rows,
+            'shipments': shipment_rows,
+            'region': region_name,
+        }
+
+        return result, None
+
+    def _parse_payload_update_order(self, payload, store):
+        order_key = 'order'
+        order_id_key = 'id'
+
+        delivery_key = 'delivery'
+        shipments_key = 'shipments'
+        shipment_id_key = 'id'
+        shipment_date_key = 'shipmentDate'
+
+        region_key = 'region'
+        region_name_key = 'name'
+
         count_key = 'count'
         price_key = 'price'
 
