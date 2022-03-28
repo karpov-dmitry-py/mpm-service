@@ -71,8 +71,8 @@
       "shipments":
       [
         {
-          "shipmentDate": "11-12-2019",
-          "shipmentTime": "11:30",
+          "shipmentDate": "01-04-2022",
+          "shipmentTime": "08:30",
           "id": 67891011,
           "status": "CREATED",
           "depth": 22,
@@ -107,10 +107,9 @@
     [
       {
         "id": 6789,
-        "offerId": "100423035876",
-        "offerName": "Чайник электрический 1000 W",
-        "count": 1,
-        "price": 1200,
+        "offerId": "1001",
+        "count": 60,
+        "price": 500,
         "subsidy": 300,
         "vat": "VAT_20",
         "shopSku": "kettle_1000W",
@@ -140,10 +139,9 @@
       },
       {
         "id": 1011,
-        "offerId": "100556386844",
-        "offerName": "Тостер",
-        "count": 1,
-        "price": 2200,
+        "offerId": "1002",
+        "count": 20,
+        "price": 1000,
         "vat": "VAT_20",
         "shopSku": "toaster",
         "partnerWarehouseId": "12345",

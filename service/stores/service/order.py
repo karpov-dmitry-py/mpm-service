@@ -4,7 +4,10 @@ import pytz
 from ..models import Order
 from ..models import OrderItem
 from ..models import OrderShipment
+
 from ..helpers.managers import user_qs
+from ..helpers.common import now_with_project_tz
+
 from .order_status import OrderStatusService
 
 
@@ -16,7 +19,7 @@ class OrderService:
     def create(self, data, items, shipments):
         # order
         items_total = self._get_items_total(items)
-        subsidy_total = self._get_subsidy_total()
+        subsidy_total = data.get('subsidy_total', 0)
         total = items_total + subsidy_total
         status = self._status_service.get_status('created')
 
@@ -31,7 +34,7 @@ class OrderService:
             subsidy_total=subsidy_total,
             total=total,
             user=data.get('user'),
-            created_at=datetime.datetime.now(tz=pytz.UTC),
+            created_at=now_with_project_tz(),
         )
 
         existing_order, err = self._get_order(order)

@@ -1,6 +1,7 @@
 import json
 import random
 import time
+import os.path
 
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
@@ -943,10 +944,11 @@ class YandexApi:
     auth_header = 'Authorization'
     forbidden_status_code = 403
 
-    # confirm cart payload keys
+    # confirm cart/accept order payload keys
     cart_key = 'cart'
     order_key = 'order'
     is_fake_key = 'fake'
+    subsidy_total_key = 'subsidyTotal'
     items_key = 'items'
     offer_id_key = 'offerId'
     count_key_id = 'count'
@@ -1167,7 +1169,7 @@ class YandexApi:
         if result.get(self.is_fake_key):
             return self._accept_order_negative_response(actual_reason=self.fake_order_reason)
 
-        order_markertplace_id = result.get('order_id')
+        order_marketplace_id = result.get('order_id')
         wh = result.get('wh')
         skus = result.get(self.skus_key)
         rows = result.get('items')
@@ -1193,7 +1195,7 @@ class YandexApi:
 
         order_data = {
             'marketplace': store.marketplace,
-            'order_marketplace_id': order_markertplace_id,
+            'order_marketplace_id': order_marketplace_id,
             'store': store,
             'store_warehouse': wh,
             'region': result.get('region'),
@@ -1209,12 +1211,12 @@ class YandexApi:
         if err:
             return self._accept_order_negative_response(actual_reason=f'{self.db_err_save_order_reason}: {err}')
 
-        _ = self._market_post_create_order.after_response(order)
+        # _ = self._market_post_create_order.after_response(order)
 
         return self._accept_order_positive_response(order_inner_id=order.id)
 
     def post_create_order(self, order):
-        _log(f'starting updating new order # {order.order_marketplace_id} from market ...')
+        _log(f'updating new order # {order.order_marketplace_id} from market ...')
 
         store = order.store
         err = self._set_auth_headers(store)
@@ -1225,12 +1227,11 @@ class YandexApi:
         if err:
             return err
 
-        base_err = f'В ответе от api маркетплейса ({target_url})'
-        key_not_found_err = f'{base_err} не найдено значение по ключу'
-
+        # test
         testing = True
         if testing:
-            with open('market_update_order_fake_data.json') as file:
+            path = os.path.join(os.path.dirname(__file__), 'market_fake_order.json')
+            with open(path) as file:
                 payload, err = json.load(file), None
         else:
             payload, err = self._get(target_url)
@@ -1242,7 +1243,6 @@ class YandexApi:
         if err:
             return err
 
-            # fake order check
         if result.get(self.is_fake_key):
             return
 
@@ -1254,6 +1254,7 @@ class YandexApi:
             'store_warehouse': order.store_warehouse,
             'region': result.get('region'),
             'user': store.user,
+            'subsidy_total': result.get('subsidy_total')
         }
 
         order, err = self._order_service.create(
@@ -1528,6 +1529,10 @@ class YandexApi:
         if is_fake_order:
             return {self.is_fake_key: is_fake_order}, None
 
+        subsidy_total = order.get(self.subsidy_total_key)
+        if subsidy_total is None:
+            subsidy_total = 0
+
         # shipments
         delivery = order.get(delivery_key)
         if not delivery:
@@ -1584,11 +1589,7 @@ class YandexApi:
             return None, f'"{self.items_key}" list is empty'
 
         rows = dict()
-        db_wh_ids = {wh.code: wh for wh in _get_store_warehouses(store)}
-
-        wh_ids = set()
         skus = set()
-        wh_id = None
 
         for item_number, item in enumerate(items, start=1):
             if not isinstance(item, dict):
@@ -1600,20 +1601,6 @@ class YandexApi:
                 return None, f'"{self.offer_id_key}" is empty or missing in item # {item_number}'
 
             skus.add(sku)
-
-            # wh
-            wh_id = item.get(wh_id_key)
-            if not wh_id:
-                return None, f'"{wh_id_key}" is empty or missing in item # {item_number}'
-
-            wh_ids.add(wh_id)
-            if len(wh_ids) > 1:
-                return None, f'payload contains multiple warehouse ids (starting from "{wh_id_key}" value ' \
-                             f'in item # {item_number})'
-
-            wh_id = str(wh_id)
-            if wh_id not in db_wh_ids:
-                return None, f'{wh_id} for store with id {store.id} not found in db (item # {item_number})'
 
             # count
             count = item.get(count_key)
@@ -1635,14 +1622,11 @@ class YandexApi:
 
         skus_qs = get_user_qs(Good, store.user).filter(sku__in=skus)
         db_skus = {item.sku: item for item in skus_qs}
-        diff = skus.difference(db_skus.keys())
-        if diff:
-            return None, f'unknown skus found in payload: {", ".join(diff)}'
 
         self._map_order_rows_to_db_instances(rows, db_skus)
         result = {
             'order_id': order_id,
-            'wh': db_wh_ids.get(wh_id),
+            'subsidy_total': subsidy_total,
             self.skus_key: skus,
             'items': rows,
             'shipments': shipment_rows,
