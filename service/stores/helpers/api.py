@@ -1211,7 +1211,7 @@ class YandexApi:
         if err:
             return self._accept_order_negative_response(actual_reason=f'{self.db_err_save_order_reason}: {err}')
 
-        # _ = self._market_post_create_order.after_response(order)
+        _ = self._market_post_create_order.after_response(order)
 
         return self._accept_order_positive_response(order_inner_id=order.id)
 
@@ -1228,13 +1228,13 @@ class YandexApi:
             return err
 
         # test
-        testing = True
-        if testing:
-            path = os.path.join(os.path.dirname(__file__), 'market_fake_order.json')
-            with open(path) as file:
-                payload, err = json.load(file), None
-        else:
-            payload, err = self._get(target_url)
+        # testing = True
+        # if testing:
+        #     path = os.path.join(os.path.dirname(__file__), 'market_fake_order.json')
+        #     with open(path) as file:
+        #         payload, err = json.load(file), None
+        # else:
+        payload, err = self._get(target_url)
 
         if err:
             return err
@@ -1337,6 +1337,7 @@ class YandexApi:
                 return None, f'"{count_key}" is not a positive integer value in item # {item_number}'
 
             row = {
+                feed_id_key: feed_id,
                 self.offer_id_key: sku,
                 count_key: count,
                 delivery_key: True,
