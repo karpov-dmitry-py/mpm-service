@@ -1,7 +1,6 @@
 import json
 import random
 import time
-import os.path
 
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
@@ -9,7 +8,7 @@ from typing import Dict, Any
 import after_response
 
 import requests
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 
 from .common import _err
 from .common import _exc
@@ -1215,6 +1214,48 @@ class YandexApi:
 
         return self._accept_order_positive_response(order_inner_id=order.id)
 
+    def accept_order_status(self, request, store_pk):
+        store, err = _get_store_by_id(store_pk)
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        err_resp = self._validate_auth_header(request, store)
+        if err_resp:
+            return err_resp
+
+        payload, err = _parse_json(request.body)
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        result, err = self._parse_payload_accept_order_status(payload, store)
+
+        # err check
+        if err:
+            _, response = _handle_invalid_request(err)
+            return response
+
+        # fake order check
+        if result.get(self.is_fake_key):
+            return self._accept_order_status_negative_response(actual_reason=self.fake_order_reason, status=400)
+
+        order_marketplace_id = result.get('order_id')
+
+        existing_order, err = self._order_service.get_by_marketplace_id(
+            order_marketplace_id=order_marketplace_id,
+            marketplace=store.marketplace,
+            user=store.user)
+
+        if err:
+            return self._accept_order_status_negative_response(actual_reason=err, status=500)
+
+        if existing_order is None:
+            err_msg = f'Invalid request: yandex market order with marketplace id {order_marketplace_id} not found in db'
+            return self._accept_order_status_negative_response(actual_reason=err_msg, status=400)
+
+        return _http_response()
+
     def post_create_order(self, order):
         _log(f'updating new order # {order.order_marketplace_id} from market ...')
 
@@ -1503,6 +1544,31 @@ class YandexApi:
 
         return result, None
 
+    def _parse_payload_accept_order_status(self, payload, store):
+        order_key = 'order'
+        order_id_key = 'id'
+
+        # order
+        order = payload.get(order_key)
+        if not order:
+            return None, f'"{order_key}" object is empty or missing in payload'
+
+        if not isinstance(order, dict):
+            return None, f'"{order_key}" must be an object'
+
+        is_fake_order = self._is_fake_order(order)
+        if is_fake_order:
+            return {self.is_fake_key: is_fake_order}, None
+
+        # id
+        order_id = order.get(order_id_key)
+        if not order_id:
+            return None, f'"{order_id_key}" object is empty or missing in payload'
+
+        result = {'order_id': order_id}
+
+        return result, None
+
     def _parse_payload_update_order(self, payload, store):
         order_key = 'order'
         order_id_key = 'id'
@@ -1661,7 +1727,16 @@ class YandexApi:
 
         payload = {self.order_key: resp}
 
-        return _json_response(data=payload)
+        return _http_response()
+
+    def _accept_order_status_negative_response(self, actual_reason=None, status=400):
+        resp = dict()
+        if actual_reason:
+            resp[self.order_actual_reason_key] = actual_reason
+
+        payload = {self.order_key: resp}
+
+        return _json_response(data=payload, status=status)
 
     def _accept_order_positive_response(self, order_inner_id):
         resp = {
@@ -2151,10 +2226,15 @@ def _append_skus_to_stocks(skus, stocks):
             skus}  # append all sku keys to the resulting dict
 
 
-def _json_response(data, status=200):
+def _json_response(data=None, status=200):
     return JsonResponse(
         data=data,
         status=status,
         json_dumps_params={
             'ensure_ascii': False,
         })
+
+
+def _http_response(content=None, status=200):
+    content = content if content is not None else 'OK'
+    return HttpResponse(content=content, status=status)

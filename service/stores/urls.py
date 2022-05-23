@@ -140,13 +140,15 @@ urlpatterns = [
     # stock
     path(f'{api_full_path}/stock/', views.api_update_stock, name='api-update-stock'),
 
-    # yandex
+    # yandex api
     path(f'{views.get_yandex_store_update_stocks_api_url()}', views.api_yandex_store_update_stock,
          name='api-yandex-update-stock'),
     path(f'{views.get_yandex_store_confirm_cart()}', views.api_yandex_store_confirm_cart,
          name='api-yandex-confirm-cart'),
     path(f'{views.get_yandex_store_accept_order()}', views.api_yandex_store_accept_order,
          name='api-yandex-accept-order'),
+    path(f'{views.get_yandex_store_accept_order_status()}', views.api_yandex_store_accept_order_status,
+         name='api-yandex-accept-order-status'),
 
     # misc
     path('misc/suppliers/offers/check', views.process_categories_choice, name='suppliers-offers-check'),

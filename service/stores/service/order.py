@@ -66,6 +66,19 @@ class OrderService:
     def update_status(self, order_id, status_id):
         pass
 
+    def get_by_marketplace_id(self, order_marketplace_id, marketplace, user):
+        order = Order(
+            order_marketplace_id=order_marketplace_id,
+            marketplace=marketplace,
+            user=user,
+        )
+
+        existing_order, err = self._get_order(order)
+        if err:
+            return None, err
+
+        return existing_order, None
+
     def get_total(self, order_id):
         pass
 
