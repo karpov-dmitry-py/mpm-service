@@ -1,10 +1,10 @@
  #!/bin/bash
 
-echo ">>>> loading docker image from a tar archive ..."
-/usr/bin/docker image load -i mpm_service.tar
+echo ">>>> building docker image ..."
+sudo /usr/bin/docker build --rm -t 'mpm_service_app' /home/dockeruser/service/code/mpm-service
 
-echo ">>>> stopping and removing existing docker containers ..."
-/bin/bash ./service_down.sh
+#echo ">>>> stopping and removing existing docker containers ..."
+#/bin/bash ./service_down.sh
 
 echo ">>>> creating and starting new docker containers ..."
 /bin/bash ./service_up.sh

@@ -135,3 +135,6 @@ dmypy.json
 *.file
 cron.log
 scheduler_lock
+docker-compose-local.yml
+kill_on_8000_local.sh
+remote_build_deploy.sh
