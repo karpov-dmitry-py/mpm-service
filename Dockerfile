@@ -25,6 +25,7 @@ RUN chown $usr:$grp /home/$usr/
 # copy app dir, install dependencies and run entry_point bash script
 USER $usr
 RUN mkdir -p /home/$usr/workdir
+RUN mkdir -p /home/$usr/workdir/tasks
 COPY service /home/$usr/workdir
 
 # USER root
