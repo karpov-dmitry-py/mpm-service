@@ -133,7 +133,6 @@ dmypy.json
 .idea/
 *.tar
 *.file
-cron.log
 scheduler_lock
 docker-compose-local.yml
 kill_on_8000_local.sh
