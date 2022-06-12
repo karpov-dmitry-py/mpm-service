@@ -19,6 +19,7 @@ class Scheduler:
     mode = 'prod'
 
     update_stock_pattern = 'update stock'
+    # todo - get rid of hardcore and use dynamic condition
     settings = {
         'dev': {
             'os_user': 'dkarpov',
@@ -27,14 +28,14 @@ class Scheduler:
             'cron_log_path': '/home/dkarpov/projects/self/mpm-service/service/cron.log',
         },
         'prod': {
-            'os_user': 'dockeruser',
+            'os_user': 'appuser',
             'intepreter_path': '/usr/local/bin/python3',
-            'command_path': '/home/dockeruser/workdir/manage.py scheduler',
-            'cron_log_path': '/home/dockeruser/workdir/cron.log',
+            'command_path': '/home/appuser/workdir/manage.py scheduler',
+            'cron_log_path': '/home/appuser/workdir/cron.log',
         }
     }
-    active_settings = settings[mode]
 
+    active_settings = settings[mode]
     job_min_frequency = 1
     job_max_frequency = 60
     valid_frequencies = {

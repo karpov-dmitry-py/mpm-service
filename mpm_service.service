@@ -1,18 +1,13 @@
 [Unit]
-Description=Marketplace master web app for customers
+Description=STL web app
 Requires=docker.service
 After=docker.service
 
 [Service]
-
-;User=dkarpov
 User=dockeruser
 
 Type=simple
 RemainAfterExit=true
-;ExecStart=/home/dkarpov/projects/self/mpm-service/service_up.sh
-;ExecStop=/home/dkarpov/projects/self/mpm-service/service_down.sh
-
 ExecStart=/home/dockeruser/service/deploy/service_up.sh
 ExecStop=/home/dockeruser/service/deploy/service_down.sh
 

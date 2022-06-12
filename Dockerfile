@@ -11,8 +11,8 @@ RUN apt-get update && \
     apt-get install -y cron
 
 # set uids and gids env variables
-ENV usr dockeruser
-ENV grp dockeruser
+ENV usr appuser
+ENV grp appuser
 
 # prepare home directory
 RUN mkdir -p /home/$usr/
@@ -43,4 +43,4 @@ USER $usr
 RUN pip install --user -r /home/$usr/workdir/requirements.txt
 # CMD cron -L 15
 CMD tail -f /home/$usr/workdir/cron.log
-ENTRYPOINT /home/dockeruser/.local/bin/uwsgi /home/$usr/workdir/uwsgi.ini
+ENTRYPOINT /home/$usr/.local/bin/uwsgi /home/$usr/workdir/uwsgi.ini
