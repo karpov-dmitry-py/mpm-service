@@ -100,7 +100,7 @@ class Parser:
                 good['name'] = name.text
 
             # is_available
-            is_available = row.attrs.get('available', 'false')
+            is_available = row.attrs.get_by_code('available', 'false')
             good['available'] = self.availability.get(is_available, False)
 
             goods[good_url.text] = good
@@ -153,17 +153,17 @@ class Parser:
 
         for name, props in self._rows.items():
 
-            has_price_diff = props.get('price') != props.get('own_price')
+            has_price_diff = props.get_by_code('price') != props.get_by_code('own_price')
             props['has_price_diff'] = has_price_diff
             if has_price_diff:
                 price_diff_count += 1
 
-            has_stock_diff = not self._stock_matches(props.get('stock', ''), props.get('own_stock', ''))
+            has_stock_diff = not self._stock_matches(props.get_by_code('stock', ''), props.get_by_code('own_stock', ''))
             props['has_stock_diff'] = has_stock_diff
             if has_stock_diff:
                 stock_diff_count += 1
 
-            if props.get('error'):
+            if props.get_by_code('error'):
                 error_count += 1
 
         return {
@@ -204,7 +204,7 @@ class Parser:
             if href_name is not None:
                 name = href_name.text
                 props['good_name'] = name
-                props['good_url'] = f'{self.supplier_base_url}{href_name.attrs.get("href")}'
+                props['good_url'] = f'{self.supplier_base_url}{href_name.attrs.get_by_code("href")}'
 
             # price
             price = item.find('span', class_='productPrice')
@@ -261,7 +261,7 @@ class Parser:
         if name_div is not None:
             name_href = name_div.find('a')
             if name_href is not None:
-                searched_path = name_href.attrs.get("href", '').split('?sphrase_id=')[0]
+                searched_path = name_href.attrs.get_by_code("href", '').split('?sphrase_id=')[0]
                 props['url'] = f'{self_base_url}{searched_path}'
                 props['name'] = name_href.text
 

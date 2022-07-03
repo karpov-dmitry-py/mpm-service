@@ -19,21 +19,21 @@ class OrderService:
     def create(self, data, items, shipments):
         # order
         items_total = self._get_items_total(items)
-        subsidy_total = data.get('subsidy_total', 0)
+        subsidy_total = data.get_by_code('subsidy_total', 0)
         total = items_total + subsidy_total
-        status = self._status_service.get_status('created')
+        status = self._status_service.get_by_code('created')
 
         order = Order(
-            marketplace=data.get('marketplace'),
-            order_marketplace_id=data.get('order_marketplace_id'),
-            store=data.get('store'),
-            store_warehouse=data.get('store_warehouse'),
-            region=data.get('region'),
+            marketplace=data.get_by_code('marketplace'),
+            order_marketplace_id=data.get_by_code('order_marketplace_id'),
+            store=data.get_by_code('store'),
+            store_warehouse=data.get_by_code('store_warehouse'),
+            region=data.get_by_code('region'),
             status=status,
             items_total=items_total,
             subsidy_total=subsidy_total,
             total=total,
-            user=data.get('user'),
+            user=data.get_by_code('user'),
             created_at=now_with_project_tz(),
         )
 
@@ -126,9 +126,9 @@ class OrderService:
         for sku, item in items.items():
             order_item = OrderItem(
                 order=order,
-                good=item.get('good'),
-                count=item.get('count'),
-                price=item.get('price'),
+                good=item.get_by_code('good'),
+                count=item.get_by_code('count'),
+                price=item.get_by_code('price'),
             )
 
             try:
@@ -148,8 +148,8 @@ class OrderService:
         for i, item in enumerate(shipments, start=1):
             shp_item = OrderShipment(
                 order=order,
-                shipment_id=item.get('id'),
-                shipment_date=item.get('date'),
+                shipment_id=item.get_by_code('id'),
+                shipment_date=item.get_by_code('date'),
             )
 
             try:
@@ -162,7 +162,7 @@ class OrderService:
         # todo - use one liner
         total = 0
         for item in items.values():
-            total += item.get('count', 0) * item.get('price', 0)
+            total += item.get_by_code('count', 0) * item.get_by_code('price', 0)
         return total
 
     @staticmethod

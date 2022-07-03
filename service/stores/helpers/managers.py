@@ -279,8 +279,8 @@ class StockManager:
 
     @staticmethod
     def _condition_attrs(condition):
-        _type = _get_text_by_val(get_stock_condition_types, condition.get('type'))
-        _field = _get_text_by_val(get_stock_condition_fields, condition.get('field'))
+        _type = _get_text_by_val(get_stock_condition_types, condition.get_by_code('type'))
+        _field = _get_text_by_val(get_stock_condition_fields, condition.get_by_code('field'))
         return f'{_type} - {_field}'
 
     # noinspection PyTypeChecker
