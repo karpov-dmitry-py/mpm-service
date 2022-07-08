@@ -350,7 +350,7 @@ class API:
 
     @staticmethod
     def _get_request_header(request, header):
-        return request.META.get_by_code(header)
+        return request.META.get(header)
 
     def _get_system_request_headers(self, request):
         user = self._get_request_header(request, self.required_headers['user-auth'])
@@ -525,7 +525,7 @@ class API:
         # check if items have any duplicate sku
         skus = defaultdict(int)
         for item in items:
-            if item_sku := item.get_by_code('sku'):
+            if item_sku := item.get('sku'):
                 skus[item_sku] += 1
         duplicates = [k for k, v in skus.items() if v > 1]
         if duplicates:
@@ -560,7 +560,7 @@ class API:
         # process payload
         stats = self._get_update_stock_stats()
         for item_index, item in enumerate(items):
-            sku = item.get_by_code('sku')
+            sku = item.get('sku')
             if not sku:
                 self._append_to_dict(stats, 'invalid_goods', f'sku empty or not provided (offer # {item_index})')
                 continue
@@ -582,7 +582,7 @@ class API:
                 goods[sku] = good
                 self._append_to_dict(stats, 'created_goods', sku)
 
-            stocks = item.get_by_code('stocks')
+            stocks = item.get('stocks')
             if not stocks:
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
@@ -594,14 +594,14 @@ class API:
 
             # check for required keys in each stock obj
             required_keys = ('code', 'available')
-            if not all(stock_dict.get_by_code(req_key) is not None for stock_dict in stocks for req_key in required_keys):
+            if not all(stock_dict.get(req_key) is not None for stock_dict in stocks for req_key in required_keys):
                 self._append_to_dict(stats, 'invalid_offers', sku)
                 continue
 
             # check for warehouse code duplicates
             wh_codes = defaultdict(int)
             for stock_dict in stocks:
-                wh_codes[stock_dict.get_by_code('code')] += 1
+                wh_codes[stock_dict.get('code')] += 1
             wh_duplicates = [k for k, v in wh_codes.items() if v > 1]
             if wh_duplicates:
                 self._append_to_dict(stats, 'invalid_offers', sku)
@@ -609,8 +609,8 @@ class API:
 
             sku_stock_processing_success = True
             for stock in stocks:
-                wh_code = stock.get_by_code('code')
-                available = stock.get_by_code('available')
+                wh_code = stock.get('code')
+                available = stock.get('available')
                 data_to_update = self._stock_row(sku, wh_code, available)
 
                 wh = whs.get(wh_code)
@@ -839,20 +839,20 @@ class Logger:
 
     def log(self, _dict):
         try:
-            marketplace = _dict.get_by_code('marketplace')
-            status = _dict.get_by_code('response_status', 200)
+            marketplace = _dict.get('marketplace')
+            status = _dict.get('response_status', 200)
             log = Log(
                 marketplace=marketplace,
-                store=_dict.get_by_code('store'),
-                warehouse=_dict.get_by_code('warehouse'),
-                duration=time.time() - _dict.get_by_code('start_time', time.time()),
-                request=_dict.get_by_code('request'),
-                response=_dict.get_by_code('response'),
+                store=_dict.get('store'),
+                warehouse=_dict.get('warehouse'),
+                duration=time.time() - _dict.get('start_time', time.time()),
+                request=_dict.get('request'),
+                response=_dict.get('response'),
                 response_status=status,
-                success=_dict.get_by_code('success', status in self.ok_statuses),
-                error=_dict.get_by_code('error'),
-                comment=_dict.get_by_code('comment'),
-                user=_dict.get_by_code('user')
+                success=_dict.get('success', status in self.ok_statuses),
+                error=_dict.get('error'),
+                comment=_dict.get('comment'),
+                user=_dict.get('user')
             )
             log.save()
             _log(f'saved a log row to db for marketplace {marketplace}.')
@@ -870,7 +870,7 @@ class Logger:
                 val = v
                 if k == 'start_time':
                     key = 'duration'
-                    val = time.time() - _dict.get_by_code('start_time', time.time())
+                    val = time.time() - _dict.get('start_time', time.time())
                 setattr(log, key, val)
             log.save()
             _log('updated a log in db')
@@ -892,10 +892,10 @@ class Logger:
         goods = self._get_goods_qs_by_skus(list(stock.keys()), user)
         rows = []
         for sku, _dict in stock.items():
-            amount = _dict.get_by_code('amount', 0)
-            success = _dict.get_by_code('success', True)
-            err_code = _dict.get_by_code('err_code', None)
-            err_msg = _dict.get_by_code('err_msg', None)
+            amount = _dict.get('amount', 0)
+            success = _dict.get('success', True)
+            err_code = _dict.get('err_code', None)
+            err_msg = _dict.get('err_msg', None)
 
             row = LogRow(
                 log=log,
@@ -1062,7 +1062,7 @@ class YandexApi:
             return response
 
         log['warehouse'] = wh
-        skus = payload.get_by_code('skus')
+        skus = payload.get('skus')
 
         stocks = StockManager().calculate_stock_for_skus(wh.user, skus, wh.id, False)
         stock = _append_skus_to_stocks(skus=skus, stocks=stocks)
@@ -1119,9 +1119,9 @@ class YandexApi:
             _, response = _handle_invalid_request(err)
             return response
 
-        wh = result.get_by_code('wh')
-        skus = result.get_by_code('skus')
-        resp = result.get_by_code('resp')
+        wh = result.get('wh')
+        skus = result.get('skus')
+        resp = result.get('resp')
 
         stocks = StockManager().calculate_stock_for_skus(
             user=store.user,
@@ -1133,11 +1133,11 @@ class YandexApi:
             resp[self.cart_key][self.items_key] = []
             return JsonResponse(resp)
 
-        items = resp.get_by_code(self.cart_key, {}).get_by_code(self.items_key, [])
+        items = resp.get(self.cart_key, {}).get(self.items_key, [])
         stocks = _append_skus_to_stocks(skus=skus, stocks=stocks)
         for item in items:
-            requested_count = item.get_by_code(self.count_key_id)
-            available_count = stocks.get(item.get_by_code(self.offer_id_key))
+            requested_count = item.get(self.count_key_id)
+            available_count = stocks.get(item.get(self.offer_id_key))
             item[self.count_key_id] = min(requested_count, available_count)
 
         return JsonResponse(resp)
@@ -1165,13 +1165,13 @@ class YandexApi:
             return response
 
         # fake order check
-        if result.get_by_code(self.is_fake_key):
+        if result.get(self.is_fake_key):
             return self._accept_order_negative_response(actual_reason=self.fake_order_reason)
 
-        order_marketplace_id = result.get_by_code('order_id')
-        wh = result.get_by_code('wh')
-        skus = result.get_by_code(self.skus_key)
-        rows = result.get_by_code('items')
+        order_marketplace_id = result.get('order_id')
+        wh = result.get('wh')
+        skus = result.get(self.skus_key)
+        rows = result.get('items')
 
         stocks = StockManager().calculate_stock_for_skus(
             user=store.user,
@@ -1182,9 +1182,9 @@ class YandexApi:
 
         lacks = []
         for row in rows.values():
-            sku = row.get_by_code(self.sku_key)
+            sku = row.get(self.sku_key)
             sku_stock = stocks.get(sku, 0)
-            requested_stock = row.get_by_code('count')
+            requested_stock = row.get('count')
             lack = requested_stock - sku_stock
             if lack > 0:
                 lacks.append({'sku': sku, 'lack': lack})
@@ -1197,14 +1197,14 @@ class YandexApi:
             'order_marketplace_id': order_marketplace_id,
             'store': store,
             'store_warehouse': wh,
-            'region': result.get_by_code('region'),
+            'region': result.get('region'),
             'user': store.user,
         }
 
         order, err = self._order_service.create(
             data=order_data,
             items=rows,
-            shipments=result.get_by_code('shipments'),
+            shipments=result.get('shipments'),
         )
 
         if err:
@@ -1237,10 +1237,10 @@ class YandexApi:
             return response
 
         # fake order check
-        if result.get_by_code(self.is_fake_key):
+        if result.get(self.is_fake_key):
             return self._accept_order_status_negative_response(actual_reason=self.fake_order_reason, status=400)
 
-        order_marketplace_id = result.get_by_code('order_id')
+        order_marketplace_id = result.get('order_id')
 
         existing_order, err = self._order_service.get_by_marketplace_id(
             order_marketplace_id=order_marketplace_id,
@@ -1284,24 +1284,24 @@ class YandexApi:
         if err:
             return err
 
-        if result.get_by_code(self.is_fake_key):
+        if result.get(self.is_fake_key):
             return
 
-        rows = result.get_by_code('items')
+        rows = result.get('items')
         order_data = {
             'marketplace': store.marketplace,
             'order_marketplace_id': order.order_marketplace_id,
             'store': store,
             'store_warehouse': order.store_warehouse,
-            'region': result.get_by_code('region'),
+            'region': result.get('region'),
             'user': store.user,
-            'subsidy_total': result.get_by_code('subsidy_total')
+            'subsidy_total': result.get('subsidy_total')
         }
 
         order, err = self._order_service.create(
             data=order_data,
             items=rows,
-            shipments=result.get_by_code('shipments'),
+            shipments=result.get('shipments'),
         )
 
         if err:
@@ -1313,7 +1313,7 @@ class YandexApi:
         count_key = 'count'
         delivery_key = 'delivery'
 
-        cart = payload.get_by_code(self.cart_key)
+        cart = payload.get(self.cart_key)
         if not cart:
             return None, f'"{self.cart_key}" object is empty or missing in payload'
 
@@ -1410,7 +1410,7 @@ class YandexApi:
         price_key = 'price'
 
         # order
-        order = payload.get_by_code(order_key)
+        order = payload.get(order_key)
         if not order:
             return None, f'"{order_key}" object is empty or missing in payload'
 
@@ -1439,12 +1439,12 @@ class YandexApi:
         shipment_rows = []
         shp_date_format = '%d-%m-%Y'
         for shp_index, shipment in enumerate(shipments, start=1):
-            shp_id = shipment.get_by_code(shipment_id_key)
+            shp_id = shipment.get(shipment_id_key)
             if not shp_id:
                 return None, f'"{shipment_id_key}" object is empty or missing in payload in item # {shp_index} ' \
                              f'of "{shipments_key}"'
 
-            shp_date, err = str_to_datetime(shipment.get_by_code(shipment_date_key), shp_date_format)
+            shp_date, err = str_to_datetime(shipment.get(shipment_date_key), shp_date_format)
             if err:
                 return None, f'invalid shipping date format (not "{shp_date_format}") in item # {shp_index} ' \
                              f'of "{shipments_key}"'
@@ -1457,7 +1457,7 @@ class YandexApi:
         if not region:
             return None, f'"{region_key}" object is empty or missing in payload'
 
-        region_name = region.get_by_code(region_name_key)
+        region_name = region.get(region_name_key)
         if not region_name:
             return None, f'"{region_name_key}" object is empty or missing in payload'
 
@@ -1549,7 +1549,7 @@ class YandexApi:
         order_id_key = 'id'
 
         # order
-        order = payload.get_by_code(order_key)
+        order = payload.get(order_key)
         if not order:
             return None, f'"{order_key}" object is empty or missing in payload'
 
@@ -1585,7 +1585,7 @@ class YandexApi:
         price_key = 'price'
 
         # order
-        order = payload.get_by_code(order_key)
+        order = payload.get(order_key)
         if not order:
             return None, f'"{order_key}" object is empty or missing in payload'
 
@@ -1618,12 +1618,12 @@ class YandexApi:
         shipment_rows = []
         shp_date_format = '%d-%m-%Y'
         for shp_index, shipment in enumerate(shipments, start=1):
-            shp_id = shipment.get_by_code(shipment_id_key)
+            shp_id = shipment.get(shipment_id_key)
             if not shp_id:
                 return None, f'"{shipment_id_key}" object is empty or missing in payload in item # {shp_index} ' \
                              f'of "{shipments_key}"'
 
-            shp_date, err = str_to_datetime(shipment.get_by_code(shipment_date_key), shp_date_format)
+            shp_date, err = str_to_datetime(shipment.get(shipment_date_key), shp_date_format)
             if err:
                 return None, f'invalid shipping date format (not "{shp_date_format}") in item # {shp_index} ' \
                              f'of "{shipments_key}"'
@@ -1636,7 +1636,7 @@ class YandexApi:
         if not region:
             return None, f'"{region_key}" object is empty or missing in payload'
 
-        region_name = region.get_by_code(region_name_key)
+        region_name = region.get(region_name_key)
         if not region_name:
             return None, f'"{region_name_key}" object is empty or missing in payload'
 
@@ -1705,11 +1705,11 @@ class YandexApi:
     @staticmethod
     def _map_order_rows_to_db_instances(rows, db_skus):
         for sku, row in rows.items():
-            row['good'] = db_skus.get_by_code(sku)
+            row['good'] = db_skus.get(sku)
 
     def _is_fake_order(self, _dict):
         try:
-            return bool(_dict.get_by_code(self.is_fake_key))
+            return bool(_dict.get(self.is_fake_key))
         except (TypeError, ValueError, Exception):
             return False
 
@@ -1800,7 +1800,7 @@ class YandexApi:
         returns a warehouse or an error
         """
         wh_id_attr = 'warehouseId'
-        yandex_wh_id = payload.get_by_code(wh_id_attr)
+        yandex_wh_id = payload.get(wh_id_attr)
 
         if yandex_wh_id is None:
             return None, 'no yandex warehouse id found in payload'
@@ -1819,7 +1819,7 @@ class YandexApi:
         if skus not in payload:
             return None, f'no "{skus}" list found in payload'
 
-        skus_vals = payload.get_by_code(skus)
+        skus_vals = payload.get(skus)
         if type(skus_vals) not in (list, tuple):
             return None, f'invalid type of "{skus}" found in payload, must be iterable'
 
@@ -1916,11 +1916,11 @@ class OzonApi:
         if err:
             return None, err
 
-        result = resp_payload.get_by_code(result_key)
+        result = resp_payload.get(result_key)
         if result is None:
             return None, f'{key_not_found_err} "{result_key}"'
 
-        items = result.get_by_code(items_key)
+        items = result.get(items_key)
         if items is None:
             return None, f'{key_not_found_err} "{items_key}"'
 
@@ -1929,11 +1929,11 @@ class OzonApi:
 
         for item in items:
 
-            sku = item.get_by_code(sku_key)
+            sku = item.get(sku_key)
             if sku is None:
                 return None, f'{key_not_found_err} "{sku_key}"'
 
-            sku_stocks = item.get_by_code(sku_stocks_key)
+            sku_stocks = item.get(sku_stocks_key)
             if sku_stocks is None or not len(sku_stocks):
                 skipped_skus[sku] = 1
                 continue
@@ -1942,12 +1942,12 @@ class OzonApi:
             store_type_has_sku_stock = False
             for stock in sku_stocks:
 
-                stock_type = stock.get_by_code(sku_stock_type_key)
+                stock_type = stock.get(sku_stock_type_key)
                 if stock_type is None:
                     return None, f'{key_not_found_err} "{sku_stock_type_key}"'
 
                 if stock_type.strip().lower() == store_type:
-                    reserved = stock.get_by_code(sku_reserved_stock_key)
+                    reserved = stock.get(sku_reserved_stock_key)
                     if reserved is None:
                         return None, f'{key_not_found_err} "{sku_reserved_stock_key}"'
 
@@ -2041,18 +2041,18 @@ class OzonApi:
             for sku, amount in _dict.items():
                 _stocks[sku] = amount
 
-        items = payload.get_by_code(result_key)
+        items = payload.get(result_key)
         if items is None:
             return None, f'{key_not_found_err} "{result_key}"'
 
         skus = dict()
         for item in items:
 
-            sku = item.get_by_code(sku_key)
+            sku = item.get(sku_key)
             if sku is None:
                 return None, f'{key_not_found_err} "{sku_key}"'
 
-            is_updated = item.get_by_code(updated_key)
+            is_updated = item.get(updated_key)
             if is_updated is None:
                 return None, f'{key_not_found_err} "{updated_key}"'
 
@@ -2061,7 +2061,7 @@ class OzonApi:
                 'success': is_updated,
             }
 
-            errors = item.get_by_code(errors_key)
+            errors = item.get(errors_key)
             if errors is None:
                 return None, f'{key_not_found_err} "{errors_key}"'
 
@@ -2069,12 +2069,12 @@ class OzonApi:
             err_msgs = dict()
             for err in errors:
 
-                err_code = err.get_by_code(err_code_key)
+                err_code = err.get(err_code_key)
                 if err_code is None:
                     return None, f'{key_not_found_err} "{err_code_key}"'
                 err_codes[err_code] = True
 
-                err_msg = err.get_by_code(err_msg_key)
+                err_msg = err.get(err_msg_key)
                 if err_msg is None:
                     return None, f'{key_not_found_err} "{err_msg_key}"'
                 err_msgs[err_msg] = True
@@ -2109,12 +2109,12 @@ class OzonApi:
     def _merge_stocks(seller_stocks, db_stocks):
         _log('merging seller and db stocks ...')
         for sku in list(seller_stocks.keys()):
-            db_stock = db_stocks.get_by_code(sku)
+            db_stock = db_stocks.get(sku)
             if db_stock is None:
                 seller_stocks[sku] = 0
                 continue
 
-            reserved = seller_stocks.get_by_code(sku, 0)
+            reserved = seller_stocks.get(sku, 0)
             seller_stocks[sku] = max(0, db_stock - reserved)
 
     # noinspection PyMethodMayBeStatic
@@ -2188,7 +2188,7 @@ def _get_store_warehouses(store):
 
 def _parse_header(request, header):
     full_header = f'HTTP_{header.upper()}'
-    val = request.META.get_by_code(full_header)
+    val = request.META.get(full_header)
     if not val:
         return None, f'"{header}" header is missing or is empty in request'
     return val, None

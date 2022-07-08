@@ -35,6 +35,6 @@ class EmailAuthBackend(ModelBackend):  # requires to define two functions authen
         # noinspection PyPep8Naming
         UserModel = get_user_model()
         try:
-            return UserModel.objects.get_by_code(pk=user_id)
+            return UserModel.objects.get(pk=user_id)
         except UserModel.DoesNotExist:
             return None

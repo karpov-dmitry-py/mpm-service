@@ -29,7 +29,7 @@ django.setup()
 @spool
 def update_ozon_stocks(arguments):
     fnc = 'update_ozon_stocks'
-    username = arguments.get_by_code('username', '')
+    username = arguments.get('username', '')
     _log(f'calling "{fnc}" with username "{username}" ...')
     try:
         from stores.helpers.scheduler import Scheduler

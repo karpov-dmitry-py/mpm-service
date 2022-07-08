@@ -119,15 +119,15 @@ def batch_update_brand(request):
             goods_ids = request.POST['checked-goods-list']
             goods_ids = _parse_ints_from_post_form(goods_ids)
 
-            global_filter_is_used = _str_to_bool(request.POST.get_by_code('filter-all-brands'))
-            query_params = json.loads(request.POST.get_by_code('query-params-brands', str(dict())))
+            global_filter_is_used = _str_to_bool(request.POST.get('filter-all-brands'))
+            query_params = json.loads(request.POST.get('query-params-brands', str(dict())))
 
             if not global_filter_is_used and not len(goods_ids):
                 messages.error(request, not_found_err)
                 return redirect(redirect_to)
 
             if global_filter_is_used:
-                qs = _goods_qs_with_filters(user, query_params.get_by_code('brands'), query_params.get_by_code('cats'))
+                qs = _goods_qs_with_filters(user, query_params.get('brands'), query_params.get('cats'))
             else:
                 qs = _qs_by_user(Good, user).filter(pk__in=goods_ids)
 
@@ -170,15 +170,15 @@ def batch_update_category(request):
             goods_ids = request.POST['checked-goods-list']
             goods_ids = _parse_ints_from_post_form(goods_ids)
 
-            global_filter_is_used = _str_to_bool(request.POST.get_by_code('filter-all-cats'))
-            query_params = json.loads(request.POST.get_by_code('query-params-cats', str(dict())))
+            global_filter_is_used = _str_to_bool(request.POST.get('filter-all-cats'))
+            query_params = json.loads(request.POST.get('query-params-cats', str(dict())))
 
             if not global_filter_is_used and not len(goods_ids):
                 messages.error(request, not_found_err)
                 return redirect(redirect_to)
 
             if global_filter_is_used:
-                qs = _goods_qs_with_filters(user, query_params.get_by_code('brands'), query_params.get_by_code('cats'))
+                qs = _goods_qs_with_filters(user, query_params.get('brands'), query_params.get('cats'))
             else:
                 qs = _qs_by_user(Good, user).filter(pk__in=goods_ids)
 
@@ -220,15 +220,15 @@ def batch_delete_goods(request):
             goods_ids = request.POST['checked-goods-list']
             goods_ids = _parse_ints_from_post_form(goods_ids)
 
-            global_filter_is_used = _str_to_bool(request.POST.get_by_code('filter-all-batch-delete'))
-            query_params = json.loads(request.POST.get_by_code('query-params-batch-delete', str(dict())))
+            global_filter_is_used = _str_to_bool(request.POST.get('filter-all-batch-delete'))
+            query_params = json.loads(request.POST.get('query-params-batch-delete', str(dict())))
 
             if not global_filter_is_used and not len(goods_ids):
                 messages.error(request, not_found_err)
                 return redirect(redirect_to)
 
             if global_filter_is_used:
-                qs = _goods_qs_with_filters(user, query_params.get_by_code('brands'), query_params.get_by_code('cats'))
+                qs = _goods_qs_with_filters(user, query_params.get('brands'), query_params.get('cats'))
             else:
                 qs = _qs_by_user(Good, user).filter(pk__in=goods_ids)
 
@@ -577,7 +577,7 @@ def add_store(request):
 def view_store(request, pk):
     try:
         # noinspection PyUnresolvedReferences
-        store = Store.objects.get_by_code(pk=pk)
+        store = Store.objects.get(pk=pk)
     except ObjectDoesNotExist:
         messages.error(request, f'Не найден магазин с id {pk}.')
         return redirect('stores-list')
@@ -616,7 +616,7 @@ def view_store(request, pk):
 def update_store(request, pk):
     try:
         # noinspection PyUnresolvedReferences
-        store = Store.objects.get_by_code(pk=pk)
+        store = Store.objects.get(pk=pk)
     except ObjectDoesNotExist:
         messages.error(request, f'Не найден магазин с id {pk}.')
         return redirect('stores-list')
@@ -1041,8 +1041,8 @@ class GoodListView(LoginRequiredMixin, ListView):
             full_queryset = self._get_queryset_by_user()
             queryset = _goods_qs_with_filters(
                 self.request.user,
-                self.request.GET.get_by_code('brands'),
-                self.request.GET.get_by_code('cats'),
+                self.request.GET.get('brands'),
+                self.request.GET.get('cats'),
                 full_queryset)
             self._request_qs = queryset
 
@@ -1068,7 +1068,7 @@ class GoodListView(LoginRequiredMixin, ListView):
         brands.insert(0, {'id': None, 'name': 'Пустой бренд', 'checked': False})
 
         context['page_filter'] = ''
-        if brands_filter := self.request.GET.get_by_code('brands'):
+        if brands_filter := self.request.GET.get('brands'):
             context['page_filter'] += f'&brands={brands_filter}'
             brands_filter_list = _csv_to_list(brands_filter)
             for _dict in brands:
@@ -1076,7 +1076,7 @@ class GoodListView(LoginRequiredMixin, ListView):
         brands = json.dumps(brands, ensure_ascii=False)
         context['brands_filter_source'] = brands
 
-        if categories_filter := self.request.GET.get_by_code('cats'):
+        if categories_filter := self.request.GET.get('cats'):
             context['page_filter'] += f'&cats={categories_filter}'
         context['categories_filter_source'] = _get_cats_tree(user, add_empty_node=True)
         context['pages'] = _get_pages_list(context['page_obj'])
@@ -1465,7 +1465,7 @@ class WarehouseCreateView(LoginRequiredMixin, CreateView):
 
         # prefill kind and supplier
         sid_arg = 'sid'
-        if sid := self.request.GET.get_by_code(sid_arg):
+        if sid := self.request.GET.get(sid_arg):
             try:
                 sid = int(sid)
             except ValueError:
@@ -1473,7 +1473,7 @@ class WarehouseCreateView(LoginRequiredMixin, CreateView):
                 return context
 
             try:
-                _ = supplier_qs.get_by_code(pk=sid)
+                _ = supplier_qs.get(pk=sid)
             except ObjectDoesNotExist:
                 messages.error(self.request,
                                f'Указан неверный id поставщика для создания склада (не найден поставщик): {sid}')
@@ -2158,7 +2158,7 @@ class StoreWarehouseCreateView(LoginRequiredMixin, CreateView):
         # validation
         form_is_valid = True
 
-        code = form.cleaned_data.get_by_code('code')
+        code = form.cleaned_data.get('code')
         if not is_int(code):
             form_is_valid = False
             form.errors['Не валидный код склада'] = f'Код склада {code} не является целым числом'
@@ -2230,7 +2230,7 @@ class StoreWarehouseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVi
         # validation
         form_is_valid = True
 
-        code = form.cleaned_data.get_by_code('code')
+        code = form.cleaned_data.get('code')
         if not is_int(code):
             form_is_valid = False
             form.errors['Не валидный код склада'] = f'Код склада {code} не является целым числом'
@@ -2433,8 +2433,8 @@ class UserJobCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form_is_valid = True
 
-        fr_type = form.cleaned_data.get_by_code('frequency')
-        fr_val = form.cleaned_data.get_by_code('schedule')
+        fr_type = form.cleaned_data.get('frequency')
+        fr_val = form.cleaned_data.get('schedule')
 
         if not Scheduler.is_valid_fr_type(fr_type):
             form_is_valid = False
@@ -2511,8 +2511,8 @@ class UserJobUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def form_valid(self, form):
         form_is_valid = True
 
-        fr_type = form.cleaned_data.get_by_code('frequency')
-        fr_val = form.cleaned_data.get_by_code('schedule')
+        fr_type = form.cleaned_data.get('frequency')
+        fr_val = form.cleaned_data.get('schedule')
 
         if not Scheduler.is_valid_fr_type(fr_type):
             form_is_valid = False
@@ -2545,7 +2545,7 @@ class UserJobUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         instance = context[self.context_object_name]
         fr_type, fr_val = Scheduler.from_db_schedule(instance.schedule)
 
-        form = context.get_by_code('form')
+        form = context.get('form')
         form.initial['schedule'] = str(fr_val)
         vals = {
             'frequency': fr_type,
@@ -2566,9 +2566,9 @@ def get_cron_jobs(request):
         False: 'нет',
     }
     ctx = {
-        'items': jobs_dict.get_by_code('jobs', []),
-        'is_cron_running': cron_status_repr[jobs_dict.get_by_code('is_cron_running')],
-        'cron_check_error': jobs_dict.get_by_code('cron_check_error', ''),
+        'items': jobs_dict.get('jobs', []),
+        'is_cron_running': cron_status_repr[jobs_dict.get('is_cron_running')],
+        'cron_check_error': jobs_dict.get('cron_check_error', ''),
         'title': 'Cron задачи',
     }
     return render(request, 'stores/cron_job/list.html', context=ctx)
@@ -2699,7 +2699,7 @@ def process_categories_choice(request):
             messages.error(request, empty_choice_err)
             return redirect(redirect_to)
 
-        category_ids = form.cleaned_data.get_by_code('categories')
+        category_ids = form.cleaned_data.get('categories')
         if not category_ids:
             messages.error(request, empty_choice_err)
             return redirect(redirect_to)
