@@ -41,7 +41,7 @@ from ..models import System
 from ..models import Warehouse
 from ..models import now
 
-from ..service.order import OrderService
+from ..services.order import OrderService
 
 
 # class for api handling
