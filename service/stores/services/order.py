@@ -18,8 +18,7 @@ class OrderService:
         items_total = self._get_items_total(items)
         subsidy_total = data.get('subsidy_total', 0)
         total = items_total + subsidy_total
-        status = self._status_service.get_by_code(
-            'created')  # todo - pass code as value from status service exported attr
+        status = data.get('status')
 
         order = Order(
             marketplace=data.get('marketplace'),

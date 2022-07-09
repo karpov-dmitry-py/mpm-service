@@ -1268,13 +1268,6 @@ class YandexApi:
         if err:
             return err
 
-        # test
-        # testing = True
-        # if testing:
-        #     path = os.path.join(os.path.dirname(__file__), 'market_fake_order.json')
-        #     with open(path) as file:
-        #         payload, err = json.load(file), None
-        # else:
         payload, err = self._get(target_url)
 
         if err:
@@ -1584,6 +1577,9 @@ class YandexApi:
         count_key = 'count'
         price_key = 'price'
 
+        status_key = 'status'
+        substatus_key = 'substatus'
+
         # order
         order = payload.get(order_key)
         if not order:
@@ -1767,6 +1763,7 @@ class YandexApi:
         if not campaign_id:
             return None, f'В карточке магазина "{store.name}" не заполнено поле "{campaign_id_prop_name}" ' \
                          f'для работы c api маркетплейса'
+
         return f'{self._api_base_url}/campaigns/{campaign_id}/orders/{order_marketplace_id}.json', None
 
     @staticmethod
