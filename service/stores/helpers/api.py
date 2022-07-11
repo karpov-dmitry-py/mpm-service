@@ -957,6 +957,8 @@ class YandexApi:
     stock_lack_key = 'stock_lack'
     skus_key = 'skus'
     sku_key = 'sku'
+    status_key = 'status'
+    substatus_key = 'substatus'
 
     # order not accepted reasons
     main_enum_order_reason = 'OUT_OF_DATE'
@@ -1254,6 +1256,21 @@ class YandexApi:
             err_msg = f'Invalid request: yandex market order with marketplace id {order_marketplace_id} not found in db'
             return self._accept_order_status_negative_response(actual_reason=err_msg, status=400)
 
+        # save
+        order_data = {
+            'marketplace': store.marketplace,
+            'order_marketplace_id': order_marketplace_id,
+            'status': result.get('status'),
+            'substatus': result.get('substatus'),
+            'store': store,
+            'region': result.get('region'),
+            'user': store.user,
+        }
+
+        order, err = self._order_service.create(data=order_data)
+        if err:
+            return self._accept_order_negative_response(actual_reason=f'{self.db_err_save_order_reason}: {err}')
+
         return _http_response()
 
     def post_create_order(self, order):
@@ -1288,7 +1305,9 @@ class YandexApi:
             'store_warehouse': order.store_warehouse,
             'region': result.get('region'),
             'user': store.user,
-            'subsidy_total': result.get('subsidy_total')
+            'subsidy_total': result.get('subsidy_total'),
+            'status': result.get('status'),
+            'substatus': result.get('substatus'),
         }
 
         order, err = self._order_service.create(
@@ -1558,7 +1577,11 @@ class YandexApi:
         if not order_id:
             return None, f'"{order_id_key}" object is empty or missing in payload'
 
-        result = {'order_id': order_id}
+        result = {
+            'order_id': order_id,
+            'status': order.get(self.status_key),
+            'substatus': order.get(self.substatus_key),
+        }
 
         return result, None
 
@@ -1577,9 +1600,6 @@ class YandexApi:
         count_key = 'count'
         price_key = 'price'
 
-        status_key = 'status'
-        substatus_key = 'substatus'
-
         # order
         order = payload.get(order_key)
         if not order:
@@ -1592,6 +1612,11 @@ class YandexApi:
         if is_fake_order:
             return {self.is_fake_key: is_fake_order}, None
 
+        # status
+        status = order.get(self.status_key)
+        substatus = order.get(self.substatus_key)
+
+        # subsidy
         subsidy_total = order.get(self.subsidy_total_key)
         if subsidy_total is None:
             subsidy_total = 0
@@ -1694,6 +1719,8 @@ class YandexApi:
             'items': rows,
             'shipments': shipment_rows,
             'region': region_name,
+            'status': status,
+            'substatus': substatus,
         }
 
         return result, None
@@ -1834,9 +1861,6 @@ class YandexApi:
         err = YandexApi().post_create_order(order)
         if err:
             _log(err)
-
-
-# /campaigns/{campaignId}/orders/{orderId}.json
 
 
 # class for communication with ozon via api

@@ -10,7 +10,7 @@ class OrderStatusService:
         self._fetch_statuses()
 
     def _fetch_statuses(self):
-        self._items = {item.code: item for item in self._status_model.objects.all()}
+        self._items = {item.code: item for item in self._model.objects.all()}
         self._mp_status_service = MarketplaceOrderStatus()
         self._mp_items = self._mp_status_service.get_statuses()
 
@@ -19,7 +19,9 @@ class OrderStatusService:
 
     def get_by_mp_status(self, marketplace, status, substatus):
         code = self._get_mp_status_code(status, substatus)
-        return self._mp_items.get(marketplace, {}).get(code)
+        mp_status = self._mp_items.get(marketplace, {}).get(code)
+        if mp_status:
+            return mp_status.status
 
     @classmethod
     def _get_mp_status_code(cls, status, substatus=None):

@@ -13,26 +13,32 @@ class OrderService:
     def __init__(self):
         self._status_service = OrderStatusService()
 
-    def create(self, data, items, shipments):
-        # order
+    def create(self, data, items=None, shipments=None):
         items_total = self._get_items_total(items)
         subsidy_total = data.get('subsidy_total', 0)
         total = items_total + subsidy_total
         status = data.get('status')
+        substatus = data.get('substatus')
+        marketplace = data.get('marketplace')
 
         order = Order(
-            marketplace=data.get('marketplace'),
+            marketplace=marketplace,
             order_marketplace_id=data.get('order_marketplace_id'),
             store=data.get('store'),
             store_warehouse=data.get('store_warehouse'),
             region=data.get('region'),
-            status=status,
             items_total=items_total,
             subsidy_total=subsidy_total,
             total=total,
             user=data.get('user'),
             created_at=now_with_project_tz(),
         )
+
+        if status:
+            inner_status = self._status_service.get_by_mp_status(marketplace=marketplace, status=status,
+                                                                 substatus=substatus),
+            if inner_status:
+                order.status = inner_status[0]
 
         existing_order, err = self._get_order(order)
 
@@ -107,13 +113,17 @@ class OrderService:
     def _update_order(existing_order, new_order):
         attrs = ('store', 'store_warehouse', 'status', 'region', 'items_total', 'subsidy_total', 'total', 'comment')
         for attr in attrs:
-            if getattr(existing_order, attr) != getattr(new_order, attr):
+            new_value = getattr(new_order, attr)
+            if new_value and getattr(existing_order, attr) != new_value:
                 setattr(existing_order, attr, getattr(new_order, attr))
 
         return existing_order
 
     @staticmethod
     def _save_items(order, items):
+        if items is None:
+            return
+
         if order.id:
             try:
                 order.items.all().delete()
@@ -136,6 +146,9 @@ class OrderService:
 
     @staticmethod
     def _save_shipments(order, shipments):
+        if shipments is None:
+            return
+
         if order.id:
             try:
                 order.shipments.all().delete()
@@ -156,6 +169,9 @@ class OrderService:
 
     @staticmethod
     def _get_items_total(items):
+        if items is None:
+            return 0
+
         # todo - use one liner
         total = 0
         for item in items.values():
